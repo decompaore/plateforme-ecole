@@ -4,7 +4,7 @@
 #   1. compilation avec Maven (les tests sont exécutés par la CI, pas ici)
 #   2. image d'exécution légère, utilisateur non root
 # =====================================================================
-FROM maven:3.9-eclipse-temurin-21 AS construction
+FROM maven:3-eclipse-temurin-26 AS construction
 WORKDIR /src
 COPY pom.xml .
 RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp -q dependency:go-offline
