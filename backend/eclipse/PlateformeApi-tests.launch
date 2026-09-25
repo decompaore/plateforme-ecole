@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!--
+  Lance tous les tests JUnit du projet (profil "test", base plateforme_test).
+  Run > Run Configurations... > JUnit > PlateformeApi-tests
+-->
+<launchConfiguration type="org.eclipse.jdt.junit.launchconfig">
+    <stringAttribute key="org.eclipse.jdt.junit.CONTAINER" value="=plateforme-api"/>
+    <booleanAttribute key="org.eclipse.jdt.junit.KEEPRUNNING_ATTR" value="false"/>
+    <stringAttribute key="org.eclipse.jdt.junit.TESTNAME" value=""/>
+    <stringAttribute key="org.eclipse.jdt.junit.TEST_KIND" value="org.eclipse.jdt.junit.loader.junit5"/>
+    <stringAttribute key="org.eclipse.jdt.launching.PROJECT_ATTR" value="plateforme-api"/>
+    <stringAttribute key="org.eclipse.jdt.launching.VM_ARGUMENTS" value="-Dspring.profiles.active=test -Dfile.encoding=UTF-8"/>
+</launchConfiguration>
