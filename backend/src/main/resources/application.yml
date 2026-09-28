@@ -87,6 +87,14 @@ app:
     origines-autorisees: ${ORIGINES_AUTORISEES:}
     max-echecs-connexion: 5
     duree-verrouillage: 15m
+  notifications:
+    envoi-automatique: ${NOTIFICATIONS_ENVOI_AUTOMATIQUE:true}
+    intervalle-ms: 10000                  # passage du worker d'envoi des SMS
+    taille-lot: 50
+    bail: 2m                              # réservation d'un message par une instance
+    max-tentatives: 6                     # 2, 4, 8, 16, 32 minutes entre les tentatives
+    seuil-coupe-circuit: 5                # échecs consécutifs avant suspension
+    pause-coupe-circuit: 5m
   amorcage:
     super-admin-telephone: ${SUPER_ADMIN_TELEPHONE:}
     super-admin-mot-de-passe: ${SUPER_ADMIN_MOT_DE_PASSE:}
