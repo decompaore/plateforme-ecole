@@ -52,6 +52,7 @@ Pour travailler avec Eclipse, suivre [docs/GUIDE_ECLIPSE.md](docs/GUIDE_ECLIPSE.
 | [docs/API_ELEVES.md](docs/API_ELEVES.md) | Élèves, responsables, inscriptions, réinscriptions, bourses, import Excel, espace parent |
 | [docs/API_ENSEIGNANTS.md](docs/API_ENSEIGNANTS.md) | Enseignants titulaires et vacataires, invitations, affectations, charge horaire |
 | [docs/API_ABSENCES.md](docs/API_ABSENCES.md) | Appel hors connexion, absences, justificatifs, SMS aux familles |
+| [docs/API_EVALUATIONS.md](docs/API_EVALUATIONS.md) | Évaluations, notes, compétences, moyennes, rangs par profil pédagogique |
 
 ## Règles de l'équipe
 
