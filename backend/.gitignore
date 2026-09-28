@@ -1,0 +1,23 @@
+# Maven
+target/
+# Eclipse
+.metadata/
+.recommenders/
+bin/
+.settings/
+.classpath
+.project
+.factorypath
+.springBeans
+.sts4-cache/
+# IntelliJ / VS Code
+.idea/
+*.iml
+.vscode/
+# Système
+.DS_Store
+Thumbs.db
+# Secrets : ne jamais versionner
+.env
+*.pem
+*.key

@@ -1,0 +1,108 @@
+# =====================================================================
+# Livraison et déploiement continus.
+#  - Après une CI réussie sur main : image Docker « sha-xxxxxxx »,
+#    déploiement automatique en RECETTE.
+#  - Sur un tag v* (ex. v1.2.0) : image « v1.2.0 », déploiement en
+#    PRODUCTION après approbation manuelle (environnement protégé).
+# Secrets attendus dans chaque environnement GitHub (recette, production) :
+#   SSH_HOTE, SSH_UTILISATEUR, SSH_CLE_PRIVEE, SSH_EMPREINTE_HOTE
+# =====================================================================
+name: CD
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  image:
+    name: Construire et publier l'image
+    # Seulement une CI réussie déclenchée par un push (jamais par une pull request)
+    if: >-
+      github.event_name == 'push' ||
+      (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      tag: ${{ steps.nom.outputs.tag }}
+    steps:
+      - name: Récupérer le code testé par la CI
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Calculer le nom et le tag de l'image
+        id: nom
+        env:
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+          PROPRIETAIRE: ${{ github.repository_owner }}
+        run: |
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="sha-${SHA::7}"
+          fi
+          echo "image=ghcr.io/${PROPRIETAIRE,,}/plateforme-api" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Se connecter au registre GitHub
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construire et publier
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: true
+          tags: ${{ steps.nom.outputs.image }}:${{ steps.nom.outputs.tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  recette:
+    name: Déployer en recette
+    needs: image
+    if: github.event_name == 'workflow_run'
+    runs-on: ubuntu-latest
+    environment: recette
+    steps:
+      - name: Déploiement progressif sur le serveur de recette
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOTE }}
+          username: ${{ secrets.SSH_UTILISATEUR }}
+          key: ${{ secrets.SSH_CLE_PRIVEE }}
+          fingerprint: ${{ secrets.SSH_EMPREINTE_HOTE }}
+          script: /opt/plateforme/deployer.sh ${{ needs.image.outputs.tag }}
+
+  production:
+    name: Déployer en production
+    needs: image
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: production        # approbation manuelle configurée dans GitHub
+    steps:
+      - name: Déploiement progressif sur le serveur de production
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOTE }}
+          username: ${{ secrets.SSH_UTILISATEUR }}
+          key: ${{ secrets.SSH_CLE_PRIVEE }}
+          fingerprint: ${{ secrets.SSH_EMPREINTE_HOTE }}
+          script: /opt/plateforme/deployer.sh ${{ needs.image.outputs.tag }}
