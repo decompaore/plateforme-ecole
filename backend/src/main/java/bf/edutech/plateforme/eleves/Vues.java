@@ -4,6 +4,8 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+import bf.edutech.plateforme.socle.referentiel.Sexe;
+
 /** Objets de lecture exposés par l'API du module Élèves et inscriptions. */
 public final class Vues {
 

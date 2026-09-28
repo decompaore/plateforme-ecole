@@ -42,6 +42,17 @@ class AccesEtablissements {
                 .toList();
     }
 
+    /**
+     * Invitations d'enseignant en attente pour ce compte (fonction SQL du module
+     * Enseignants, SECURITY DEFINER). Permet à un enseignant invité, qui n'a encore
+     * aucun établissement actif, de se connecter pour répondre.
+     */
+    boolean aDesInvitations(UUID utilisateurId) {
+        Boolean existe = jdbc.queryForObject("select exists(select 1 from invitations_enseignant(?))",
+                Boolean.class, utilisateurId);
+        return Boolean.TRUE.equals(existe);
+    }
+
     Optional<EtablissementAccessible> trouver(UUID utilisateurId, UUID tenantId) {
         return pour(utilisateurId).stream().filter(e -> e.id().equals(tenantId)).findFirst();
     }

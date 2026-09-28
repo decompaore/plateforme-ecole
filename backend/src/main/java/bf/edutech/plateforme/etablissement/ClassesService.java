@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import bf.edutech.plateforme.etablissement.Vues.AffectationVue;
 import bf.edutech.plateforme.etablissement.Vues.ClasseVue;
 import bf.edutech.plateforme.etablissement.Vues.MatiereDeClasseVue;
 import bf.edutech.plateforme.pedagogie.Decoupage;
@@ -161,6 +162,73 @@ public class ClassesService {
         matieresDeClasse.delete(cm);
     }
 
+    // ------------------------------------------------------------------
+    // Enseignants affectés (le module Enseignants vérifie l'engagement ;
+    // la base garantit qu'il appartient à cet établissement)
+    // ------------------------------------------------------------------
+
+    /** Affecte l'enseignant (engagement) à la matière de la classe ; null retire l'affectation. */
+    @Transactional
+    public MatiereDeClasseVue affecterEnseignant(UUID classeId, UUID matiereId, UUID engagementId) {
+        Classe classe = charger(classeId);
+        AnneeScolaire annee = annees.chargerModifiable(classe.getAnneeId());
+        ClasseMatiere cm = matieresDeClasse.findByClasseIdAndMatiereId(classeId, matiereId)
+                .orElseThrow(() -> new RessourceIntrouvableException("Cette matière n'est pas enseignée dans la classe"));
+        Matiere matiere = matieres.findById(matiereId)
+                .orElseThrow(() -> new RessourceIntrouvableException("Matière introuvable"));
+        cm.affecter(engagementId);
+        audit.enregistrer(engagementId != null ? "ENSEIGNANT_AFFECTE" : "AFFECTATION_RETIREE",
+                annee.getLibelle() + " / " + classe.getCode() + " / " + matiere.getCode(),
+                engagementId != null ? Map.of("engagement", engagementId) : null);
+        return vue(cm, matiere);
+    }
+
+    /** Matières assurées par un engagement pendant une année. */
+    @Transactional(readOnly = true)
+    public List<AffectationVue> affectations(UUID engagementId, UUID anneeId) {
+        annees.charger(anneeId);
+        return affectationsVues(matieresDeClasse.affectationsDe(engagementId, anneeId));
+    }
+
+    /** Matières d'une année qui n'ont pas encore d'enseignant. */
+    @Transactional(readOnly = true)
+    public List<AffectationVue> matieresSansEnseignant(UUID anneeId) {
+        annees.charger(anneeId);
+        return affectationsVues(matieresDeClasse.sansEnseignant(anneeId));
+    }
+
+    /** L'engagement assure-t-il au moins une matière dans cette classe ? */
+    @Transactional(readOnly = true)
+    public boolean estAffecte(UUID engagementId, UUID classeId) {
+        return matieresDeClasse.existsByClasseIdAndEngagementId(classeId, engagementId);
+    }
+
+    /**
+     * Fin d'un engagement : retire l'enseignant des classes des années en
+     * préparation ou en cours (les années clôturées gardent l'historique).
+     */
+    @Transactional
+    public int libererEnseignant(UUID engagementId) {
+        List<ClasseMatiere> affectees = matieresDeClasse.affecteesDansLesAnnees(engagementId,
+                List.of(EtatAnnee.PREPARATION, EtatAnnee.ACTIVE));
+        affectees.forEach(cm -> cm.affecter(null));
+        return affectees.size();
+    }
+
+    private List<AffectationVue> affectationsVues(List<Object[]> lignes) {
+        Map<UUID, Matiere> parId = matieres.findAll().stream()
+                .collect(Collectors.toMap(Matiere::getId, Function.identity()));
+        return lignes.stream()
+                .map(ligne -> {
+                    ClasseMatiere cm = (ClasseMatiere) ligne[0];
+                    Classe c = (Classe) ligne[1];
+                    Matiere m = parId.get(cm.getMatiereId());
+                    return new AffectationVue(c.getId(), c.getCode(), m.getId(), m.getCode(), m.getLibelle(),
+                            cm.getVolumeHebdo(), cm.getVolumeTotal(), cm.getEngagementId());
+                })
+                .toList();
+    }
+
     private Classe charger(UUID classeId) {
         return classes.findById(classeId).orElseThrow(() -> new RessourceIntrouvableException("Classe introuvable"));
     }
@@ -176,6 +244,6 @@ public class ClassesService {
 
     private static MatiereDeClasseVue vue(ClasseMatiere cm, Matiere m) {
         return new MatiereDeClasseVue(cm.getId(), cm.getMatiereId(), m.getCode(), m.getLibelle(), m.getType(),
-                cm.getCoefficient(), cm.getGroupe(), cm.getVolumeHebdo(), cm.getVolumeTotal());
+                cm.getCoefficient(), cm.getGroupe(), cm.getVolumeHebdo(), cm.getVolumeTotal(), cm.getEngagementId());
     }
 }

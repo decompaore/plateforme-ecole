@@ -9,7 +9,7 @@ import jakarta.persistence.Table;
 
 import bf.edutech.plateforme.socle.persistance.EntiteCloisonnee;
 
-/** Matière enseignée dans une classe : coefficient, groupe de matières, volumes horaires. */
+/** Matière enseignée dans une classe : coefficient, groupe de matières, volumes horaires, enseignant. */
 @Entity
 @Table(name = "classe_matiere")
 public class ClasseMatiere extends EntiteCloisonnee {
@@ -32,6 +32,10 @@ public class ClasseMatiere extends EntiteCloisonnee {
     @Column(name = "volume_total", precision = 6, scale = 1)
     private BigDecimal volumeTotal;
 
+    /** Engagement de l'enseignant (dans cet établissement) qui assure cette matière. */
+    @Column(name = "engagement_id")
+    private UUID engagementId;
+
     protected ClasseMatiere() {
     }
 
@@ -45,6 +49,10 @@ public class ClasseMatiere extends EntiteCloisonnee {
         this.groupe = groupe;
         this.volumeHebdo = volumeHebdo;
         this.volumeTotal = volumeTotal;
+    }
+
+    void affecter(UUID engagementId) {
+        this.engagementId = engagementId;
     }
 
     UUID getClasseId() {
@@ -69,5 +77,9 @@ public class ClasseMatiere extends EntiteCloisonnee {
 
     BigDecimal getVolumeTotal() {
         return volumeTotal;
+    }
+
+    UUID getEngagementId() {
+        return engagementId;
     }
 }

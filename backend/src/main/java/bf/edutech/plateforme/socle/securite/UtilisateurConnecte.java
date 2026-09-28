@@ -4,6 +4,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 
@@ -28,6 +29,22 @@ public final class UtilisateurConnecte {
     /** Identifiant du compte connecté ; erreur 403 s'il n'y en a pas. */
     public static UUID id() {
         return idSiConnecte().orElseThrow(() -> new AccesRefuseException("Authentification requise"));
+    }
+
+    /** Vrai si l'utilisateur de la requête a au moins l'un de ces rôles (sans le préfixe ROLE_). */
+    public static boolean aUnRole(String... roles) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth == null) {
+            return false;
+        }
+        for (GrantedAuthority autorite : auth.getAuthorities()) {
+            for (String role : roles) {
+                if (("ROLE_" + role).equals(autorite.getAuthority())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** Établissement actif ; erreur 403 s'il n'y en a pas. */

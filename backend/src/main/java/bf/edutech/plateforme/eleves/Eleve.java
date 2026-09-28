@@ -10,6 +10,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 
 import bf.edutech.plateforme.socle.persistance.EntiteCloisonnee;
+import bf.edutech.plateforme.socle.referentiel.Sexe;
 
 /** Dossier permanent de l'élève dans l'établissement (il suit toute sa scolarité). */
 @Entity
