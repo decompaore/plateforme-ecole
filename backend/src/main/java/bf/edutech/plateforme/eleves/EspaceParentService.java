@@ -64,6 +64,15 @@ public class EspaceParentService {
                 resultat.motDePasseTemporaire());
     }
 
+    /** L'élève est-il un enfant du parent connecté (responsable rattaché, espace ouvert) ? */
+    @Transactional(readOnly = true)
+    public boolean estMonEnfant(UUID eleveId) {
+        UtilisateurConnecte.etablissementActif();
+        return responsables.findByUtilisateurId(UtilisateurConnecte.id())
+                .map(r -> liens.existsByEleveIdAndResponsableId(eleveId, r.getId()))
+                .orElse(false);
+    }
+
     /** Enfants du parent connecté dans l'établissement actif, avec leur situation la plus récente. */
     @Transactional(readOnly = true)
     public List<EnfantVue> mesEnfants() {
