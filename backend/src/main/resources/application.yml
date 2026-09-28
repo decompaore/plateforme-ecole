@@ -10,6 +10,10 @@ spring:
   threads:
     virtual:
       enabled: true                       # Java 21 : threads virtuels pour les requêtes HTTP
+  servlet:
+    multipart:
+      max-file-size: 5MB                  # import Excel des élèves
+      max-request-size: 6MB
   datasource:
     url: ${DB_URL}
     username: ${DB_USER}                  # rôle applicatif SANS BYPASSRLS (soumis à la RLS)
