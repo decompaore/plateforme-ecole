@@ -1,0 +1,30 @@
+# =====================================================================
+# Analyse de sécurité du code (CodeQL) : à chaque pull request vers main
+# et chaque lundi. Les alertes apparaissent dans l'onglet « Security ».
+# =====================================================================
+name: CodeQL
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '17 3 * * 1'
+
+permissions:
+  contents: read
+
+jobs:
+  analyse:
+    name: Analyse Java
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v5
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: java-kotlin
+          build-mode: none
+          queries: security-and-quality
+      - uses: github/codeql-action/analyze@v3
