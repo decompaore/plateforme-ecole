@@ -46,7 +46,16 @@ public final class Vues {
     }
 
     public record MatiereDeClasseVue(UUID id, UUID matiereId, String matiereCode, String matiereLibelle,
-            TypeMatiere type, BigDecimal coefficient, String groupe, BigDecimal volumeHebdo, BigDecimal volumeTotal) {
+            TypeMatiere type, BigDecimal coefficient, String groupe, BigDecimal volumeHebdo, BigDecimal volumeTotal,
+            UUID engagementId) {
+    }
+
+    /**
+     * Matière d'une classe avec son enseignant (engagement), pour les charges
+     * horaires et la liste des matières sans enseignant.
+     */
+    public record AffectationVue(UUID classeId, String classeCode, UUID matiereId, String matiereCode,
+            String matiereLibelle, BigDecimal volumeHebdo, BigDecimal volumeTotal, UUID engagementId) {
     }
 
     /** Résultat de la copie d'une année vers l'année suivante. */

@@ -98,6 +98,12 @@ public class AuthService {
             return sessionComplete(utilisateur, null, List.of());
         }
         List<EtablissementAccessible> etablissements = acces.pour(utilisateur.getId());
+        if (etablissements.isEmpty() && acces.aDesInvitations(utilisateur.getId())) {
+            // Enseignant invité sans autre établissement : session sans établissement,
+            // limitée à son compte (/moi) pour répondre aux invitations
+            audit.enregistrerPour(utilisateur.getId(), "CONNEXION", "invitations en attente", null);
+            return sessionComplete(utilisateur, null, List.of());
+        }
         if (etablissements.isEmpty()) {
             audit.enregistrerPour(utilisateur.getId(), "CONNEXION_REFUSEE", null,
                     Map.of("raison", "aucun établissement actif"));

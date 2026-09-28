@@ -37,6 +37,7 @@ import bf.edutech.plateforme.etablissement.ClassesService;
 import bf.edutech.plateforme.etablissement.Vues.AnneeVue;
 import bf.edutech.plateforme.etablissement.Vues.ClasseVue;
 import bf.edutech.plateforme.socle.audit.AuditService;
+import bf.edutech.plateforme.socle.referentiel.Sexe;
 
 /**
  * Import des élèves d'une année depuis un fichier Excel.

@@ -28,6 +28,7 @@ import bf.edutech.plateforme.eleves.Vues.DossierEleveVue;
 import bf.edutech.plateforme.eleves.Vues.EleveVue;
 import bf.edutech.plateforme.eleves.Vues.EspaceParentVue;
 import bf.edutech.plateforme.socle.persistance.PageResultat;
+import bf.edutech.plateforme.socle.referentiel.Sexe;
 
 /** Dossiers des élèves et de leurs responsables. */
 @RestController

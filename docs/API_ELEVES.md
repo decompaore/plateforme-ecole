@@ -52,7 +52,7 @@ POST /api/v1/eleves
 | | `GET /api/v1/espace-parent/enfants` | PARENT |
 
 \* ADMIN_ECOLE, CENSEUR, SECRETARIAT, INTENDANT, SURVEILLANT. Les dossiers concernent des mineurs : les enseignants voient
-les listes de classe, pas les dossiers. Quand le module Enseignants existera, un enseignant ne verra que ses classes.
+les listes de leurs classes seulement (celles où ils ont au moins une matière), pas les dossiers.
 
 ## Règles de gestion
 

@@ -10,7 +10,10 @@ final class Roles {
     static final String CONSULTATION =
             "hasAnyRole('ADMIN_ECOLE','CENSEUR','SECRETARIAT','INTENDANT','SURVEILLANT')";
 
-    /** Listes de classe : personnel administratif et enseignants. */
+    /** Personnel administratif (rôles sans préfixe), qui consulte toutes les classes. */
+    static final String[] PERSONNEL = { "ADMIN_ECOLE", "CENSEUR", "SECRETARIAT", "INTENDANT", "SURVEILLANT" };
+
+    /** Listes de classe : personnel administratif, et enseignants pour leurs classes. */
     static final String LISTES_DE_CLASSE =
             "hasAnyRole('ADMIN_ECOLE','CENSEUR','SECRETARIAT','INTENDANT','SURVEILLANT','ENSEIGNANT')";
 

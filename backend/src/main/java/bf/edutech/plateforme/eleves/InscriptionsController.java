@@ -22,6 +22,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import bf.edutech.plateforme.eleves.Vues.InscriptionVue;
 import bf.edutech.plateforme.eleves.Vues.ResultatReinscription;
+import bf.edutech.plateforme.enseignants.EnseignantsService;
+import bf.edutech.plateforme.socle.erreurs.AccesRefuseException;
+import bf.edutech.plateforme.socle.securite.UtilisateurConnecte;
 
 /** Inscriptions, listes de classe et réinscriptions. */
 @RestController
@@ -53,9 +56,11 @@ public class InscriptionsController {
     }
 
     private final InscriptionsService service;
+    private final EnseignantsService enseignants;
 
-    InscriptionsController(InscriptionsService service) {
+    InscriptionsController(InscriptionsService service, EnseignantsService enseignants) {
         this.service = service;
+        this.enseignants = enseignants;
     }
 
     @PostMapping("/api/v1/inscriptions")
@@ -95,6 +100,10 @@ public class InscriptionsController {
     @PreAuthorize(Roles.LISTES_DE_CLASSE)
     public List<InscriptionVue> listerParClasse(@PathVariable UUID id,
             @RequestParam(name = "sorties", defaultValue = "false") boolean avecSorties) {
+        // Un enseignant ne consulte que les classes où il a au moins une matière
+        if (!UtilisateurConnecte.aUnRole(Roles.PERSONNEL) && !enseignants.enseigneDans(UtilisateurConnecte.id(), id)) {
+            throw new AccesRefuseException("Vous n'enseignez pas dans cette classe");
+        }
         return service.listerParClasse(id, avecSorties);
     }
 

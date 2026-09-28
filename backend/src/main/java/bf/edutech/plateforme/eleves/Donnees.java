@@ -2,6 +2,8 @@ package bf.edutech.plateforme.eleves;
 
 import java.time.LocalDate;
 
+import bf.edutech.plateforme.socle.referentiel.Sexe;
+
 /** Données saisies (avant normalisation) pour les services du module. */
 public final class Donnees {
 

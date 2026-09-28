@@ -108,6 +108,16 @@ public class MembresService {
                 utilisateur.getTelephone(), membre.getRole(), membre.isActif());
     }
 
+    /** Retire un rôle à un compte dans l'établissement actif (ex. fin d'engagement d'un enseignant). */
+    @Transactional
+    public void retirerRole(UUID utilisateurId, Role role) {
+        UtilisateurConnecte.etablissementActif();
+        membres.findByUtilisateurIdAndRole(utilisateurId, role).filter(MembreEtablissement::isActif).ifPresent(m -> {
+            m.desactiver();
+            audit.enregistrer("MEMBRE_DESACTIVE", role.name(), Map.of("utilisateur", utilisateurId));
+        });
+    }
+
     @Transactional
     public void desactiver(UUID membreId) {
         MembreEtablissement membre = membres.findById(membreId)

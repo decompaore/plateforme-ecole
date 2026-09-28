@@ -50,6 +50,7 @@ Pour travailler avec Eclipse, suivre [docs/GUIDE_ECLIPSE.md](docs/GUIDE_ECLIPSE.
 | [docs/API_SOCLE.md](docs/API_SOCLE.md) | Points d'accès du socle et parcours d'authentification |
 | [docs/API_ETABLISSEMENT.md](docs/API_ETABLISSEMENT.md) | Profils pédagogiques, années, périodes, filières, classes, matières |
 | [docs/API_ELEVES.md](docs/API_ELEVES.md) | Élèves, responsables, inscriptions, réinscriptions, bourses, import Excel, espace parent |
+| [docs/API_ENSEIGNANTS.md](docs/API_ENSEIGNANTS.md) | Enseignants titulaires et vacataires, invitations, affectations, charge horaire |
 
 ## Règles de l'équipe
 

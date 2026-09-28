@@ -52,6 +52,7 @@ import bf.edutech.plateforme.etablissement.Vues.ClasseVue;
 import bf.edutech.plateforme.pedagogie.ProfilsService;
 import bf.edutech.plateforme.plateforme.EtablissementsService;
 import bf.edutech.plateforme.socle.erreurs.RegleMetierException;
+import bf.edutech.plateforme.socle.referentiel.Sexe;
 import bf.edutech.plateforme.socle.tenant.TenantContext;
 
 /**
@@ -265,13 +266,17 @@ class ElevesIntegrationTest {
                 .andExpect(jsonPath("$[0].classeCode").value("6e B"))
                 .andExpect(jsonPath("$[0].lien").value("MERE"));
 
-        // Un parent ne consulte pas les dossiers ; un enseignant voit les listes de classe, pas les dossiers
+        // Un parent ne consulte pas les dossiers ; un enseignant non affecté à la classe ne voit pas sa liste
+        // (le cas de l'enseignant affecté est testé dans EnseignantsIntegrationTest)
         mvc.perform(get("/api/v1/eleves").with(jeton(ecole, espace.utilisateurId(), "PARENT")))
                 .andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/eleves/{id}", dossier.eleve().id()).with(jeton(ecole, UUID.randomUUID(), "ENSEIGNANT")))
                 .andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/classes/{id}/inscriptions", sixieme.id())
                         .with(jeton(ecole, UUID.randomUUID(), "ENSEIGNANT")))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/classes/{id}/inscriptions", sixieme.id())
+                        .with(jeton(ecole, UUID.randomUUID(), "SURVEILLANT")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].nom").value("BAMBARA"));
         mvc.perform(post("/api/v1/eleves").with(jeton(ecole, UUID.randomUUID(), "SECRETARIAT"))

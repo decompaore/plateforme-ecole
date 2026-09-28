@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import bf.edutech.plateforme.etablissement.Vues.AffectationVue;
 import bf.edutech.plateforme.etablissement.Vues.ClasseVue;
 import bf.edutech.plateforme.etablissement.Vues.MatiereDeClasseVue;
 
@@ -62,6 +63,12 @@ public class ClassesController {
     @PreAuthorize(GESTION)
     public ClasseVue creer(@PathVariable UUID anneeId, @Valid @RequestBody DemandeClasse d) {
         return service.creer(anneeId, d.filiereId(), d.code(), d.niveau(), d.effectifMax());
+    }
+
+    /** Matières des classes de l'année qui n'ont pas encore d'enseignant (alerte de rentrée). */
+    @GetMapping("/api/v1/annees/{anneeId}/matieres-sans-enseignant")
+    public List<AffectationVue> matieresSansEnseignant(@PathVariable UUID anneeId) {
+        return service.matieresSansEnseignant(anneeId);
     }
 
     @GetMapping("/api/v1/classes/{id}")
