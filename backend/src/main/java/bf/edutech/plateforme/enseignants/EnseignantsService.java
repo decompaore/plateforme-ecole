@@ -245,6 +245,15 @@ public class EnseignantsService {
                 .orElse(false);
     }
 
+    /** Engagement actif du compte dans l'établissement actif, s'il en a un. */
+    @Transactional(readOnly = true)
+    public Optional<UUID> engagementActif(UUID utilisateurId) {
+        UtilisateurConnecte.etablissementActif();
+        return enseignants.findByUtilisateurId(utilisateurId)
+                .flatMap(s -> engagements.findFirstByEnseignantIdAndStatut(s.getId(), StatutEngagement.ACTIF))
+                .map(Engagement::getId);
+    }
+
     /** Fiche de l'enseignant connecté dans l'établissement actif. */
     @Transactional(readOnly = true)
     public FicheEnseignantVue maFiche(UUID anneeId) {

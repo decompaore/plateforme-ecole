@@ -47,6 +47,11 @@ public class PeriodesService {
         return periodes.findByAnneeIdOrderByProfilIdAscOrdreAsc(anneeId).stream().map(PeriodeVue::depuis).toList();
     }
 
+    @Transactional(readOnly = true)
+    public PeriodeVue trouver(UUID periodeId) {
+        return PeriodeVue.depuis(charger(periodeId));
+    }
+
     /** Découpe l'année en trimestres ou semestres de durées proches, selon le profil. */
     @Transactional
     public List<PeriodeVue> generer(UUID anneeId, UUID profilId) {
