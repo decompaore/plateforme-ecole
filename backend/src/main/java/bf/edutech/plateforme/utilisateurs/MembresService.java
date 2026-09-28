@@ -53,8 +53,23 @@ public class MembresService {
         return membres.listerAvecIdentite();
     }
 
+    /** Ajoute une personne avec un rôle ; erreur DEJA_MEMBRE si elle a déjà ce rôle actif. */
     @Transactional
     public ResultatAjout ajouter(String telephoneSaisi, String nom, String prenoms, Role role) {
+        return ajouter(telephoneSaisi, nom, prenoms, role, true);
+    }
+
+    /**
+     * Garantit qu'une personne a un rôle dans l'établissement (ex. PARENT lors de
+     * l'ouverture de l'espace parent) : sans erreur si elle l'a déjà.
+     */
+    @Transactional
+    public ResultatAjout garantirRole(String telephoneSaisi, String nom, String prenoms, Role role) {
+        return ajouter(telephoneSaisi, nom, prenoms, role, false);
+    }
+
+    private ResultatAjout ajouter(String telephoneSaisi, String nom, String prenoms, Role role,
+            boolean refuserSiDejaMembre) {
         UUID etablissement = UtilisateurConnecte.etablissementActif();
         String telephone = NumeroTelephone.normaliser(telephoneSaisi, parametres.indicatifTelephone());
 
@@ -74,7 +89,10 @@ public class MembresService {
         if (existant.isPresent()) {
             membre = existant.get();
             if (membre.isActif()) {
-                throw new RegleMetierException("DEJA_MEMBRE", "Cette personne a déjà ce rôle dans l'établissement");
+                if (refuserSiDejaMembre) {
+                    throw new RegleMetierException("DEJA_MEMBRE", "Cette personne a déjà ce rôle dans l'établissement");
+                }
+                return new ResultatAjout(vue(membre, utilisateur), null);
             }
             membre.reactiver();
         } else {
@@ -82,8 +100,12 @@ public class MembresService {
         }
         audit.enregistrer("MEMBRE_AJOUTE", role.name(),
                 Map.of("utilisateur", utilisateur.getId(), "nouveauCompte", motDePasseTemporaire != null));
-        return new ResultatAjout(new MembreVue(membre.getId(), utilisateur.getId(), utilisateur.getNom(),
-                utilisateur.getPrenoms(), utilisateur.getTelephone(), role, true), motDePasseTemporaire);
+        return new ResultatAjout(vue(membre, utilisateur), motDePasseTemporaire);
+    }
+
+    private static MembreVue vue(MembreEtablissement membre, Utilisateur utilisateur) {
+        return new MembreVue(membre.getId(), utilisateur.getId(), utilisateur.getNom(), utilisateur.getPrenoms(),
+                utilisateur.getTelephone(), membre.getRole(), membre.isActif());
     }
 
     @Transactional

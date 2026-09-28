@@ -13,7 +13,9 @@ plateforme-ecoles/
 │   ├── src/main/java/bf/edutech/plateforme/
 │   │   ├── socle/               tenant + RLS, sécurité JWT, audit, erreurs, persistance
 │   │   ├── utilisateurs/        comptes, connexion, établissements, membres et rôles
-│   │   └── plateforme/          création / suspension des établissements (super admin)
+│   │   ├── plateforme/          création / suspension des établissements (super admin)
+│   │   ├── pedagogie/           profils pédagogiques (général, technique, professionnel)
+│   │   └── etablissement/       années scolaires, périodes, filières, classes, matières
 │   ├── src/main/resources/
 │   │   ├── application*.yml     configuration par profil (dev, test, prod)
 │   │   └── db/migration/        migrations Flyway (schéma, RLS, fonctions)
@@ -46,6 +48,8 @@ Pour travailler avec Eclipse, suivre [docs/GUIDE_ECLIPSE.md](docs/GUIDE_ECLIPSE.
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Profils, variables d'environnement, rôles PostgreSQL, secrets |
 | [docs/CI_CD.md](docs/CI_CD.md) | Pipeline GitHub Actions, préparation des serveurs, déploiement, retour arrière |
 | [docs/API_SOCLE.md](docs/API_SOCLE.md) | Points d'accès du socle et parcours d'authentification |
+| [docs/API_ETABLISSEMENT.md](docs/API_ETABLISSEMENT.md) | Profils pédagogiques, années, périodes, filières, classes, matières |
+| [docs/API_ELEVES.md](docs/API_ELEVES.md) | Élèves, responsables, inscriptions, réinscriptions, bourses, import Excel, espace parent |
 
 ## Règles de l'équipe
 
