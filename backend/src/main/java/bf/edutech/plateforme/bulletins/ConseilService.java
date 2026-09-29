@@ -138,7 +138,7 @@ public class ConseilService {
      * Tableau du conseil : résultats, distinction proposée, avis déjà saisis.
      * (Transaction en écriture : les paramètres par défaut sont créés au premier accès.)
      */
-    @Transactional
+    @Transactional(readOnly = true)
     public List<AvisVue> avis(UUID classeId, UUID periodeId) {
         verifierPeriode(classeId, periodeId);
         ParametresBulletins seuils = parametres.lire();
