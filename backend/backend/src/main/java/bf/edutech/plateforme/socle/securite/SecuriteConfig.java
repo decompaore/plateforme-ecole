@@ -96,7 +96,6 @@ public class SecuriteConfig {
     SecurityFilterChain chaineDocumentation(HttpSecurity http) throws Exception {
         http
             .securityMatcher("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**")
-            .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .headers(h -> h
                 .contentSecurityPolicy(csp -> csp.policyDirectives(
