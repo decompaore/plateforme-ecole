@@ -1,0 +1,22 @@
+# Reverse proxy : TLS automatique (Let's Encrypt), répartition sur deux
+# instances, retrait automatique d'une instance qui n'est pas prête.
+{$DOMAINE_API} {
+	encode zstd gzip
+
+	reverse_proxy api1:8080 api2:8080 {
+		lb_policy round_robin
+		health_uri /actuator/health/readiness
+		health_port 8081
+		health_interval 10s
+		health_timeout 3s
+	}
+
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	}
+
+	# Les points de supervision ne sont jamais exposés publiquement
+	@supervision path /actuator/*
+	respond @supervision 404
+}

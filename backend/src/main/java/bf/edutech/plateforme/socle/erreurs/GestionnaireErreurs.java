@@ -41,6 +41,14 @@ public class GestionnaireErreurs extends ResponseEntityExceptionHandler {
         return pd;
     }
 
+    @ExceptionHandler(ServiceIndisponibleException.class)
+    ProblemDetail serviceIndisponible(ServiceIndisponibleException ex) {
+        ProblemDetail pd = probleme(HttpStatus.SERVICE_UNAVAILABLE, "Service momentanément indisponible",
+                ex.getMessage());
+        pd.setProperty("code", ex.getCode());
+        return pd;
+    }
+
     @ExceptionHandler(AuthentificationException.class)
     ProblemDetail authentification(AuthentificationException ex) {
         return probleme(HttpStatus.UNAUTHORIZED, "Authentification refusée", ex.getMessage());

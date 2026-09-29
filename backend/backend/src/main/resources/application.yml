@@ -1,0 +1,98 @@
+# =====================================================================
+# Configuration commune à tous les environnements.
+# Les valeurs ${...} sans valeur par défaut sont OBLIGATOIRES :
+# l'application refuse de démarrer si elles sont absentes.
+# Profils : dev (poste développeur), test (tests automatisés), prod.
+# =====================================================================
+spring:
+  application:
+    name: plateforme-api
+  threads:
+    virtual:
+      enabled: true                       # Java 21 : threads virtuels pour les requêtes HTTP
+  servlet:
+    multipart:
+      max-file-size: 5MB                  # import Excel des élèves
+      max-request-size: 6MB
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USER}                  # rôle applicatif SANS BYPASSRLS (soumis à la RLS)
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DB_POOL_MAX:20}
+      connection-timeout: 3000
+  jpa:
+    open-in-view: false                   # aucune requête hors transaction (indispensable pour la RLS)
+    hibernate:
+      ddl-auto: none                      # le schéma est géré uniquement par Flyway
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    user: ${FLYWAY_USER}                  # rôle propriétaire du schéma (BYPASSRLS)
+    password: ${FLYWAY_PASSWORD}
+    locations: classpath:db/migration
+    placeholders:
+      app_role: ${DB_USER}
+  mvc:
+    problemdetails:
+      enabled: true
+
+server:
+  shutdown: graceful
+  forward-headers-strategy: framework     # derrière le reverse proxy (X-Forwarded-*)
+  error:
+    include-stacktrace: never
+    include-message: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      group:
+        readiness:
+          include: readinessState,db      # jamais les services externes (SMS, Mobile Money)
+  info:
+    env:
+      enabled: true
+
+info:
+  application:
+    nom: Plateforme SaaS de gestion des établissements secondaires
+    version: '@project.version@'
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+app:
+  plateforme:
+    indicatif-telephone: "+226"
+  securite:
+    jwt-secret: ${JWT_SECRET}             # Base64, 32 octets minimum : openssl rand -base64 48
+    emetteur: ${JWT_EMETTEUR:https://api.plateforme.bf}
+    duree-jeton-acces: 15m
+    duree-jeton-selection: 5m
+    duree-jeton-rafraichissement: 30d
+    verifier-sous-domaine: ${VERIFIER_SOUS_DOMAINE:false}
+    cookie-securise: true
+    origines-autorisees: ${ORIGINES_AUTORISEES:}
+    max-echecs-connexion: 5
+    duree-verrouillage: 15m
+  amorcage:
+    super-admin-telephone: ${SUPER_ADMIN_TELEPHONE:}
+    super-admin-mot-de-passe: ${SUPER_ADMIN_MOT_DE_PASSE:}
+    super-admin-nom: ${SUPER_ADMIN_NOM:}
+    super-admin-prenoms: ${SUPER_ADMIN_PRENOMS:}
+
+logging:
+  level:
+    root: INFO

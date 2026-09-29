@@ -9,7 +9,9 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -85,7 +87,30 @@ public class SecuriteConfig {
         return new BCryptPasswordEncoder(12);
     }
 
+    /**
+     * Chaîne dédiée à la documentation Swagger (active uniquement en profil dev) :
+     * la page Swagger UI a besoin de charger ses scripts, styles et images, ce que
+     * la politique très stricte de l'API (default-src 'none') interdit.
+     */
     @Bean
+    @Order(1)
+    SecurityFilterChain chaineDocumentation(HttpSecurity http) throws Exception {
+        http
+            .securityMatcher("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**")
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .headers(h -> h
+                .contentSecurityPolicy(csp -> csp.policyDirectives(
+                        "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
+                        + "img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'"))
+                .frameOptions(f -> f.deny()))
+            .authorizeHttpRequests(a -> a.anyRequest().permitAll());
+        return http.build();
+    }
+
+    /** Chaîne principale de l'API : politique de contenu la plus stricte possible. */
+    @Bean
+    @Order(2)
     SecurityFilterChain chaineDeSecurite(HttpSecurity http, SecuriteProperties proprietes) throws Exception {
         http
             // API sans session ni formulaire : pas de CSRF. Le cookie de rafraîchissement
@@ -101,7 +126,11 @@ public class SecuriteConfig {
                 .requestMatchers("/api/v1/auth/connexion", "/api/v1/auth/rafraichir", "/api/v1/auth/deconnexion")
                     .permitAll()
                 .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
-                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                // Vérification d'un bulletin ou d'un reçu papier par un tiers (code imprimé sur le document)
+                .requestMatchers(HttpMethod.GET, "/api/v1/verification/bulletins/*").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/verification/recus/*").permitAll()
+                // Notifications des agrégateurs Mobile Money : signature vérifiée par le service
+                .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/mobile-money/*").permitAll()
                 .requestMatchers("/api/v1/auth/etablissement")
                     .hasAnyAuthority("TYPE_" + TYPE_SELECTION, "TYPE_" + TYPE_ACCES)
                 .requestMatchers("/api/v1/plateforme/**").hasAuthority("ROLE_SUPER_ADMIN")

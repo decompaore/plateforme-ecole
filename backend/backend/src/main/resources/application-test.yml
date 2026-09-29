@@ -1,0 +1,30 @@
+# =====================================================================
+# Profil "test" : tests automatisés (Eclipse, Maven, GitHub Actions).
+# Base PostgreSQL réelle : la Row-Level Security ne peut pas être testée
+# avec une base en mémoire.
+# =====================================================================
+spring:
+  datasource:
+    url: ${TEST_DB_URL:jdbc:postgresql://localhost:5432/plateforme_test}
+    username: ${TEST_DB_USER:app_plateforme}
+    password: ${TEST_DB_PASSWORD:app_dev}
+  flyway:
+    user: ${TEST_FLYWAY_USER:plateforme_owner}
+    password: ${TEST_FLYWAY_PASSWORD:owner_dev}
+    placeholders:
+      app_role: ${TEST_DB_USER:app_plateforme}
+
+app:
+  securite:
+    jwt-secret: dGVzdC1zZWNyZXQtcG91ci1sZXMtdGVzdHMtYXV0b21hdGlzZXMtdW5pcXVlbWVudA==
+    emetteur: http://test.local
+    verifier-sous-domaine: false
+    cookie-securise: false
+  amorcage:
+    super-admin-telephone: "69000000"
+    super-admin-mot-de-passe: MotDePasseTest-2026
+
+logging:
+  level:
+    root: WARN
+    bf.edutech: INFO

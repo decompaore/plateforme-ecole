@@ -13,7 +13,9 @@ plateforme-ecoles/
 │   ├── src/main/java/bf/edutech/plateforme/
 │   │   ├── socle/               tenant + RLS, sécurité JWT, audit, erreurs, persistance
 │   │   ├── utilisateurs/        comptes, connexion, établissements, membres et rôles
-│   │   └── plateforme/          création / suspension des établissements (super admin)
+│   │   ├── plateforme/          création / suspension des établissements (super admin)
+│   │   ├── pedagogie/           profils pédagogiques (général, technique, professionnel)
+│   │   └── etablissement/       années scolaires, périodes, filières, classes, matières
 │   ├── src/main/resources/
 │   │   ├── application*.yml     configuration par profil (dev, test, prod)
 │   │   └── db/migration/        migrations Flyway (schéma, RLS, fonctions)
@@ -46,6 +48,16 @@ Pour travailler avec Eclipse, suivre [docs/GUIDE_ECLIPSE.md](docs/GUIDE_ECLIPSE.
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Profils, variables d'environnement, rôles PostgreSQL, secrets |
 | [docs/CI_CD.md](docs/CI_CD.md) | Pipeline GitHub Actions, préparation des serveurs, déploiement, retour arrière |
 | [docs/API_SOCLE.md](docs/API_SOCLE.md) | Points d'accès du socle et parcours d'authentification |
+| [docs/API_ETABLISSEMENT.md](docs/API_ETABLISSEMENT.md) | Profils pédagogiques, années, périodes, filières, classes, matières |
+| [docs/API_ELEVES.md](docs/API_ELEVES.md) | Élèves, responsables, inscriptions, réinscriptions, bourses, import Excel, espace parent |
+| [docs/API_ENSEIGNANTS.md](docs/API_ENSEIGNANTS.md) | Enseignants titulaires et vacataires, invitations, affectations, charge horaire |
+| [docs/API_ABSENCES.md](docs/API_ABSENCES.md) | Appel hors connexion, absences, justificatifs, SMS aux familles |
+| [docs/API_EVALUATIONS.md](docs/API_EVALUATIONS.md) | Évaluations, notes, compétences, moyennes, rangs par profil pédagogique |
+| [docs/API_BULLETINS.md](docs/API_BULLETINS.md) | Appréciations, conseil de classe, bulletins PDF, publication, espace parent, vérification |
+| [docs/API_SCOLARITE.md](docs/API_SCOLARITE.md) | Frais, tranches, bourses, exonérations, encaissements, reçus, retards, relances SMS |
+| [docs/API_MOBILE_MONEY.md](docs/API_MOBILE_MONEY.md) | Paiement Mobile Money par les parents, notifications signées, rapprochement quotidien, relances automatiques |
+| [docs/API_PASSAGE.md](docs/API_PASSAGE.md) | Moyenne annuelle, décisions de fin d'année, conseil de classe, année suivante, réinscriptions en masse |
+| [docs/API_VIE_SCOLAIRE.md](docs/API_VIE_SCOLAIRE.md) | Retards, avertissements, blâmes, exclusions temporaires, convocations, historique, espace parent |
 
 ## Règles de l'équipe
 
