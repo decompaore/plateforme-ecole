@@ -3,8 +3,7 @@
 Module `scolarite` : frais et tranches, bourses (prise en charge par un organisme), exonérations, échéancier
 (part famille / part organisme), encaissements au guichet, reçus numérotés, état des classes, liste des retards
 (Excel), relances SMS, espace parent, vérification publique des reçus. Migration `V9__scolarite.sql`.
-Montants en francs CFA, sans décimales. Le paiement en ligne Mobile Money et le rapprochement quotidien viendront
-en v0.9.
+Montants en francs CFA, sans décimales. Paiement en ligne Mobile Money : voir API_MOBILE_MONEY.md (v0.9).
 
 Rôles : **INTENDANT** et **ADMIN_ECOLE** gèrent ; **SECRETARIAT** consulte.
 
@@ -105,6 +104,5 @@ sorti, pas plus d'une fois par élève pendant le délai paramétré (7 jours pa
 
 ## Limites connues (MVP)
 
-- Pas encore de paiement Mobile Money en ligne depuis l'espace parent ni de rapprochement : v0.9.
-- Relances déclenchées par l'intendant ; la relance automatique quotidienne viendra avec le planificateur (v0.9).
+- Paiement Mobile Money en ligne, rapprochement et relances automatiques : voir [API_MOBILE_MONEY.md](API_MOBILE_MONEY.md) (v0.9).
 - La reprise des frais d'une année sur l'autre viendra avec le passage d'année.

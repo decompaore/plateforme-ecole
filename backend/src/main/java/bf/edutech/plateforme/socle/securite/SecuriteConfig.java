@@ -129,6 +129,8 @@ public class SecuriteConfig {
                 // Vérification d'un bulletin ou d'un reçu papier par un tiers (code imprimé sur le document)
                 .requestMatchers(HttpMethod.GET, "/api/v1/verification/bulletins/*").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/verification/recus/*").permitAll()
+                // Notifications des agrégateurs Mobile Money : signature vérifiée par le service
+                .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/mobile-money/*").permitAll()
                 .requestMatchers("/api/v1/auth/etablissement")
                     .hasAnyAuthority("TYPE_" + TYPE_SELECTION, "TYPE_" + TYPE_ACCES)
                 .requestMatchers("/api/v1/plateforme/**").hasAuthority("ROLE_SUPER_ADMIN")
