@@ -92,6 +92,48 @@ public class FraisService {
         return vues(List.of(f)).get(0);
     }
 
+    /**
+     * Reprend les frais d'une année dans une autre (passage à l'année suivante) : mêmes montants et portées,
+     * dates limites décalées d'autant d'années, classes retrouvées par leur code. Un frais déjà présent (même
+     * libellé) ou devenu impossible (plus aucune classe visée, date hors de l'année) n'est pas repris.
+     *
+     * @return nombre de frais repris
+     */
+    @Transactional
+    public int copier(UUID anneeSourceId, UUID anneeCibleId) {
+        UtilisateurConnecte.etablissementActif();
+        AnneeVue source = annees.trouver(anneeSourceId);
+        AnneeVue cible = anneeModifiable(anneeCibleId);
+        long decalage = cible.debut().getYear() - source.debut().getYear();
+        Map<String, UUID> classesCible = classes.lister(anneeCibleId).stream()
+                .collect(Collectors.toMap(c -> c.code().toLowerCase(), ClasseVue::id, (a, b) -> a));
+        int repris = 0;
+        for (FraisVue f : vues(frais.findByAnneeIdOrderByLibelleAsc(anneeSourceId))) {
+            if (frais.existsByAnneeIdAndLibelleIgnoreCase(anneeCibleId, f.libelle())) {
+                continue;
+            }
+            List<UUID> classesVisees = f.classes().stream()
+                    .map(id -> classesCible.get(classes.trouver(id).code().toLowerCase()))
+                    .filter(Objects::nonNull).distinct().toList();
+            if (f.portee() == Portee.CLASSES && classesVisees.isEmpty()) {
+                continue;
+            }
+            List<TrancheSaisie> nouvelles = f.tranches().stream()
+                    .map(t -> new TrancheSaisie(t.dateLimite().plusYears(decalage), t.montant())).toList();
+            DonneesFrais donnees = new DonneesFrais(f.libelle(), f.montant(), f.obligatoire(), f.couvertParBourse(),
+                    f.portee(), f.filieres(), f.niveaux(), classesVisees, nouvelles);
+            try {
+                FraisScolarite nouveau = new FraisScolarite(anneeCibleId, horloge.instant());
+                definir(nouveau, cible, f.libelle(), donnees);  // valide avant toute écriture
+                repris++;
+            } catch (IllegalArgumentException | RegleMetierException | RessourceIntrouvableException e) {
+                // frais non repris (dates hors de la nouvelle année…) : à recréer à la main
+            }
+        }
+        audit.enregistrer("FRAIS_COPIES", source.libelle() + " → " + cible.libelle(), Map.of("frais", repris));
+        return repris;
+    }
+
     @Transactional
     public FraisVue modifier(UUID fraisId, DonneesFrais d) {
         FraisScolarite f = trouver(fraisId);

@@ -131,8 +131,8 @@ public class AnneesService {
     public ResultatCopie copier(UUID sourceId, String libelle, LocalDate debut, LocalDate fin) {
         AnneeScolaire source = charger(sourceId);
         AnneeScolaire cible = creerSansAudit(libelle, debut, fin);
-        long decalageAnnees = ChronoUnit.YEARS.between(source.getDebut().withDayOfMonth(1),
-                cible.getDebut().withDayOfMonth(1));
+        // Écart en années civiles (2025-2026 → 2026-2027 : 1), même si la rentrée change de mois
+        long decalageAnnees = cible.getDebut().getYear() - source.getDebut().getYear();
 
         int nbPeriodes = 0;
         for (Periode p : periodes.findByAnneeIdOrderByProfilIdAscOrdreAsc(sourceId)) {
