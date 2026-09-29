@@ -82,7 +82,7 @@ Au démarrage, Flyway applique les migrations, puis le super administrateur de d
 
 ## 7. Exécuter les tests
 
-- **Tous les tests** : clic droit sur `src/test/java` > **Run As > JUnit Test** (moteur JUnit 5). Le résultat s'affiche dans la vue **JUnit** : barre verte, 39 tests.
+- **Tous les tests** : clic droit sur `src/test/java` > **Run As > JUnit Test** (moteur JUnit 5). Le résultat s'affiche dans la vue **JUnit** : barre verte, 41 tests.
 - Les tests d'intégration utilisent la base `plateforme_test` (profil `test`) : la base Docker doit être démarrée.
 - `ModulariteTest` vérifie qu'aucun module n'utilise les éléments internes d'un autre.
 - En ligne de commande (identique à la CI) : `cd backend && mvn verify`. Rapport de couverture : `backend/target/site/jacoco/index.html`.
