@@ -57,6 +57,7 @@ Pour travailler avec Eclipse, suivre [docs/GUIDE_ECLIPSE.md](docs/GUIDE_ECLIPSE.
 | [docs/API_SCOLARITE.md](docs/API_SCOLARITE.md) | Frais, tranches, bourses, exonérations, encaissements, reçus, retards, relances SMS |
 | [docs/API_MOBILE_MONEY.md](docs/API_MOBILE_MONEY.md) | Paiement Mobile Money par les parents, notifications signées, rapprochement quotidien, relances automatiques |
 | [docs/API_PASSAGE.md](docs/API_PASSAGE.md) | Moyenne annuelle, décisions de fin d'année, conseil de classe, année suivante, réinscriptions en masse |
+| [docs/API_VIE_SCOLAIRE.md](docs/API_VIE_SCOLAIRE.md) | Retards, avertissements, blâmes, exclusions temporaires, convocations, historique, espace parent |
 
 ## Règles de l'équipe
 
