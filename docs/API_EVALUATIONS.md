@@ -2,7 +2,7 @@
 
 Module `evaluations` : évaluations (devoirs, compositions, TP, ateliers), saisie des notes, référentiels et évaluation
 des compétences, calcul des résultats d'une période selon le **profil pédagogique** de la classe.
-Migration `V7__evaluations.sql`. Les bulletins PDF, leur publication et le SMS aux parents viendront en v0.7.
+Migration `V7__evaluations.sql`. Les bulletins PDF, leur publication et le SMS aux parents : voir [API_BULLETINS.md](API_BULLETINS.md).
 
 ## Saisie
 
