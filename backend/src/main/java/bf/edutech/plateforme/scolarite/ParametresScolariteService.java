@@ -19,7 +19,8 @@ import bf.edutech.plateforme.socle.securite.UtilisateurConnecte;
 public class ParametresScolariteService {
 
     public record ParametresScolarite(BigDecimal tauxBoursier, BigDecimal tauxSemiBoursier,
-            Integer delaiRelanceJours) {
+            Integer delaiRelanceJours, Boolean relancesAutomatiques) {
+
 
         /** Part de l'organisme (en %) pour un statut, en l'absence de prise en charge enregistrée. */
         BigDecimal tauxParDefaut(StatutBourse statut) {
@@ -44,9 +45,10 @@ public class ParametresScolariteService {
         UtilisateurConnecte.etablissementActif();
         jdbc.update("insert into parametres_scolarite (tenant_id) values (tenant_courant()) on conflict do nothing");
         return jdbc.queryForObject("""
-                select taux_boursier, taux_semi_boursier, delai_relance_jours
+                select taux_boursier, taux_semi_boursier, delai_relance_jours, relances_automatiques
                 from parametres_scolarite where tenant_id = tenant_courant()""",
-                (l, n) -> new ParametresScolarite(l.getBigDecimal(1), l.getBigDecimal(2), l.getInt(3)));
+                (l, n) -> new ParametresScolarite(l.getBigDecimal(1), l.getBigDecimal(2), l.getInt(3),
+                        l.getBoolean(4)));
     }
 
     /** Paramètres en vigueur, sans rien écrire (valeurs par défaut si jamais enregistrés). */
@@ -54,16 +56,20 @@ public class ParametresScolariteService {
     public ParametresScolarite valeurs() {
         UtilisateurConnecte.etablissementActif();
         return jdbc.query("""
-                select taux_boursier, taux_semi_boursier, delai_relance_jours
+                select taux_boursier, taux_semi_boursier, delai_relance_jours, relances_automatiques
                 from parametres_scolarite where tenant_id = tenant_courant()""",
-                (l, n) -> new ParametresScolarite(l.getBigDecimal(1), l.getBigDecimal(2), l.getInt(3)))
+                (l, n) -> new ParametresScolarite(l.getBigDecimal(1), l.getBigDecimal(2), l.getInt(3),
+                        l.getBoolean(4)))
                 .stream().findFirst()
-                .orElse(new ParametresScolarite(BigDecimal.valueOf(100), BigDecimal.valueOf(50), 7));
+                .orElse(new ParametresScolarite(BigDecimal.valueOf(100), BigDecimal.valueOf(50), 7, true));
     }
 
     @Transactional
     public ParametresScolarite modifier(ParametresScolarite p) {
-        lire();
+        ParametresScolarite actuels = lire();
+        // Absent de la demande : l'option des relances automatiques ne change pas
+        boolean automatiques = p.relancesAutomatiques() != null ? p.relancesAutomatiques()
+                : actuels.relancesAutomatiques();
         if (!valide(p.tauxBoursier()) || !valide(p.tauxSemiBoursier())) {
             throw new IllegalArgumentException("Les taux de prise en charge sont compris entre 1 et 100 %");
         }
@@ -71,9 +77,10 @@ public class ParametresScolariteService {
             throw new IllegalArgumentException("Le délai entre deux relances est compris entre 1 et 90 jours");
         }
         jdbc.update("""
-                update parametres_scolarite set taux_boursier = ?, taux_semi_boursier = ?, delai_relance_jours = ?
+                update parametres_scolarite set taux_boursier = ?, taux_semi_boursier = ?, delai_relance_jours = ?,
+                       relances_automatiques = ?
                 where tenant_id = tenant_courant()""",
-                p.tauxBoursier(), p.tauxSemiBoursier(), p.delaiRelanceJours());
+                p.tauxBoursier(), p.tauxSemiBoursier(), p.delaiRelanceJours(), automatiques);
         audit.enregistrer("PARAMETRES_SCOLARITE_MODIFIES", null, null);
         return lire();
     }

@@ -95,6 +95,15 @@ app:
     max-tentatives: 6                     # 2, 4, 8, 16, 32 minutes entre les tentatives
     seuil-coupe-circuit: 5                # échecs consécutifs avant suspension
     pause-coupe-circuit: 5m
+  scolarite:
+    relances-automatiques: ${RELANCES_AUTOMATIQUES:true}
+    cron-relances: "0 30 7 * * MON"       # chaque lundi à 7 h 30, heure de Ouagadougou
+  mobile-money:
+    cle-chiffrement: ${MOBILE_MONEY_CLE_CHIFFREMENT:}   # openssl rand -base64 32 ; vide : Mobile Money inactif
+    duree-validite: 15m                   # délai laissé au parent pour confirmer
+    taches-automatiques: true             # expiration (chaque minute) et rapprochement (2 h 30)
+    simulateur-autorise: false
+    cron-rapprochement: "0 30 2 * * *"
   amorcage:
     super-admin-telephone: ${SUPER_ADMIN_TELEPHONE:}
     super-admin-mot-de-passe: ${SUPER_ADMIN_MOT_DE_PASSE:}

@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -20,6 +21,8 @@ import bf.edutech.plateforme.eleves.StatutInscription;
 import bf.edutech.plateforme.eleves.Vues.InscriptionVue;
 import bf.edutech.plateforme.etablissement.AnneesService;
 import bf.edutech.plateforme.etablissement.ClassesService;
+import bf.edutech.plateforme.etablissement.EtatAnnee;
+import bf.edutech.plateforme.etablissement.Vues.AnneeVue;
 import bf.edutech.plateforme.etablissement.Vues.ClasseVue;
 import bf.edutech.plateforme.notifications.NotificationsService;
 import bf.edutech.plateforme.scolarite.Situations.Situation;
@@ -67,6 +70,24 @@ public class RelancesService {
         UtilisateurConnecte.etablissementActif();
         List<ClasseVue> cibles = classeId != null ? List.of(classes.trouver(classeId))
                 : classes.lister(annees.active().id());
+        return relancer(cibles, classeId != null ? cibles.get(0).code() : "toutes les classes");
+    }
+
+    /**
+     * Relance automatique (tâche du lundi) : toutes les classes de l'année active, si l'établissement
+     * n'a pas désactivé les relances automatiques. Rien s'il n'y a pas d'année active.
+     */
+    @Transactional
+    public Optional<ResultatRelancesVue> relancerSiAutomatique() {
+        UtilisateurConnecte.etablissementActif();
+        if (!parametres.valeurs().relancesAutomatiques()) {
+            return Optional.empty();
+        }
+        Optional<AnneeVue> active = annees.lister().stream().filter(a -> a.etat() == EtatAnnee.ACTIVE).findFirst();
+        return active.map(a -> relancer(classes.lister(a.id()), "relance automatique"));
+    }
+
+    private ResultatRelancesVue relancer(List<ClasseVue> cibles, String libelle) {
         List<InscriptionVue> liste = new ArrayList<>();
         cibles.forEach(c -> inscriptions.listerParClasse(c.id(), false).stream()
                 .filter(i -> i.statut() == StatutInscription.ACTIVE).forEach(liste::add));
@@ -109,7 +130,7 @@ public class RelancesService {
             relances.save(new Relance(i.id(), retard, moi, maintenant));
             envoyees++;
         }
-        audit.enregistrer("RELANCES_ENVOYEES", classeId != null ? cibles.get(0).code() : "toutes les classes",
+        audit.enregistrer("RELANCES_ENVOYEES", libelle,
                 Map.of("envoyees", envoyees, "sansContact", sansContact, "dejaRelancees", dejaRelancees));
         return new ResultatRelancesVue(envoyees, sansContact, dejaRelancees);
     }

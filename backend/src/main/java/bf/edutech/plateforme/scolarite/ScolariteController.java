@@ -65,7 +65,7 @@ public class ScolariteController {
     }
 
     public record DemandeParametres(@NotNull BigDecimal tauxBoursier, @NotNull BigDecimal tauxSemiBoursier,
-            @NotNull Integer delaiRelanceJours) {
+            @NotNull Integer delaiRelanceJours, Boolean relancesAutomatiques) {
     }
 
     private final ParametresScolariteService parametres;
@@ -100,7 +100,7 @@ public class ScolariteController {
     @PreAuthorize("hasRole('ADMIN_ECOLE')")
     public ParametresScolarite modifierParametres(@Valid @RequestBody DemandeParametres d) {
         return parametres.modifier(new ParametresScolarite(d.tauxBoursier(), d.tauxSemiBoursier(),
-                d.delaiRelanceJours()));
+                d.delaiRelanceJours(), d.relancesAutomatiques()));
     }
 
     @GetMapping("/api/v1/organismes")

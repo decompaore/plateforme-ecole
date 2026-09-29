@@ -55,6 +55,7 @@ Pour travailler avec Eclipse, suivre [docs/GUIDE_ECLIPSE.md](docs/GUIDE_ECLIPSE.
 | [docs/API_EVALUATIONS.md](docs/API_EVALUATIONS.md) | Évaluations, notes, compétences, moyennes, rangs par profil pédagogique |
 | [docs/API_BULLETINS.md](docs/API_BULLETINS.md) | Appréciations, conseil de classe, bulletins PDF, publication, espace parent, vérification |
 | [docs/API_SCOLARITE.md](docs/API_SCOLARITE.md) | Frais, tranches, bourses, exonérations, encaissements, reçus, retards, relances SMS |
+| [docs/API_MOBILE_MONEY.md](docs/API_MOBILE_MONEY.md) | Paiement Mobile Money par les parents, notifications signées, rapprochement quotidien, relances automatiques |
 
 ## Règles de l'équipe
 
