@@ -2,6 +2,7 @@ package bf.edutech.plateforme.enseignants;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
@@ -243,6 +244,32 @@ public class EnseignantsService {
                 .flatMap(s -> engagements.findFirstByEnseignantIdAndStatut(s.getId(), StatutEngagement.ACTIF))
                 .map(e -> classes.estAffecte(e.getId(), classeId))
                 .orElse(false);
+    }
+
+    /** « NOM Prénoms » des enseignants de ces engagements (invitations non acceptées exclues). */
+    @Transactional(readOnly = true)
+    public Map<UUID, String> nomsParEngagement(Collection<UUID> engagementIds) {
+        UtilisateurConnecte.etablissementActif();
+        if (engagementIds.isEmpty()) {
+            return Map.of();
+        }
+        List<Engagement> liste = engagements.findAllById(engagementIds).stream()
+                .filter(e -> e.getStatut() == StatutEngagement.ACTIF || e.getStatut() == StatutEngagement.TERMINE)
+                .toList();
+        if (liste.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, Enseignant> parId = enseignants
+                .findByIdIn(liste.stream().map(Engagement::getEnseignantId).distinct().toList()).stream()
+                .collect(Collectors.toMap(Enseignant::getId, Function.identity()));
+        Map<UUID, String> noms = new java.util.HashMap<>();
+        for (Engagement e : liste) {
+            Enseignant s = parId.get(e.getEnseignantId());
+            if (s != null) {
+                noms.put(e.getId(), s.getNom() + " " + s.getPrenoms());
+            }
+        }
+        return noms;
     }
 
     /** Engagement actif du compte dans l'établissement actif, s'il en a un. */

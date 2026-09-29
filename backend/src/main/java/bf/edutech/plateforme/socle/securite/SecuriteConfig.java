@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -125,6 +126,8 @@ public class SecuriteConfig {
                 .requestMatchers("/api/v1/auth/connexion", "/api/v1/auth/rafraichir", "/api/v1/auth/deconnexion")
                     .permitAll()
                 .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                // Vérification d'un bulletin papier par un tiers (code imprimé sur le document)
+                .requestMatchers(HttpMethod.GET, "/api/v1/verification/bulletins/*").permitAll()
                 .requestMatchers("/api/v1/auth/etablissement")
                     .hasAnyAuthority("TYPE_" + TYPE_SELECTION, "TYPE_" + TYPE_ACCES)
                 .requestMatchers("/api/v1/plateforme/**").hasAuthority("ROLE_SUPER_ADMIN")
