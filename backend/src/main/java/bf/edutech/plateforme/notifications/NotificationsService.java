@@ -58,11 +58,12 @@ public class NotificationsService {
                 UUID.randomUUID(), cle, telephone, langue != null ? langue : "FR", texte);
     }
 
-    /** Annule un message pas encore envoyé (ex. absence corrigée par l'enseignant). */
-    public void annuler(String cle) {
+    /** Annule un message pas encore envoyé (ex. absence corrigée par l'enseignant) ; faux s'il est déjà parti. */
+    public boolean annuler(String cle) {
         UtilisateurConnecte.etablissementActif();
         exigerTransaction();
-        jdbc.update("update notification set statut = 'ANNULE' where cle = ? and statut = 'EN_ATTENTE'", cle);
+        return jdbc.update("update notification set statut = 'ANNULE' where cle = ? and statut = 'EN_ATTENTE'",
+                cle) > 0;
     }
 
     /** Nom de l'établissement actif, pour signer les messages. */
@@ -70,6 +71,14 @@ public class NotificationsService {
     public String nomEtablissement() {
         UtilisateurConnecte.etablissementActif();
         return jdbc.queryForObject("select nom from tenant where id = tenant_courant()", String.class);
+    }
+
+    /** Statut du message de cette clé, s'il existe (ex. savoir si une convocation est déjà partie). */
+    @Transactional(readOnly = true)
+    public java.util.Optional<StatutNotification> statut(String cle) {
+        UtilisateurConnecte.etablissementActif();
+        return jdbc.query("select statut from notification where cle = ?",
+                (l, n) -> StatutNotification.valueOf(l.getString(1)), cle).stream().findFirst();
     }
 
     /** Dernières notifications de l'établissement (suivi des envois). */
