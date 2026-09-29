@@ -47,7 +47,7 @@ public class GestionnaireErreurs extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler({ AccesRefuseException.class, AccessDeniedException.class })
-    ProblemDetail accesRefuse(RuntimeException ex) {
+    ProblemDetail accesRefuse() {
         return probleme(HttpStatus.FORBIDDEN, "Accès refusé", "Vous n'avez pas les droits nécessaires pour cette action");
     }
 

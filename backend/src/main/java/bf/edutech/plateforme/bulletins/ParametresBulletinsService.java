@@ -50,10 +50,9 @@ public class ParametresBulletinsService {
         this.audit = audit;
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public ParametresBulletins lire() {
         UtilisateurConnecte.etablissementActif();
-        jdbc.update("insert into parametres_bulletin (tenant_id) values (tenant_courant()) on conflict do nothing");
         return jdbc.queryForObject("""
                 select entete_pays, entete_devise, entete_ministere, entete_direction, adresse,
                        seuil_tableau_honneur, seuil_encouragements, seuil_felicitations, seuil_avertissement
@@ -64,8 +63,15 @@ public class ParametresBulletinsService {
     }
 
     @Transactional
+    public ParametresBulletins lireOuInitialiser() {
+        UtilisateurConnecte.etablissementActif();
+        jdbc.update("insert into parametres_bulletin (tenant_id) values (tenant_courant()) on conflict do nothing");
+        return lire();
+    }
+
+    @Transactional
     public ParametresBulletins modifier(ParametresBulletins p) {
-        lire();
+        lireOuInitialiser();
         if (p.entetePays() == null || p.entetePays().isBlank()) {
             throw new IllegalArgumentException("La première ligne de l'en-tête (pays) est obligatoire");
         }
