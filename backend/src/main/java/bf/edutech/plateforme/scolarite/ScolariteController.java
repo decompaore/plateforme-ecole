@@ -93,7 +93,7 @@ public class ScolariteController {
     @GetMapping("/api/v1/parametres/scolarite")
     @PreAuthorize(CONSULTATION)
     public ParametresScolarite parametres() {
-        return parametres.valeurs();
+        return parametres.lire();
     }
 
     @PutMapping("/api/v1/parametres/scolarite")
