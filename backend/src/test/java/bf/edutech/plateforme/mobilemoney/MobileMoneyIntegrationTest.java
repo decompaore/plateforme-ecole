@@ -279,11 +279,11 @@ class MobileMoneyIntegrationTest {
         String json = demande(parent, inscription, montant, cle).andExpect(status().isAccepted())
                 .andReturn().getResponse().getContentAsString();
         UUID id = UUID.fromString(json.replaceAll(".*\"id\":\"([0-9a-f-]+)\".*", "$1"));
-        return suivre(id);
+        return suivre(parent, id);
     }
 
     /** État de la transaction, tel que l'intendance le voit. */
-    private TransactionVue suivre(UUID id) {
+    private TransactionVue suivre(UUID parent, UUID id) {
         return commeIntendant(() -> paiements.lister(j, j)).stream().filter(t -> t.id().equals(id)).findFirst()
                 .orElseThrow();
     }

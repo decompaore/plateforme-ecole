@@ -1,0 +1,66 @@
+@if (session.profil(); as profil) {
+  <header class="barre">
+    <a routerLink="/" class="marque" (click)="menuOuvert.set(false)">
+      <span class="etablissement">{{ profil.etablissement?.nom ?? 'Plateforme' }}</span>
+      @if (profil.prenoms || profil.nom) {
+        <span class="utilisateur">{{ profil.prenoms }} {{ profil.nom }}</span>
+      }
+    </a>
+    @if (envois.enAttente() > 0 || envois.refuses() > 0) {
+      <a
+        routerLink="/envois"
+        class="compteur"
+        [class.refus]="envois.refuses() > 0"
+        [attr.aria-label]="envois.enAttente() + ' appel(s) en attente, ' + envois.refuses() + ' refusé(s)'"
+      >
+        {{ envois.enAttente() + envois.refuses() }}
+      </a>
+    }
+    <button
+      type="button"
+      class="menu"
+      (click)="menuOuvert.set(!menuOuvert())"
+      [attr.aria-expanded]="menuOuvert()"
+      aria-label="Menu"
+    >
+      <span></span><span></span><span></span>
+    </button>
+  </header>
+
+  @if (menuOuvert()) {
+    <nav class="tiroir" (click)="menuOuvert.set(false)">
+      <a routerLink="/">Accueil</a>
+      @if (session.aLeRole('ENSEIGNANT')) {
+        <a routerLink="/appel">Faire l'appel</a>
+        <a routerLink="/envois">Mes appels envoyés</a>
+      }
+      @if (!session.horsConnexion()) {
+        <a routerLink="/etablissement">Changer d'établissement</a>
+        <a routerLink="/mot-de-passe">Changer mon mot de passe</a>
+      }
+      <button type="button" (click)="deconnexion()">Se déconnecter</button>
+    </nav>
+  }
+
+  @if (session.sessionExpiree()) {
+    <div class="bandeau hors-ligne" role="status">
+      Session expirée : reconnectez-vous pour envoyer vos appels.
+      <a routerLink="/connexion" class="bouton discret">Se reconnecter</a>
+    </div>
+  } @else if (!reseau()) {
+    <div class="bandeau hors-ligne" role="status">Hors connexion — les appels seront envoyés au retour du réseau.</div>
+  } @else if (session.horsConnexion()) {
+    <div class="bandeau hors-ligne" role="status">Connexion au serveur en cours…</div>
+  }
+}
+
+@if (miseAJour()) {
+  <div class="bandeau mise-a-jour" role="status">
+    Une nouvelle version est disponible.
+    <button type="button" class="bouton discret" (click)="recharger()">Mettre à jour</button>
+  </div>
+}
+
+<main>
+  <router-outlet />
+</main>
