@@ -189,10 +189,10 @@ class MobileMoneyIntegrationTest {
         TransactionVue t3 = payer(parent, awa, 8_000, UUID.randomUUID().toString());
         simulateur.confirmer(marchand, t3.reference());
         paiements.traiterEchues(Instant.now().plus(Duration.ofMinutes(20)));
-        assertThat(suivre(parent, t3.id()).statut()).isEqualTo(StatutTransaction.CONFIRMEE);
+        assertThat(suivre(t3.id()).statut()).isEqualTo(StatutTransaction.CONFIRMEE);
         TransactionVue t4 = payer(parent, awa, 1_000, UUID.randomUUID().toString());
         paiements.traiterEchues(Instant.now().plus(Duration.ofMinutes(20)));
-        assertThat(suivre(parent, t4.id()).statut()).isEqualTo(StatutTransaction.EXPIREE);
+        assertThat(suivre(t4.id()).statut()).isEqualTo(StatutTransaction.EXPIREE);
 
         // 5. Agrégateur en panne : 503 et invitation à payer à l'intendance
         simulateur.panne(true);
@@ -279,11 +279,11 @@ class MobileMoneyIntegrationTest {
         String json = demande(parent, inscription, montant, cle).andExpect(status().isAccepted())
                 .andReturn().getResponse().getContentAsString();
         UUID id = UUID.fromString(json.replaceAll(".*\"id\":\"([0-9a-f-]+)\".*", "$1"));
-        return suivre(parent, id);
+        return suivre(id);
     }
 
     /** État de la transaction, tel que l'intendance le voit. */
-    private TransactionVue suivre(UUID parent, UUID id) {
+    private TransactionVue suivre(UUID id) {
         return commeIntendant(() -> paiements.lister(j, j)).stream().filter(t -> t.id().equals(id)).findFirst()
                 .orElseThrow();
     }
