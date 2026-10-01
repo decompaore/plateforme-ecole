@@ -78,22 +78,111 @@
 
     <div class="tableau-defilant">
       <table class="tableau">
-        <thead><tr><th>Nom et prénoms</th><th>Téléphone</th><th>Spécialité</th><th>Engagement</th><th>Statut</th></tr></thead>
+        <thead><tr><th>Nom et prénoms</th><th>Téléphone</th><th>Spécialité</th><th>Engagement</th><th>Statut</th><th></th></tr></thead>
         <tbody>
           @for (e of enseignants(); track e.engagementId) {
             <tr [class.doux]="e.statut !== 'ACTIF'">
-              <td><strong>{{ e.nom }}</strong> {{ e.prenoms }}</td>
+              <td>
+                @if (e.nom) { <strong>{{ e.nom }}</strong> {{ e.prenoms }} } @else { <em>Invitation en attente</em> }
+              </td>
               <td>{{ e.telephone }}</td>
               <td>{{ e.specialite }}</td>
-              <td>{{ e.type === 'TITULAIRE' ? 'Titulaire' : 'Vacataire' }}</td>
-              <td><span class="pastille" [class.present]="e.statut === 'ACTIF'">{{ libelleStatut[e.statut] }}</span></td>
+              <td>
+                {{ e.type === 'TITULAIRE' ? 'Titulaire' : 'Vacataire' }}
+                @if (e.fin && !e.finProgrammee && e.statut !== 'TERMINE') { <span class="doux">jusqu'au {{ dateCourte(e.fin) }}</span> }
+              </td>
+              <td>
+                @if (e.finProgrammee && e.fin) {
+                  <span class="pastille">part le {{ dateCourte(e.fin) }}</span>
+                  @if (e.motifFin) { <div class="doux">{{ e.motifFin }}</div> }
+                } @else {
+                  <span class="pastille" [class.present]="e.statut === 'ACTIF'">{{ libelleStatut[e.statut] }}</span>
+                  @if (e.statut === 'TERMINE' && e.fin) {
+                    <div class="doux">le {{ dateCourte(e.fin) }}@if (e.motifFin) { · {{ e.motifFin }} }</div>
+                  }
+                }
+              </td>
+              <td class="nombre actions-cellule">
+                @if (e.statut === 'ACTIF') {
+                  <button type="button" class="bouton secondaire petit" [disabled]="action.enCours()" (click)="preparerFin(e)">
+                    {{ e.finProgrammee ? 'Modifier la fin' : 'Terminer…' }}
+                  </button>
+                  @if (e.finProgrammee) {
+                    <button type="button" class="bouton discret petit" [disabled]="action.enCours()" (click)="annulerFin(e)">Annuler la fin</button>
+                  }
+                } @else if (e.statut === 'INVITE') {
+                  <button type="button" class="bouton discret petit" [disabled]="action.enCours()" (click)="annulerInvitation(e)">Annuler l'invitation</button>
+                }
+              </td>
             </tr>
           } @empty {
-            <tr><td colspan="5" class="doux">Aucun enseignant.</td></tr>
+            <tr><td colspan="6" class="doux">Aucun enseignant.</td></tr>
           }
         </tbody>
       </table>
     </div>
+
+    @if (finCible(); as e) {
+      <form class="carte fin-engagement" (ngSubmit)="terminer()" aria-label="Fin d'engagement">
+        <h3>Fin d'engagement : {{ e.prenoms }} {{ e.nom }}</h3>
+        <div class="grille-champs">
+          <div class="champ">
+            <label for="finDate">Dernier jour de travail</label>
+            <input id="finDate" name="finDate" type="date" required [min]="e.debut" [(ngModel)]="finDate" />
+          </div>
+          <div class="champ">
+            <label for="finMotif">Motif</label>
+            <select id="finMotif" name="finMotif" [(ngModel)]="finMotif">
+              @for (m of motifsFin; track m) { <option [value]="m">{{ m }}</option> }
+            </select>
+          </div>
+          @if (finMotif() === 'Autre') {
+            <div class="champ">
+              <label for="finAutre">Précisez</label>
+              <input id="finAutre" name="finAutre" maxlength="200" [(ngModel)]="finAutreMotif" />
+            </div>
+          }
+        </div>
+
+        @if (finImmediate()) {
+          <p class="alerte attention">Date passée : l'engagement se termine <strong>tout de suite</strong>.</p>
+        } @else if (finDate()) {
+          <p>
+            L'enseignant garde l'accès jusqu'au <strong>{{ dateLongue(finDate()) }}</strong> inclus (appel, notes),
+            puis l'engagement se termine automatiquement.
+            @if (finMotif() === 'Mutation' && e.type === 'TITULAIRE') {
+              Son nouvel établissement pourra l'inviter comme titulaire à partir du {{ dateLongue(lendemain(finDate())) }}.
+            }
+          </p>
+        }
+
+        @if (finMatieres(); as matieres) {
+          @if (matieres.length > 0) {
+            <p>
+              <strong>{{ matieres.length }} matière(s) à réaffecter</strong> : elles passeront « sans enseignant »
+              {{ finImmediate() ? 'tout de suite' : 'le ' + dateLongue(lendemain(finDate())) }}. Pensez à les confier à un autre enseignant (onglet « Classes »).
+            </p>
+            <ul>
+              @for (a of matieres; track a.classeId + a.matiereId) {
+                <li>{{ a.classeCode }} · {{ a.matiereLibelle }}@if (a.volumeHebdo) { ({{ a.volumeHebdo }} h / semaine) }</li>
+              }
+            </ul>
+          } @else {
+            <p class="doux">Aucune matière confiée cette année.</p>
+          }
+        } @else {
+          <p class="doux">Chargement des matières…</p>
+        }
+
+        <div class="actions-ligne">
+          <button type="submit" class="bouton danger" [disabled]="action.enCours() || !finDate()">
+            {{ finImmediate() ? 'Terminer maintenant' : 'Programmer la fin' }}
+          </button>
+          <button type="button" class="bouton secondaire" (click)="fermerFin()">Fermer</button>
+        </div>
+      </form>
+    }
+
     <p class="doux">Les matières se confient aux enseignants dans le programme de chaque classe (onglet « Classes »).</p>
   </section>
 

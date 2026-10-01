@@ -59,7 +59,20 @@ export interface Affectation {
   engagementId: string;
 }
 
+/** Engagement de l'enseignant connecté dans l'établissement actif (extrait de sa fiche). */
+export type TypeEngagementEnseignant = 'TITULAIRE' | 'VACATAIRE';
+
+export interface EngagementEnseignant {
+  type: TypeEngagementEnseignant;
+  statut: string;
+  /** Dernier jour de travail (fin programmée ou fin de contrat), null si aucune. */
+  fin: string | null;
+  motifFin: string | null;
+  finProgrammee?: boolean;
+}
+
 export interface FicheEnseignant {
+  enseignant?: EngagementEnseignant;
   anneeId: string;
   affectations: Affectation[];
 }

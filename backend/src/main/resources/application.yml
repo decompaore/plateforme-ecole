@@ -95,6 +95,8 @@ app:
     max-tentatives: 6                     # 2, 4, 8, 16, 32 minutes entre les tentatives
     seuil-coupe-circuit: 5                # échecs consécutifs avant suspension
     pause-coupe-circuit: 5m
+  enseignants:
+    cron-fins: "0 15 0 * * *"             # chaque nuit à 0 h 15 : clôture des engagements échus
   scolarite:
     relances-automatiques: ${RELANCES_AUTOMATIQUES:true}
     cron-relances: "0 30 7 * * MON"       # chaque lundi à 7 h 30, heure de Ouagadougou

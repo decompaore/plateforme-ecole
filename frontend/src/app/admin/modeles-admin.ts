@@ -167,19 +167,47 @@ export interface RapportImport {
   erreurs: { ligne: number; nomComplet: string | null; erreurs: string[] }[];
 }
 
+/** Identité masquée (null) tant qu'une invitation n'est pas acceptée. */
 export interface EnseignantVue {
   engagementId: string;
-  enseignantId: string;
-  nom: string;
-  prenoms: string;
+  enseignantId: string | null;
+  nom: string | null;
+  prenoms: string | null;
   telephone: string | null;
   sexe: Sexe | null;
   specialite: string | null;
   type: TypeEngagement;
   statut: StatutEngagement;
   debut: string;
+  /** Dernier jour de travail : fin de contrat, fin programmée ou fin effective. */
   fin: string | null;
+  tauxHoraire?: number | null;
+  motifFin?: string | null;
+  /** Engagement encore actif dont la fin est fixée à `fin`. */
+  finProgrammee?: boolean;
 }
+
+/** Matière d'une classe assurée par un enseignant pendant l'année. */
+export interface AffectationVue {
+  classeId: string;
+  classeCode: string;
+  matiereId: string;
+  matiereCode: string;
+  matiereLibelle: string;
+  volumeHebdo: number | null;
+  volumeTotal: number | null;
+  engagementId: string;
+}
+
+export interface FicheEnseignantVue {
+  enseignant: EnseignantVue;
+  anneeId: string | null;
+  affectations: AffectationVue[];
+  chargeHebdomadaire: number;
+}
+
+/** Motifs proposés pour une fin d'engagement (texte libre côté serveur). */
+export const MOTIFS_FIN = ['Mutation', 'Démission', 'Retraite', 'Fin de contrat', 'Autre'] as const;
 
 export interface ResultatEngagement {
   enseignant: EnseignantVue;

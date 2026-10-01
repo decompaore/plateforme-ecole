@@ -55,7 +55,8 @@ temporaire doit d'abord être changé.
 | Enseignants | `GET /api/v1/enseignants?statut=ACTIF` | personnel administratif* |
 | | `POST /api/v1/enseignants`, `POST /api/v1/enseignants/recherche` | ADMIN_ECOLE |
 | Engagement | `GET /api/v1/engagements/{id}?anneeId=` : fiche, matières assurées, charge hebdomadaire | personnel administratif* |
-| | `POST /api/v1/engagements/{id}/fin` `{"date":"2027-06-30","motif":"Mutation"}` | ADMIN_ECOLE |
+| | `POST /api/v1/engagements/{id}/fin` `{"date":"2027-06-30","motif":"Mutation"}` : fin immédiate ou programmée | ADMIN_ECOLE |
+| | `DELETE /api/v1/engagements/{id}/fin` : annule une fin programmée | ADMIN_ECOLE |
 | | `DELETE /api/v1/engagements/{id}` : annule une invitation en attente | ADMIN_ECOLE |
 | | `PUT /api/v1/engagements/{id}/identite` : correction du nom, matricule… | ADMIN_ECOLE de l'école où il est **titulaire** |
 | Affectation | `PUT /api/v1/classes/{classeId}/matieres/{matiereId}/enseignant` `{"engagementId":"…"}`, `DELETE …` | ADMIN_ECOLE, CENSEUR |
@@ -75,12 +76,26 @@ La matière d'une classe (`GET /api/v1/classes/{id}/matieres`) indique désormai
 | `ENGAGEMENT_INACTIF` | Seul un enseignant dont l'engagement est actif peut être affecté |
 | `IDENTITE_NON_MODIFIABLE` | Seule l'école où l'enseignant est titulaire corrige son identité |
 | `MATRICULE_EXISTANT` | Matricule de la fonction publique déjà attribué |
+| `FIN_APRES_CONTRAT` | La date de fin dépasse la fin prévue de l'engagement (une fin ne prolonge pas un contrat) |
+| `AUCUNE_FIN_PROGRAMMEE` | Annulation demandée alors qu'aucune fin n'est programmée |
+| `ANNULATION_FIN_IMPOSSIBLE` | L'enseignant a déjà un autre engagement (invitation comprise) à partir de la date libérée |
 | `CLASSE_NON_VIDE`, `ANNEE_FIGEE` | Règles du domaine Établissement, inchangées |
 
 Autres comportements :
 
-- **Fin d'engagement** : l'enseignant perd le rôle ENSEIGNANT dans l'école et est retiré des matières des années en
-  préparation ou en cours ; les années clôturées gardent l'historique. Une mutation est possible le lendemain de la fin.
+- **Fin d'engagement** : `date` est le **dernier jour de travail** dans l'établissement.
+  - Date passée : fin immédiate. L'enseignant perd le rôle ENSEIGNANT dans l'école et est retiré des matières des
+    années en préparation ou en cours ; les années clôturées gardent l'historique.
+  - Aujourd'hui ou plus tard : **fin programmée** (v0.16). L'engagement reste `ACTIF` avec `fin`, `motifFin` et
+    `finProgrammee: true` : l'enseignant continue l'appel et les notes jusqu'au soir de la date. Chaque nuit à
+    0 h 15 (heure de Ouagadougou, `app.enseignants.cron-fins`), un traitement clôt les engagements dont la fin est
+    passée (rôle retiré, matières libérées, journal `ENGAGEMENT_TERMINE` avec `automatique=true`). Les contrats de
+    vacataires arrivés à échéance sont clos de la même façon (motif « Fin de contrat »).
+  - **Mutation** : la période étant raccourcie dès la programmation, le nouvel établissement peut inviter
+    l'enseignant comme titulaire **à partir du lendemain** de la date de fin, sans attendre. L'ancien établissement
+    ne peut alors plus annuler la fin (`ANNULATION_FIN_IMPOSSIBLE`).
+  - Annulation (`DELETE …/fin`) : l'engagement retrouve sa date de fin d'origine (fin de contrat d'un vacataire, ou
+    aucune pour un titulaire).
 - **Listes de classe** : un enseignant ne voit que les classes où il a au moins une matière (le personnel administratif
   les voit toutes).
 - **Charge horaire** : somme des volumes hebdomadaires des matières affectées pendant l'année.

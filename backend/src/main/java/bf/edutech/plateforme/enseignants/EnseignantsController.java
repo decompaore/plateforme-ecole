@@ -115,10 +115,22 @@ public class EnseignantsController {
         return service.modifierIdentite(id, d.matriculeFp(), d.nom(), d.prenoms(), d.sexe(), d.specialite());
     }
 
+    /**
+     * Fin d'engagement. {@code date} est le dernier jour de travail : passée, la fin est
+     * immédiate ; aujourd'hui ou plus tard, elle est programmée (l'engagement reste actif
+     * jusque-là, puis est clos automatiquement le lendemain).
+     */
     @PostMapping("/api/v1/engagements/{id}/fin")
     @PreAuthorize(ADMINISTRATION)
     public EnseignantVue terminer(@PathVariable UUID id, @Valid @RequestBody DemandeFin d) {
         return service.terminer(id, d.date(), d.motif());
+    }
+
+    /** Annule une fin d'engagement programmée. */
+    @DeleteMapping("/api/v1/engagements/{id}/fin")
+    @PreAuthorize(ADMINISTRATION)
+    public EnseignantVue annulerFin(@PathVariable UUID id) {
+        return service.annulerFin(id);
     }
 
     /** Annule une invitation encore en attente. */

@@ -1,16 +1,18 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
-import { dateLocale } from '../../core/outils';
+import { dateCourte, dateLocale, dateLongue, lendemain } from '../../core/outils';
 import { Role } from '../../core/modeles';
 import { Action } from '../action';
 import { AdminApi } from '../admin-api.service';
 import { AdminNavComponent } from '../admin-nav.component';
 import {
+  AffectationVue,
   EnseignantVue,
   LIBELLE_ROLE,
   LIBELLE_STATUT_ENGAGEMENT,
   MembreVue,
+  MOTIFS_FIN,
   Sexe,
   TypeEngagement,
 } from '../modeles-admin';
@@ -34,6 +36,16 @@ const ROLES_PERSONNEL: Role[] = ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'INTEN
       padding-bottom: 1rem;
       margin-bottom: 0.5rem;
     }
+    .fin-engagement {
+      border-left: 4px solid var(--retard);
+      ul {
+        margin: 0.25rem 0 0.75rem;
+        padding-left: 1.25rem;
+      }
+    }
+    .actions-cellule {
+      white-space: nowrap;
+    }
   `,
 })
 export class PersonnelPage implements OnInit {
@@ -41,6 +53,10 @@ export class PersonnelPage implements OnInit {
 
   protected readonly libelleRole = LIBELLE_ROLE;
   protected readonly libelleStatut = LIBELLE_STATUT_ENGAGEMENT;
+  protected readonly motifsFin = MOTIFS_FIN;
+  protected readonly dateCourte = dateCourte;
+  protected readonly dateLongue = dateLongue;
+  protected readonly lendemain = lendemain;
   protected readonly rolesPersonnel = ROLES_PERSONNEL;
   protected readonly action = new Action();
   protected readonly enseignants = signal<EnseignantVue[]>([]);
@@ -67,6 +83,16 @@ export class PersonnelPage implements OnInit {
   protected readonly eFin = signal('');
   protected readonly eTaux = signal<number | null>(null);
 
+  // Fin d'engagement (mutation, départ, retraite, fin de contrat)
+  protected readonly finCible = signal<EnseignantVue | null>(null);
+  protected readonly finDate = signal(dateLocale());
+  protected readonly finMotif = signal<string>('Mutation');
+  protected readonly finAutreMotif = signal('');
+  /** Matières assurées cette année : elles passeront « sans enseignant » à la fin. Null tant que non chargées. */
+  protected readonly finMatieres = signal<AffectationVue[] | null>(null);
+  /** Date passée : la fin est immédiate (sinon programmée). */
+  protected readonly finImmediate = computed(() => this.finDate() !== '' && this.finDate() < dateLocale());
+
   // Ajout d'un membre
   protected readonly formMembre = signal(false);
   protected readonly mTelephone = signal('');
@@ -83,7 +109,9 @@ export class PersonnelPage implements OnInit {
       const [enseignants, membres] = await Promise.all([this.api.enseignants(), this.api.membres()]);
       this.enseignants.set(
         [...enseignants].sort(
-          (a, b) => Number(b.statut === 'ACTIF') - Number(a.statut === 'ACTIF') || a.nom.localeCompare(b.nom),
+          (a, b) =>
+            Number(b.statut === 'ACTIF') - Number(a.statut === 'ACTIF') ||
+            (a.nom ?? '').localeCompare(b.nom ?? ''),
         ),
       );
       this.membres.set(membres);
@@ -126,6 +154,82 @@ export class PersonnelPage implements OnInit {
     }
     this.formEnseignant.set(false);
     await this.recharger();
+  }
+
+  /** Ouvre le formulaire de fin d'engagement et charge les matières à réaffecter. */
+  protected async preparerFin(e: EnseignantVue): Promise<void> {
+    this.message.set(null);
+    this.finCible.set(e);
+    this.finDate.set(e.finProgrammee && e.fin ? e.fin : dateLocale());
+    this.finMotif.set(e.type === 'VACATAIRE' ? 'Fin de contrat' : 'Mutation');
+    this.finAutreMotif.set('');
+    this.finMatieres.set(null);
+    const fiche = await this.action.executer(() => this.api.ficheEnseignant(e.engagementId));
+    if (fiche && this.finCible()?.engagementId === e.engagementId) {
+      this.finMatieres.set(
+        [...fiche.affectations].sort(
+          (a, b) => a.classeCode.localeCompare(b.classeCode) || a.matiereLibelle.localeCompare(b.matiereLibelle),
+        ),
+      );
+    }
+  }
+
+  protected fermerFin(): void {
+    this.finCible.set(null);
+    this.finMatieres.set(null);
+  }
+
+  protected async terminer(): Promise<void> {
+    const e = this.finCible();
+    const date = this.finDate();
+    if (!e || !date) {
+      return;
+    }
+    const motif = this.finMotif() === 'Autre' ? this.finAutreMotif().trim() || null : this.finMotif();
+    const nom = `${e.prenoms ?? ''} ${e.nom ?? ''}`.trim();
+    if (
+      this.finImmediate() &&
+      !window.confirm(`La date est passée : ${nom} perd tout de suite l'accès à l'établissement. Continuer ?`)
+    ) {
+      return;
+    }
+    const r = await this.action.executer(() => this.api.terminerEngagement(e.engagementId, date, motif));
+    if (!r) {
+      return;
+    }
+    this.message.set(
+      r.statut === 'TERMINE'
+        ? `Engagement de ${nom} terminé. Ses matières sont maintenant sans enseignant.`
+        : `Fin programmée : ${nom} enseigne jusqu'au ${dateLongue(date)} inclus, puis l'engagement se termine ` +
+            `automatiquement. ` +
+            (motif === 'Mutation' && e.type === 'TITULAIRE'
+              ? `Son nouvel établissement peut l'inviter comme titulaire à partir du ${dateLongue(lendemain(date))}.`
+              : ''),
+    );
+    this.fermerFin();
+    await this.recharger();
+  }
+
+  protected async annulerFin(e: EnseignantVue): Promise<void> {
+    if (!window.confirm(`Annuler la fin d'engagement de ${e.prenoms} ${e.nom} prévue le ${dateCourte(e.fin ?? '')} ?`)) {
+      return;
+    }
+    this.message.set(null);
+    if (await this.action.reussit(() => this.api.annulerFinEngagement(e.engagementId))) {
+      this.message.set(`Fin d'engagement annulée : ${e.prenoms} ${e.nom} reste dans l'établissement.`);
+      this.fermerFin();
+      await this.recharger();
+    }
+  }
+
+  protected async annulerInvitation(e: EnseignantVue): Promise<void> {
+    if (!window.confirm('Annuler cette invitation ? L’enseignant ne la verra plus.')) {
+      return;
+    }
+    this.message.set(null);
+    if (await this.action.reussit(() => this.api.annulerInvitation(e.engagementId))) {
+      await this.recharger();
+    }
   }
 
   protected async ajouterMembre(): Promise<void> {

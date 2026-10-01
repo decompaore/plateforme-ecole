@@ -3,7 +3,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { estErreurReseau } from '../core/erreurs';
-import { Affectation, FicheEnseignant, Inscription } from '../core/modeles';
+import { Affectation, FicheEnseignant, Inscription, TypeEngagementEnseignant } from '../core/modeles';
 import { API, SessionService } from '../core/session.service';
 import { STOCKAGE } from './stockage';
 
@@ -20,6 +20,16 @@ export interface AffectationsLocales {
   anneeId: string;
   affectations: Affectation[];
   prepareLe: string;
+}
+
+/** Fin de l'engagement dans l'établissement (mutation, départ, fin de contrat), gardée pour l'affichage hors connexion. */
+export interface FinEngagementLocale {
+  type: TypeEngagementEnseignant;
+  /** Dernier jour de travail dans l'établissement. */
+  fin: string;
+  motif: string | null;
+  /** Fin décidée par l'établissement (sinon : fin de contrat prévue dès l'engagement). */
+  programmee: boolean;
 }
 
 export interface ClasseLocale {
@@ -79,6 +89,7 @@ export class ListesService {
     if (this.enLigne()) {
       try {
         const fiche = await firstValueFrom(this.http.get<FicheEnseignant>(`${API}/espace-enseignant/affectations`));
+        await this.memoriserFin(fiche);
         const locales: AffectationsLocales = {
           anneeId: fiche.anneeId,
           affectations: [...fiche.affectations].sort(
@@ -127,6 +138,45 @@ export class ListesService {
       }
     }
     return this.stockage.lire<PeriodesLocales>(cle);
+  }
+
+  /** Fin d'engagement connue sur l'appareil (sans réseau). */
+  finEngagement(): Promise<FinEngagementLocale | undefined> {
+    return this.stockage.lire<FinEngagementLocale>(this.prefixe() + 'fin-engagement');
+  }
+
+  /**
+   * Fin d'engagement, réseau d'abord : seule la fiche est relue (les listes de classe
+   * gardent leur date de préparation). Sans réseau, la dernière information connue.
+   */
+  async actualiserFinEngagement(): Promise<FinEngagementLocale | undefined> {
+    if (this.enLigne()) {
+      try {
+        await this.memoriserFin(await firstValueFrom(this.http.get<FicheEnseignant>(`${API}/espace-enseignant/affectations`)));
+      } catch (e) {
+        if (!estErreurReseau(e)) {
+          // Plus d'engagement actif ici (déjà terminé) : plus rien à annoncer
+          await this.stockage.supprimer(this.prefixe() + 'fin-engagement');
+          return undefined;
+        }
+      }
+    }
+    return this.finEngagement();
+  }
+
+  private async memoriserFin(fiche: FicheEnseignant): Promise<void> {
+    const cle = this.prefixe() + 'fin-engagement';
+    const e = fiche.enseignant;
+    if (e?.fin) {
+      await this.stockage.ecrire<FinEngagementLocale>(cle, {
+        type: e.type,
+        fin: e.fin,
+        motif: e.motifFin,
+        programmee: e.finProgrammee === true,
+      });
+    } else {
+      await this.stockage.supprimer(cle);
+    }
   }
 
   /** Télécharge les listes de toutes les classes de l'enseignant (et les périodes de l'année). */
