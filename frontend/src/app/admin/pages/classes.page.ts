@@ -3,6 +3,8 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { SessionService } from '../../core/session.service';
+import { filtrer } from '../../core/recherche';
+import { RechercheComponent } from '../../partage/recherche.component';
 import { Action } from '../action';
 import { AdminApi } from '../admin-api.service';
 import { AdminNavComponent } from '../admin-nav.component';
@@ -12,7 +14,7 @@ import { ClasseVue, FiliereVue } from '../modeles-admin';
 /** Classes de l'année de travail, par niveau. */
 @Component({
   selector: 'app-classes',
-  imports: [FormsModule, RouterLink, AdminNavComponent],
+  imports: [FormsModule, RouterLink, AdminNavComponent, RechercheComponent],
   template: `
     <div class="page large">
       <h1>Classes</h1>
@@ -77,6 +79,14 @@ import { ClasseVue, FiliereVue } from '../modeles-admin';
             }
           }
 
+          @if (classes().length > 8) {
+            <app-recherche
+              libelle="Rechercher une classe (code, niveau, filière)"
+              [(valeur)]="filtre"
+              [total]="classes().length"
+              [trouves]="nombreAffiches()"
+            />
+          }
           @for (groupe of parNiveau(); track groupe.niveau) {
             <h3>{{ groupe.niveau }}</h3>
             <ul class="liste">
@@ -93,7 +103,7 @@ import { ClasseVue, FiliereVue } from '../modeles-admin';
               }
             </ul>
           } @empty {
-            <p class="doux">Aucune classe pour cette année.</p>
+            <p class="doux">{{ classes().length ? 'Aucune classe ne correspond.' : 'Aucune classe pour cette année.' }}</p>
           }
         </section>
       }
@@ -134,6 +144,9 @@ export class ClassesPage {
   protected readonly code = signal('');
   protected readonly effectifMax = signal<number | null>(60);
 
+  protected readonly filtre = signal('');
+  protected readonly nombreAffiches = computed(() => this.parNiveau().reduce((n, g) => n + g.classes.length, 0));
+
   /** Classes regroupées par niveau, dans l'ordre des niveaux du secondaire. */
   protected readonly parNiveau = computed(() => {
     const ordre = (n: string) => {
@@ -141,7 +154,7 @@ export class ClassesPage {
       return i < 0 ? 100 : i;
     };
     const groupes = new Map<string, ClasseVue[]>();
-    for (const c of this.classes()) {
+    for (const c of filtrer(this.classes(), this.filtre(), (x) => [x.code, x.niveau, x.filiereCode])) {
       groupes.set(c.niveau, [...(groupes.get(c.niveau) ?? []), c]);
     }
     return [...groupes.entries()]

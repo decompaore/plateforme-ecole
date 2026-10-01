@@ -157,13 +157,21 @@
         <h2>Élèves ({{ eleves().length }})</h2>
         <a class="bouton secondaire petit" [routerLink]="['/admin/eleves']" [queryParams]="{ classe: c.id }">Inscrire des élèves</a>
       </div>
+      @if (eleves().length > 10) {
+        <app-recherche
+          libelle="Rechercher un élève (nom, matricule)"
+          [(valeur)]="filtreEleves"
+          [total]="eleves().length"
+          [trouves]="elevesAffiches().length"
+        />
+      }
       <div class="tableau-defilant">
         <table class="tableau">
           <thead><tr><th class="nombre">N°</th><th>Nom et prénoms</th><th>Matricule</th><th>Sexe</th><th></th></tr></thead>
           <tbody>
-            @for (e of eleves(); track e.id; let i = $index) {
+            @for (e of elevesAffiches(); track e.id) {
               <tr>
-                <td class="nombre doux">{{ i + 1 }}</td>
+                <td class="nombre doux">{{ e.rang }}</td>
                 <td><strong>{{ e.nom }}</strong> {{ e.prenoms }}</td>
                 <td>{{ e.matricule }}</td>
                 <td>{{ e.sexe }}</td>
@@ -173,7 +181,7 @@
                 </td>
               </tr>
             } @empty {
-              <tr><td colspan="5" class="doux">Aucun élève inscrit.</td></tr>
+              <tr><td colspan="5" class="doux">{{ eleves().length ? 'Aucun élève ne correspond.' : 'Aucun élève inscrit.' }}</td></tr>
             }
           </tbody>
         </table>

@@ -59,11 +59,20 @@
 
   @if (evaluation() && eleves().length > 0) {
     <p class="doux consigne">Tapez la note puis Entrée pour passer à l'élève suivant. <strong>Abs</strong> : l'élève n'a pas composé.</p>
+    @if (eleves().length > 15) {
+      <app-recherche
+        libelle="Rechercher un élève (nom, matricule, n°)"
+        [(valeur)]="filtre"
+        [total]="eleves().length"
+        [trouves]="elevesAffiches().length"
+        (valider)="allerAuPremier()"
+      />
+    }
     <ul class="liste carte eleves">
-      @for (e of eleves(); track e.inscriptionId; let i = $index) {
+      @for (e of elevesAffiches(); track e.inscriptionId; let i = $index) {
         @let s = saisies()[e.inscriptionId];
         <li class="eleve" [class.faute]="erreurs().has(e.inscriptionId)" [class.absent]="s.absent">
-          <span class="rang">{{ i + 1 }}</span>
+          <span class="rang">{{ e.rang }}</span>
           <label class="nom" [for]="'n-' + e.inscriptionId"><strong>{{ e.nom }}</strong> {{ e.prenoms }}</label>
           <input
             #champ
@@ -74,6 +83,7 @@
             [id]="'n-' + e.inscriptionId"
             [value]="s.texte"
             [disabled]="s.absent"
+          [attr.enterkeyhint]="i + 1 < elevesAffiches().length ? 'next' : 'done'"
             [placeholder]="s.absent ? 'abs.' : '—'"
             [attr.aria-invalid]="erreurs().has(e.inscriptionId)"
             (input)="saisir(e.inscriptionId, $any($event.target).value)"
@@ -89,6 +99,8 @@
             Abs
           </button>
         </li>
+      } @empty {
+        <li class="doux vide">Aucun élève ne correspond à « {{ filtre().trim() }} ».</li>
       }
     </ul>
 

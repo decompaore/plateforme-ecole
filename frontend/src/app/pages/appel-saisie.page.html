@@ -60,11 +60,8 @@
         <strong>R</strong> pour un retard.
       </p>
 
-      @if (f.eleves.length > 25) {
-        <div class="champ">
-          <label for="filtre" class="visuellement-cache">Rechercher un élève</label>
-          <input id="filtre" name="filtre" type="search" placeholder="Rechercher un élève" [(ngModel)]="filtre" />
-        </div>
+      @if (f.eleves.length > 15) {
+        <app-recherche libelle="Rechercher un élève (nom, matricule, n°)" [(valeur)]="filtre" [total]="f.eleves.length" [trouves]="elevesAffiches().length" />
       }
 
       <ul class="liste carte eleves">
@@ -115,7 +112,7 @@
             </span>
           </li>
         } @empty {
-          <li class="doux vide">Aucun élève.</li>
+          <li class="doux vide">{{ filtre().trim() ? 'Aucun élève ne correspond à « ' + filtre().trim() + ' ».' : 'Aucun élève.' }}</li>
         }
       </ul>
 

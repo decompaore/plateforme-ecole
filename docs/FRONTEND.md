@@ -1,4 +1,4 @@
-# Application web (v0.16)
+# Application web (v0.17)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -10,6 +10,7 @@ Application Angular 22 installable sur smartphone (PWA). Elle couvre :
   matières, classes et programmes, élèves, personnel pour l'établissement ;
 - la **mutation d'un enseignant** (v0.16) : fin d'engagement programmée par l'établissement, bandeau d'avertissement
   chez l'enseignant pour envoyer ses appels et notes avant la date ;
+- des **zones de recherche** (v0.17) sur les listes longues, qui marchent aussi sans réseau côté enseignant ;
 - un **accueil par rôle** : les écrans encore à venir (vie scolaire, scolarité, statistiques, parents) sont
   annoncés « bientôt disponibles ». En attendant, ces fonctions s'utilisent par l'API (Swagger).
 
@@ -185,6 +186,32 @@ Comptes créés (administrateur d'un établissement, enseignant, personnel) : le
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
 
+### Recherche (v0.17)
+
+Un même composant (`partage/recherche.component.ts`, règles dans `core/recherche.ts`) filtre la liste déjà
+affichée : instantané, sans accents ni majuscules (« kabore aicha » trouve « KABORÉ Aïcha »), mots dans
+n'importe quel ordre, téléphones tapés avec ou sans espaces. Il affiche « n sur N » pendant une recherche ; Échap
+efface.
+
+| Page | Ce qu'on cherche | Affichée |
+|---|---|---|
+| Établissements (super administrateur) | Nom ou code, plus un filtre par statut (actifs, suspendus, résiliés) | Toujours |
+| Personnel | Enseignant ou membre : nom, téléphone, spécialité, matricule, rôle | Toujours |
+| Classes | Code, niveau ou filière | Plus de 8 classes |
+| Fiche d'une classe | Élève : nom ou matricule (le n° d'ordre est conservé) | Plus de 10 élèves |
+| Appel | Élève : nom, matricule ou n° d'ordre ; les marques des autres élèves sont conservées | Plus de 15 élèves |
+| Feuille de notes | Idem ; **Entrée** place le curseur sur la note du premier élève trouvé | Plus de 15 élèves |
+| Élèves | Recherche sur le serveur (nom, prénoms, matricule), page par page, inchangée | Toujours |
+
+Côté enseignant, la recherche porte sur les listes du téléphone : elle marche sans réseau.
+
+### Créer une évaluation : quand le bouton n'apparaît pas (v0.17)
+
+« + Nouvelle évaluation » est désormais en haut de la liste des évaluations. S'il manque, l'écran dit pourquoi :
+trimestres pas encore générés par l'administration (Année scolaire → Générer les périodes), périodes absentes du
+téléphone (ouvrir la page une fois avec du réseau, bouton « Réessayer »), ou période verrouillée (en choisir une
+autre).
+
 ### Mutation d'un enseignant (v0.16)
 
 Exemple : M. SANOU, titulaire au lycée A, est muté au lycée B à la fin de l'année.
@@ -226,7 +253,7 @@ frontend/src/app/
 
 ## Tests
 
-52 tests (Vitest) :
+56 tests (Vitest) :
 
 | Fichier | Ce qui est vérifié |
 |---|---|
@@ -238,6 +265,7 @@ frontend/src/app/
 | `notes-saisie.page.spec.ts` | Feuille hors connexion : note hors barème bloquée, absence, « Abs » retiré qui redonne la note d'origine, mise en file des seuls élèves modifiés |
 | `invitations.component.spec.ts` | Titulaire dans X invité comme vacataire dans Y : acceptation, choix d'établissement qui apparaît, passage dans Y |
 | `admin.spec.ts` | Création d'un établissement et affichage unique du mot de passe, programme d'une classe (coefficient, enseignant), nouvel élève avec parent et inscription, engagement (compte ou invitation), mutation programmée avec les matières à réaffecter puis annulée, message du serveur sur une règle refusée |
+| `recherche.spec.ts` | Accents, majuscules et ordre des mots, téléphone avec espaces ; feuille de notes filtrée qui garde le n° d'ordre et place le curseur sur la note ; message clair quand les trimestres manquent |
 | `fin-engagement.component.spec.ts` | Bandeau de mutation : envois en attente comptés et envoyés tout de suite, rien à 60 jours, affichage sans réseau le jour même, annonce effacée quand la fin est annulée, calcul des jours |
 
 La CI (`.github/workflows/ci.yml`, job *Frontend*) exécute les tests et la construction de production à chaque pull
@@ -255,7 +283,8 @@ Le parcours complet a aussi été vérifié dans Chromium, à la taille d'un té
   signalée), rien n'est envoyé sans réseau, puis au retour du réseau la création part avec son `idClient` et seules
   les trois notes modifiées sont envoyées ;
 - (v0.16) mutation : fin programmée depuis Personnel (matières à réaffecter, « part le … »), puis bandeau sur
-  l'accueil de l'enseignant, à la taille d'un téléphone.
+  l'accueil de l'enseignant, à la taille d'un téléphone ;
+- (v0.17) recherche d'un établissement par le super administrateur, à la taille d'un téléphone.
 
 ## Limite connue
 

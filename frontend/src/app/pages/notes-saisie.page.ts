@@ -4,8 +4,10 @@ import { RouterLink } from '@angular/router';
 import { messageErreur } from '../core/erreurs';
 import { Affectation } from '../core/modeles';
 import { dateLongue } from '../core/outils';
+import { filtrer } from '../core/recherche';
 import { EleveLocal, ListesService } from '../hors-ligne/listes.service';
 import { EvaluationServeur, LIBELLE_TYPE_EVALUATION, NoteEleve, NotesService } from '../hors-ligne/notes.service';
+import { RechercheComponent } from '../partage/recherche.component';
 
 interface Saisie {
   texte: string;
@@ -27,7 +29,7 @@ export function lireNote(texte: string): number | null {
 /** Feuille de notes d'une évaluation, utilisable sans réseau. */
 @Component({
   selector: 'app-notes-saisie',
-  imports: [RouterLink],
+  imports: [RouterLink, RechercheComponent],
   templateUrl: './notes-saisie.page.html',
   styleUrl: './notes-saisie.page.scss',
 })
@@ -46,6 +48,15 @@ export class NotesSaisiePage implements OnInit {
   protected readonly evaluation = signal<EvaluationServeur | null>(null);
   protected readonly eleves = signal<EleveLocal[]>([]);
   protected readonly saisies = signal<Record<string, Saisie>>({});
+  /** Recherche d'un élève : seules ses lignes restent affichées (les autres notes sont conservées). */
+  protected readonly filtre = signal('');
+  protected readonly elevesAffiches = computed(() =>
+    filtrer(
+      this.eleves().map((e, i) => ({ ...e, rang: i + 1 })),
+      this.filtre(),
+      (e) => [e.nom, e.prenoms, e.matricule, e.rang],
+    ),
+  );
   private readonly initiales = signal<Record<string, Saisie>>({});
   protected readonly complete = signal(true);
   protected readonly chargement = signal(true);
@@ -165,6 +176,13 @@ export class NotesSaisiePage implements OnInit {
       const texte = absent ? '' : initiale && !initiale.absent ? initiale.texte : '';
       return { ...s, [id]: { texte, absent } };
     });
+  }
+
+  /** Entrée dans la recherche : curseur sur la note du premier élève trouvé. */
+  protected allerAuPremier(): void {
+    const premier = this.champs()[0]?.nativeElement;
+    premier?.focus();
+    premier?.select();
   }
 
   /** Entrée : passe à l'élève suivant, comme sur une feuille papier. */

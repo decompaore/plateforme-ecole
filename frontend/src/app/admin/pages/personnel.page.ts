@@ -2,6 +2,8 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { dateCourte, dateLocale, dateLongue, lendemain } from '../../core/outils';
+import { filtrer } from '../../core/recherche';
+import { RechercheComponent } from '../../partage/recherche.component';
 import { Role } from '../../core/modeles';
 import { Action } from '../action';
 import { AdminApi } from '../admin-api.service';
@@ -24,7 +26,7 @@ const ROLES_PERSONNEL: Role[] = ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'INTEN
 /** Personnel : enseignants (engagements) et membres de l'administration. */
 @Component({
   selector: 'app-personnel',
-  imports: [FormsModule, AdminNavComponent, MotDePasseTemporaireComponent],
+  imports: [FormsModule, AdminNavComponent, MotDePasseTemporaireComponent, RechercheComponent],
   templateUrl: './personnel.page.html',
   styles: `
     h3 {
@@ -63,6 +65,15 @@ export class PersonnelPage implements OnInit {
   protected readonly membres = signal<MembreVue[]>([]);
   protected readonly secret = signal<{ titre: string; telephone: string; motDePasse: string } | null>(null);
   protected readonly message = signal<string | null>(null);
+
+  /** Recherche commune aux deux tableaux : nom, prénoms, téléphone, spécialité ou rôle. */
+  protected readonly filtre = signal('');
+  protected readonly enseignantsAffiches = computed(() =>
+    filtrer(this.enseignants(), this.filtre(), (e) => [e.nom, e.prenoms, e.telephone, e.specialite, e.matriculeFp]),
+  );
+  protected readonly administrationAffichee = computed(() =>
+    filtrer(this.administration(), this.filtre(), (m) => [m.nom, m.prenoms, m.telephone, LIBELLE_ROLE[m.role]]),
+  );
 
   /** Membres hors enseignants et parents, actifs d'abord. */
   protected readonly administration = computed(() =>

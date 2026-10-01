@@ -3,7 +3,9 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
 import { dateCourte } from '../../core/outils';
+import { filtrer } from '../../core/recherche';
 import { SessionService } from '../../core/session.service';
+import { RechercheComponent } from '../../partage/recherche.component';
 import { Action } from '../action';
 import { AdminApi } from '../admin-api.service';
 import { AdminNavComponent } from '../admin-nav.component';
@@ -30,7 +32,7 @@ const GROUPES_PROPOSES = ['Matières générales', 'Matières techniques', 'Mati
 /** Une classe : son programme (matières, coefficients, enseignants) et ses élèves. */
 @Component({
   selector: 'app-classe',
-  imports: [FormsModule, RouterLink, AdminNavComponent],
+  imports: [FormsModule, RouterLink, AdminNavComponent, RechercheComponent],
   templateUrl: './classe.page.html',
   styles: `
     .ajout {
@@ -77,6 +79,14 @@ export class ClassePage implements OnInit {
     const dans = new Set(this.programme().map((m) => m.matiereId));
     return this.matieres().filter((m) => m.actif && !dans.has(m.id));
   });
+  protected readonly filtreEleves = signal('');
+  protected readonly elevesAffiches = computed(() =>
+    filtrer(
+      this.eleves().map((e, i) => ({ ...e, rang: i + 1 })),
+      this.filtreEleves(),
+      (e) => [e.nom, e.prenoms, e.matricule],
+    ),
+  );
   protected readonly enseignantsActifs = computed(() =>
     this.enseignants()
       .filter((e) => e.statut === 'ACTIF')
