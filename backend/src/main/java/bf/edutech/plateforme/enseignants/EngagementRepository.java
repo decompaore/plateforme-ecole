@@ -1,5 +1,6 @@
 package bf.edutech.plateforme.enseignants;
 
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -15,4 +16,7 @@ interface EngagementRepository extends JpaRepository<Engagement, UUID> {
     boolean existsByEnseignantIdAndStatutIn(UUID enseignantId, Collection<StatutEngagement> statuts);
 
     Optional<Engagement> findFirstByEnseignantIdAndStatut(UUID enseignantId, StatutEngagement statut);
+
+    /** Engagements arrivés à échéance : statut encore actif, date de fin passée. */
+    List<Engagement> findByStatutAndFinBefore(StatutEngagement statut, LocalDate date);
 }

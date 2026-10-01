@@ -11,6 +11,7 @@ import {
   EleveVue,
   EnseignantVue,
   EtablissementVue,
+  FicheEnseignantVue,
   FiliereVue,
   InscriptionVue,
   LienParente,
@@ -242,5 +243,23 @@ export class AdminApi {
     tauxHoraire: number | null;
   }): Promise<ResultatEngagement> {
     return this.post('/enseignants', d);
+  }
+
+  /** Fiche : matières assurées pendant l'année active et charge hebdomadaire. */
+  ficheEnseignant(engagementId: string): Promise<FicheEnseignantVue> {
+    return this.get(`/engagements/${engagementId}`);
+  }
+
+  /** Date passée : fin immédiate ; aujourd'hui ou plus tard : fin programmée. */
+  terminerEngagement(engagementId: string, date: string, motif: string | null): Promise<EnseignantVue> {
+    return this.post(`/engagements/${engagementId}/fin`, { date, motif });
+  }
+
+  annulerFinEngagement(engagementId: string): Promise<EnseignantVue> {
+    return this.delete(`/engagements/${engagementId}/fin`);
+  }
+
+  annulerInvitation(engagementId: string): Promise<void> {
+    return this.delete(`/engagements/${engagementId}`);
   }
 }

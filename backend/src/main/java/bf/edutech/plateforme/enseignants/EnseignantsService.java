@@ -1,6 +1,7 @@
 package bf.edutech.plateforme.enseignants;
 
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Comparator;
@@ -13,6 +14,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -63,10 +65,11 @@ public class EnseignantsService {
     private final AnneesService annees;
     private final ParametresPlateforme parametres;
     private final AuditService audit;
+    private final Clock horloge;
 
     EnseignantsService(EnseignantRepository enseignants, EngagementRepository engagements,
             IdentitesPlateforme plateforme, MembresService membres, ClassesService classes, AnneesService annees,
-            ParametresPlateforme parametres, AuditService audit) {
+            ParametresPlateforme parametres, AuditService audit, Clock horloge) {
         this.enseignants = enseignants;
         this.engagements = engagements;
         this.plateforme = plateforme;
@@ -75,6 +78,7 @@ public class EnseignantsService {
         this.annees = annees;
         this.parametres = parametres;
         this.audit = audit;
+        this.horloge = horloge;
     }
 
     /** Enseignants de l'établissement (tous les statuts si {@code statut} est null), par ordre alphabétique. */
@@ -189,19 +193,85 @@ public class EnseignantsService {
     }
 
     /**
-     * Fin d'engagement (mutation, départ, fin de vacation) : l'enseignant perd
-     * l'accès à l'établissement et est retiré des classes des années en cours.
+     * Fin d'engagement (mutation, départ, retraite, fin de contrat). {@code date} est le
+     * dernier jour de travail dans l'établissement.
+     * <ul>
+     * <li>Date passée : fin immédiate, l'enseignant perd l'accès à l'établissement et
+     * est retiré des matières des années en cours.</li>
+     * <li>Aujourd'hui ou plus tard : fin programmée. L'engagement reste actif jusqu'au
+     * soir de cette date (appels et notes continuent), puis le traitement quotidien le
+     * clôt. Le poste de titulaire est libre dès le lendemain pour un autre
+     * établissement, qui peut donc inviter l'enseignant sans attendre.</li>
+     * </ul>
      */
     @Transactional
     public EnseignantVue terminer(UUID engagementId, LocalDate date, String motif) {
         Engagement engagement = charger(engagementId);
         Enseignant enseignant = enseignants.findById(engagement.getEnseignantId()).orElseThrow();
-        engagement.terminer(date, facultatif(motif, "Le motif", 200));
-        membres.retirerRole(enseignant.getUtilisateurId(), Role.ENSEIGNANT);
-        int liberees = classes.libererEnseignant(engagementId);
-        audit.enregistrer("ENGAGEMENT_TERMINE", engagementId.toString(),
-                Map.of("date", date, "matieresLiberees", liberees));
+        String motifNettoye = facultatif(motif, "Le motif", 200);
+        if (!date.isBefore(aujourdhui())) {
+            engagement.programmerFin(date, motifNettoye);
+            audit.enregistrer("FIN_ENGAGEMENT_PROGRAMMEE", engagementId.toString(),
+                    motifNettoye == null ? Map.of("date", date) : Map.of("date", date, "motif", motifNettoye));
+            return EnseignantVue.depuis(engagement, enseignant);
+        }
+        engagement.terminer(date, motifNettoye);
+        cloreAcces(engagement, enseignant, false);
         return EnseignantVue.depuis(engagement, enseignant);
+    }
+
+    /**
+     * Annule une fin programmée (mutation rapportée, départ reporté) : l'engagement
+     * retrouve sa date de fin d'origine. Impossible si l'enseignant a entre-temps
+     * accepté ou reçu un autre poste de titulaire sur la période libérée.
+     */
+    @Transactional
+    public EnseignantVue annulerFin(UUID engagementId) {
+        Engagement engagement = charger(engagementId);
+        Enseignant enseignant = enseignants.findById(engagement.getEnseignantId()).orElseThrow();
+        engagement.annulerFin();
+        try {
+            engagements.saveAndFlush(engagement);
+        } catch (DataIntegrityViolationException e) {
+            // Contraintes d'exclusion : message neutre, sans dire où l'enseignant est attendu
+            throw new RegleMetierException("ANNULATION_FIN_IMPOSSIBLE", "Annulation impossible : l'enseignant a "
+                    + "déjà un autre engagement à partir de la date de fin prévue");
+        }
+        audit.enregistrer("FIN_ENGAGEMENT_ANNULEE", engagementId.toString(), null);
+        return EnseignantVue.depuis(engagement, enseignant);
+    }
+
+    /** Clôture des engagements arrivés à échéance dans l'établissement actif (traitement quotidien). */
+    @Transactional
+    public int terminerEchus() {
+        return terminerEchus(aujourdhui());
+    }
+
+    /** Variante datée, pour le traitement quotidien et les tests. */
+    @Transactional
+    int terminerEchus(LocalDate jour) {
+        UtilisateurConnecte.etablissementActif();
+        List<Engagement> echus = engagements.findByStatutAndFinBefore(StatutEngagement.ACTIF, jour);
+        for (Engagement engagement : echus) {
+            Enseignant enseignant = enseignants.findById(engagement.getEnseignantId()).orElseThrow();
+            engagement.cloturer();
+            cloreAcces(engagement, enseignant, true);
+        }
+        return echus.size();
+    }
+
+    /** Retrait du rôle (sauf autre engagement actif ici) et des matières, puis journal. */
+    private void cloreAcces(Engagement engagement, Enseignant enseignant, boolean automatique) {
+        if (!engagements.existsByEnseignantIdAndStatutIn(enseignant.getId(), EnumSet.of(StatutEngagement.ACTIF))) {
+            membres.retirerRole(enseignant.getUtilisateurId(), Role.ENSEIGNANT);
+        }
+        int liberees = classes.libererEnseignant(engagement.getId());
+        audit.enregistrer("ENGAGEMENT_TERMINE", engagement.getId().toString(),
+                Map.of("date", engagement.getFin(), "matieresLiberees", liberees, "automatique", automatique));
+    }
+
+    private LocalDate aujourdhui() {
+        return LocalDate.now(horloge);
     }
 
     /** Annule une invitation qui n'a pas encore reçu de réponse. */

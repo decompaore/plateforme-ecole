@@ -260,6 +260,21 @@ export class SessionService {
     await this.sansEchec(() => this.stockage.ecrire(CLE_PROFIL, this.profilSignal()));
   }
 
+  /** Relit le nombre d'établissements du compte (après l'acceptation d'une invitation, par exemple). */
+  async actualiserEtablissements(): Promise<void> {
+    const profil = this.profilSignal();
+    if (!profil) {
+      return;
+    }
+    try {
+      const etablissements = await this.mesEtablissements();
+      this.profilSignal.set({ ...this.profilSignal()!, nombreEtablissements: etablissements.length });
+      await this.sansEchec(() => this.stockage.ecrire(CLE_PROFIL, this.profilSignal()));
+    } catch {
+      // Sans réseau : le nombre sera relu à la prochaine ouverture de session
+    }
+  }
+
   /** Téléphone partagé : les listes de classes d'un autre utilisateur ne restent pas sur l'appareil. */
   private async effacerListesDesAutres(utilisateurId: string): Promise<void> {
     const miennes = `cache:${utilisateurId}:`;

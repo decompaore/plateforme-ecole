@@ -2,6 +2,7 @@ import { Component, computed, inject, input, OnInit, signal } from '@angular/cor
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
+import { dateCourte } from '../../core/outils';
 import { SessionService } from '../../core/session.service';
 import { Action } from '../action';
 import { AdminApi } from '../admin-api.service';
@@ -57,6 +58,7 @@ export class ClassePage implements OnInit {
   private readonly session = inject(SessionService);
 
   protected readonly types = LIBELLE_TYPE_MATIERE;
+  protected readonly dateCourte = dateCourte;
   protected readonly groupesProposes = GROUPES_PROPOSES;
   protected readonly action = new Action();
   protected readonly classe = signal<ClasseVue | null>(null);
@@ -78,7 +80,7 @@ export class ClassePage implements OnInit {
   protected readonly enseignantsActifs = computed(() =>
     this.enseignants()
       .filter((e) => e.statut === 'ACTIF')
-      .sort((a, b) => a.nom.localeCompare(b.nom)),
+      .sort((a, b) => (a.nom ?? '').localeCompare(b.nom ?? '')),
   );
   protected readonly chargeHebdo = computed(() =>
     this.programme().reduce((total, m) => total + (Number(m.volumeHebdo) || 0), 0),

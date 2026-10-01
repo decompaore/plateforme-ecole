@@ -51,3 +51,15 @@ export function dateLongue(jour: string): string {
   const [a, m, j] = jour.split('-').map(Number);
   return new Date(a, m - 1, j).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 }
+
+/** « 30/06/2027 » pour une date AAAA-MM-JJ. */
+export function dateCourte(jour: string): string {
+  const [a, m, j] = jour.split('-');
+  return `${j}/${m}/${a}`;
+}
+
+/** Lendemain d'une date AAAA-MM-JJ. */
+export function lendemain(jour: string): string {
+  const [a, m, j] = jour.split('-').map(Number);
+  return dateLocale(new Date(a, m - 1, j + 1));
+}

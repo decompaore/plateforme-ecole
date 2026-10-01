@@ -56,6 +56,7 @@ Pourquoi deux rôles ? Le propriétaire des tables contourne la Row-Level Securi
 | Transactions Mobile Money sans confirmation | chaque minute | `app.mobile-money.intervalle-expiration-ms`, `duree-validite` (15 min) |
 | Rapprochement Mobile Money de la veille | 2 h 30 (heure de Ouagadougou) | `app.mobile-money.cron-rapprochement` |
 | Relances des familles en retard | lundi 7 h 30 | `app.scolarite.cron-relances` ; chaque école peut les désactiver |
+| Clôture des engagements échus (fins programmées, contrats de vacataires) | chaque nuit à 0 h 15 | `app.enseignants.cron-fins` |
 
 Chaque tâche est idempotente : plusieurs instances de l'API peuvent tourner sans doublon.
 L'agrégateur `SIMULATEUR` n'est accepté que si `app.mobile-money.simulateur-autorise=true` (profils `dev` et `test`) :

@@ -77,7 +77,7 @@
                             (change)="affecter(m, $any($event.target).value)">
                       <option value="">— aucun —</option>
                       @for (e of enseignantsActifs(); track e.engagementId) {
-                        <option [value]="e.engagementId">{{ e.nom }} {{ e.prenoms }}</option>
+                        <option [value]="e.engagementId">{{ e.nom }} {{ e.prenoms }}@if (e.finProgrammee && e.fin) { (part le {{ dateCourte(e.fin) }}) }</option>
                       }
                     </select>
                   </td>

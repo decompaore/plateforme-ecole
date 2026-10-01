@@ -5,6 +5,8 @@ import { Role } from '../core/modeles';
 import { SessionService } from '../core/session.service';
 import { EnvoisService } from '../hors-ligne/envois.service';
 import { NotesService } from '../hors-ligne/notes.service';
+import { FinEngagementComponent } from './fin-engagement.component';
+import { InvitationsComponent } from './invitations.component';
 
 interface Tuile {
   titre: string;
@@ -30,10 +32,12 @@ const TUILES: Tuile[] = [
 
 @Component({
   selector: 'app-accueil',
-  imports: [RouterLink],
+  imports: [RouterLink, InvitationsComponent, FinEngagementComponent],
   template: `
     <div class="page">
       <h1>Bonjour{{ session.profil()?.prenoms ? ' ' + session.profil()?.prenoms : '' }}</h1>
+
+      <app-fin-engagement />
 
       @if (envois.enAttente() > 0) {
         <a routerLink="/envois" class="alerte attention bloc">
@@ -50,6 +54,8 @@ const TUILES: Tuile[] = [
         <a routerLink="/envois" class="alerte erreur bloc">{{ envois.refuses() }} appel(s) refusé(s) : à vérifier.</a>
       }
 
+      <app-invitations />
+
       @if (session.profil()?.superAdmin) {
         <div class="grille">
           <a class="tuile active" routerLink="/plateforme">
@@ -59,7 +65,7 @@ const TUILES: Tuile[] = [
         </div>
       } @else if (!session.profil()?.etablissement) {
         <div class="carte">
-          <p>Aucun établissement actif. Si un établissement vous a invité, acceptez l'invitation pour y accéder.</p>
+          <p>Aucun établissement actif pour le moment. Si un établissement vous a invité, l'invitation s'affiche ci-dessus.</p>
         </div>
       }
 

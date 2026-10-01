@@ -1,4 +1,4 @@
-# Application web (v0.15)
+# Application web (v0.16)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -8,6 +8,8 @@ Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 - la **saisie des notes, même sans réseau** (enseignants, v0.15) : création des évaluations et feuilles de notes ;
 - l'**espace d'administration** (v0.14) : établissements pour le super administrateur ; année scolaire, filières et
   matières, classes et programmes, élèves, personnel pour l'établissement ;
+- la **mutation d'un enseignant** (v0.16) : fin d'engagement programmée par l'établissement, bandeau d'avertissement
+  chez l'enseignant pour envoyer ses appels et notes avant la date ;
 - un **accueil par rôle** : les écrans encore à venir (vie scolaire, scolarité, statistiques, parents) sont
   annoncés « bientôt disponibles ». En attendant, ces fonctions s'utilisent par l'API (Swagger).
 
@@ -74,6 +76,11 @@ puis onglet *Network* → *Offline*.
 - Un compte (un téléphone) peut appartenir à plusieurs établissements, avec un rôle propre à chacun : enseignant
   vacataire dans deux lycées, parent d'enfants dans deux écoles, promoteur d'un réseau. « Changer d'établissement »
   n'apparaît que pour ces comptes. Un administrateur rattaché à un seul établissement ne le voit pas.
+- **Titulaire dans X, vacataire dans Y** : l'établissement Y engage l'enseignant comme vacataire (écran Personnel).
+  L'enseignant ayant déjà un compte, il reçoit une **invitation**, affichée sur son accueil avec le type de poste, les
+  dates et le taux horaire. S'il accepte, « Changer d'établissement » apparaît et un bouton le fait passer dans Y.
+  L'établissement X n'est jamais informé. Le serveur refuse un second poste de **titulaire** sur la même période
+  (`POSTE_TITULAIRE_OCCUPE`).
 - Sur une réponse 401, l'application renouvelle la session **une seule fois** pour toutes les requêtes en cours.
   Le serveur fait tourner le cookie et traite la réutilisation d'un ancien cookie comme un vol.
 - Le renouvellement est aussi verrouillé entre onglets : l'application installée et un onglet ouvert ne l'envoient
@@ -164,7 +171,7 @@ utilisables sur ordinateur comme sur téléphone (les tableaux défilent horizon
 | Classes (`/admin/classes`) | ADMIN_ECOLE, CENSEUR, SECRETARIAT (lecture) | Classes de l'année par niveau, création |
 | Fiche d'une classe | idem | Programme : matières, coefficients, groupes, heures, **enseignant de chaque matière** ; liste des élèves |
 | Élèves (`/admin/eleves`) | ADMIN_ECOLE, SECRETARIAT (CENSEUR en lecture) | Nouvel élève avec son parent et son inscription, recherche, dossier, **import Excel** de la rentrée |
-| Personnel (`/admin/personnel`) | ADMIN_ECOLE | Engager un enseignant (titulaire ou vacataire), ajouter censeur, secrétariat, intendance, surveillance ; retirer un rôle |
+| Personnel (`/admin/personnel`) | ADMIN_ECOLE | Engager un enseignant (titulaire ou vacataire), **terminer un engagement** (mutation, démission, retraite, fin de contrat) ou annuler une fin programmée, annuler une invitation ; ajouter censeur, secrétariat, intendance, surveillance ; retirer un rôle |
 
 Mise en place d'un établissement, dans l'ordre :
 1. Année scolaire : créer les profils pédagogiques, puis l'année.
@@ -177,6 +184,26 @@ Mise en place d'un établissement, dans l'ordre :
 Comptes créés (administrateur d'un établissement, enseignant, personnel) : le **mot de passe provisoire** s'affiche
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
+
+### Mutation d'un enseignant (v0.16)
+
+Exemple : M. SANOU, titulaire au lycée A, est muté au lycée B à la fin de l'année.
+
+1. **Lycée A**, Personnel : « Terminer… » sur la ligne de l'enseignant. On saisit le **dernier jour de travail**
+   (30 juin) et le motif (Mutation). L'écran rappelle les **matières à réaffecter** : elles passeront « sans
+   enseignant » le lendemain. « Programmer la fin » : l'enseignant reste actif jusqu'au 30 juin inclus (appel,
+   notes) et la ligne affiche « part le 30/06 ». Dans le programme des classes, la liste des enseignants l'indique
+   aussi, pour éviter de lui confier une nouvelle matière.
+2. **Lycée B** peut l'engager comme **titulaire à partir du 1er juillet** dès maintenant : le poste au lycée A ne
+   couvre plus cette période. Il reçoit une invitation, qu'il accepte depuis son accueil.
+3. **L'enseignant** voit sur son accueil, dans les 30 jours qui précèdent la date, le bandeau « Lycée A : votre
+   poste se termine le 30 juin (mutation) », avec le nombre d'appels et de notes encore sur le téléphone et un
+   bouton « Envoyer maintenant ». L'information est gardée sur l'appareil : elle s'affiche aussi sans réseau.
+4. **Le 1er juillet à 0 h 15**, le serveur clôt l'engagement : l'enseignant perd l'accès au lycée A et ses matières
+   passent « sans enseignant ». Les contrats de vacataires arrivés à échéance sont clos de la même façon.
+
+Une date déjà passée termine l'engagement **tout de suite** (après confirmation). Une fin programmée peut être
+modifiée ou annulée tant qu'aucun autre établissement n'a engagé l'enseignant sur la période libérée.
 
 Toutes les règles restent vérifiées par le serveur (année figée, classe complète, groupe obligatoire, dernier
 administrateur…). L'écran affiche son message tel quel.
@@ -199,7 +226,7 @@ frontend/src/app/
 
 ## Tests
 
-46 tests (Vitest) :
+52 tests (Vitest) :
 
 | Fichier | Ce qui est vérifié |
 |---|---|
@@ -209,7 +236,9 @@ frontend/src/app/
 | `appel-saisie.page.spec.ts` | Appel complet hors connexion à partir des listes du téléphone, jusqu'à la file d'envoi |
 | `notes.service.spec.ts` | Création avec identifiant de l'appareil sans doublon, seuls les élèves modifiés envoyés, saisies regroupées, création refusée puis corrigée ou abandonnée avec ses notes, note refusée puis corrigée, saisie pendant un envoi, notes avant leur évaluation (horloge), conflit technique non bloquant, envoi par 200, lecture des notes saisies au clavier |
 | `notes-saisie.page.spec.ts` | Feuille hors connexion : note hors barème bloquée, absence, « Abs » retiré qui redonne la note d'origine, mise en file des seuls élèves modifiés |
-| `admin.spec.ts` | Création d'un établissement et affichage unique du mot de passe, programme d'une classe (coefficient, enseignant), nouvel élève avec parent et inscription, engagement (compte ou invitation), message du serveur sur une règle refusée |
+| `invitations.component.spec.ts` | Titulaire dans X invité comme vacataire dans Y : acceptation, choix d'établissement qui apparaît, passage dans Y |
+| `admin.spec.ts` | Création d'un établissement et affichage unique du mot de passe, programme d'une classe (coefficient, enseignant), nouvel élève avec parent et inscription, engagement (compte ou invitation), mutation programmée avec les matières à réaffecter puis annulée, message du serveur sur une règle refusée |
+| `fin-engagement.component.spec.ts` | Bandeau de mutation : envois en attente comptés et envoyés tout de suite, rien à 60 jours, affichage sans réseau le jour même, annonce effacée quand la fin est annulée, calcul des jours |
 
 La CI (`.github/workflows/ci.yml`, job *Frontend*) exécute les tests et la construction de production à chaque pull
 request.
@@ -224,7 +253,9 @@ Le parcours complet a aussi été vérifié dans Chromium, à la taille d'un té
   ouverte, enseignant engagé ; création d'un établissement par le super administrateur ;
 - (v0.15) notes sans réseau : évaluation créée et notée en mode avion (Entrée d'un élève à l'autre, note hors barème
   signalée), rien n'est envoyé sans réseau, puis au retour du réseau la création part avec son `idClient` et seules
-  les trois notes modifiées sont envoyées.
+  les trois notes modifiées sont envoyées ;
+- (v0.16) mutation : fin programmée depuis Personnel (matières à réaffecter, « part le … »), puis bandeau sur
+  l'accueil de l'enseignant, à la taille d'un téléphone.
 
 ## Limite connue
 

@@ -228,6 +228,68 @@ describe('Espace d’administration', () => {
     expect(texte(f)).toContain('une invitation lui a été envoyée');
   });
 
+  it('personnel : programme la mutation d’un titulaire, rappelle ses matières puis annule la fin', async () => {
+    await session(http);
+    const f = TestBed.createComponent(PersonnelPage);
+    f.detectChanges();
+    const titulaire = {
+      engagementId: 'g1', enseignantId: 's1', nom: 'SANOU', prenoms: 'Paul', telephone: '22661000001', sexe: 'M',
+      specialite: 'Maths', type: 'TITULAIRE', statut: 'ACTIF', debut: '2026-10-01', fin: null, motifFin: null,
+      finProgrammee: false,
+    };
+    const invitation = { ...titulaire, engagementId: 'g2', enseignantId: null, nom: null, prenoms: null, telephone: null, statut: 'INVITE' };
+    http.expectOne('/api/v1/enseignants').flush([invitation, titulaire]);
+    http.expectOne('/api/v1/membres').flush([]);
+    await attendre();
+    expect(texte(f)).toContain('Invitation en attente');
+
+    cliquer(f, 'Terminer…');
+    await attendre();
+    http.expectOne('/api/v1/engagements/g1').flush({
+      enseignant: titulaire,
+      anneeId: 'a1',
+      affectations: [
+        { classeId: 'c2', classeCode: '2nde F3', matiereId: 'm1', matiereCode: 'MATH', matiereLibelle: 'Mathématiques', volumeHebdo: 4, volumeTotal: null, engagementId: 'g1' },
+        { classeId: 'c1', classeCode: '1re F3', matiereId: 'm1', matiereCode: 'MATH', matiereLibelle: 'Mathématiques', volumeHebdo: 5, volumeTotal: null, engagementId: 'g1' },
+      ],
+      chargeHebdomadaire: 9,
+    });
+    await attendre();
+    f.detectChanges();
+    await f.whenStable();
+    saisir(f, '#finDate', '2099-06-30');
+    expect(texte(f)).toContain('2 matière(s) à réaffecter');
+    expect(texte(f)).toContain('1re F3 · Mathématiques (5 h / semaine)');
+    expect(texte(f)).toContain('pourra l\'inviter comme titulaire à partir du');
+
+    cliquer(f, 'Programmer la fin');
+    await attendre();
+    const fin = http.expectOne('/api/v1/engagements/g1/fin');
+    expect(fin.request.method).toBe('POST');
+    expect(fin.request.body).toEqual({ date: '2099-06-30', motif: 'Mutation' });
+    const programmee = { ...titulaire, fin: '2099-06-30', motifFin: 'Mutation', finProgrammee: true };
+    fin.flush(programmee);
+    await attendre();
+    http.expectOne((r) => r.url === '/api/v1/enseignants' && r.method === 'GET').flush([programmee]);
+    http.expectOne('/api/v1/membres').flush([]);
+    await attendre();
+    expect(texte(f)).toContain('Fin programmée : Paul SANOU enseigne jusqu');
+    expect(texte(f)).toContain('part le 30/06/2099');
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    cliquer(f, 'Annuler la fin');
+    await attendre();
+    const annulation = http.expectOne('/api/v1/engagements/g1/fin');
+    expect(annulation.request.method).toBe('DELETE');
+    annulation.flush(titulaire);
+    await attendre();
+    http.expectOne((r) => r.url === '/api/v1/enseignants' && r.method === 'GET').flush([titulaire]);
+    http.expectOne('/api/v1/membres').flush([]);
+    await attendre();
+    expect(texte(f)).toContain('Fin d’engagement annulée'.replace('’', "'"));
+    expect(texte(f)).not.toContain('part le');
+  });
+
   it('affiche le message du serveur quand une règle est refusée', async () => {
     await session(http);
     const f = TestBed.createComponent(PersonnelPage);
