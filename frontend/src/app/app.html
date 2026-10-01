@@ -6,14 +6,14 @@
         <span class="utilisateur">{{ profil.prenoms }} {{ profil.nom }}</span>
       }
     </a>
-    @if (envois.enAttente() > 0 || envois.refuses() > 0) {
+    @if (aEnvoyer() > 0 || refuses() > 0) {
       <a
         routerLink="/envois"
         class="compteur"
-        [class.refus]="envois.refuses() > 0"
-        [attr.aria-label]="envois.enAttente() + ' appel(s) en attente, ' + envois.refuses() + ' refusé(s)'"
+        [class.refus]="refuses() > 0"
+        [attr.aria-label]="aEnvoyer() + ' envoi(s) en attente, ' + refuses() + ' refusé(s)'"
       >
-        {{ envois.enAttente() + envois.refuses() }}
+        {{ aEnvoyer() + refuses() }}
       </a>
     }
     <button
@@ -32,10 +32,23 @@
       <a routerLink="/">Accueil</a>
       @if (session.aLeRole('ENSEIGNANT')) {
         <a routerLink="/appel">Faire l'appel</a>
-        <a routerLink="/envois">Mes appels envoyés</a>
+        <a routerLink="/notes">Saisie des notes</a>
+        <a routerLink="/envois">Mes envois</a>
+      }
+      @if (session.profil()?.superAdmin) {
+        <a routerLink="/plateforme">Établissements</a>
+      }
+      @if (session.aLeRole('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')) {
+        <a routerLink="/admin/classes">Classes</a>
+        <a routerLink="/admin/eleves">Élèves</a>
+      }
+      @if (session.aLeRole('ADMIN_ECOLE')) {
+        <a routerLink="/admin/personnel">Personnel</a>
       }
       @if (!session.horsConnexion()) {
-        <a routerLink="/etablissement">Changer d'établissement</a>
+        @if (session.plusieursEtablissements()) {
+          <a routerLink="/etablissement">Changer d'établissement</a>
+        }
         <a routerLink="/mot-de-passe">Changer mon mot de passe</a>
       }
       <button type="button" (click)="deconnexion()">Se déconnecter</button>
@@ -44,11 +57,11 @@
 
   @if (session.sessionExpiree()) {
     <div class="bandeau hors-ligne" role="status">
-      Session expirée : reconnectez-vous pour envoyer vos appels.
+      Session expirée : reconnectez-vous pour envoyer vos appels et vos notes.
       <a routerLink="/connexion" class="bouton discret">Se reconnecter</a>
     </div>
   } @else if (!reseau()) {
-    <div class="bandeau hors-ligne" role="status">Hors connexion — les appels seront envoyés au retour du réseau.</div>
+    <div class="bandeau hors-ligne" role="status">Hors connexion — appels et notes seront envoyés au retour du réseau.</div>
   } @else if (session.horsConnexion()) {
     <div class="bandeau hors-ligne" role="status">Connexion au serveur en cours…</div>
   }

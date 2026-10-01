@@ -281,6 +281,35 @@ class EvaluationsIntegrationTest {
                 .isInstanceOf(RegleMetierException.class).extracting("code").isEqualTo("PERIODE_VERROUILLEE");
     }
 
+    @Test
+    void uneEvaluationCreeeHorsConnexionNeSeDupliqueJamais() {
+        UUID general = profil("GENERAL");
+        UUID classe = classe(general, "4e C", false);
+        UUID maths = matiere("MATH", TypeMatiere.GENERALE, classe, "4", null);
+        UUID francais = matiere("FR", TypeMatiere.GENERALE, classe, "2", null);
+        UUID trimestre = ouvrirAvecTrimestres(general);
+        UUID idClient = UUID.randomUUID();
+
+        EvaluationVue creee = commeCenseur(() -> evaluations.creer(classe, maths, trimestre, "Devoir surprise",
+                TypeEvaluation.DEVOIR, aujourdhui, null, null, idClient));
+        // Coupure réseau : l'appareil renvoie la même création
+        EvaluationVue renvoi = commeCenseur(() -> evaluations.creer(classe, maths, trimestre, "Devoir surprise",
+                TypeEvaluation.DEVOIR, aujourdhui, null, null, idClient));
+        assertThat(creee.id()).isEqualTo(idClient);
+        assertThat(renvoi.id()).isEqualTo(idClient);
+        assertThat(commeCenseur(() -> evaluations.lister(classe, trimestre))).hasSize(1);
+
+        // Période verrouillée entre la création et le renvoi : le renvoi reste reconnu, pas refusé
+        dans(() -> periodes.verrouiller(trimestre));
+        assertThat(commeCenseur(() -> evaluations.creer(classe, maths, trimestre, "Devoir surprise",
+                TypeEvaluation.DEVOIR, aujourdhui, null, null, idClient)).id()).isEqualTo(idClient);
+
+        // Le même identifiant ne peut pas désigner une évaluation d'une autre matière
+        assertThatThrownBy(() -> commeCenseur(() -> evaluations.creer(classe, francais, trimestre, "Dictée",
+                TypeEvaluation.DEVOIR, aujourdhui, null, null, idClient)))
+                .isInstanceOf(RegleMetierException.class).extracting("code").isEqualTo("IDENTIFIANT_DEJA_UTILISE");
+    }
+
     // ------------------------------------------------------------------
 
     private UUID profil(String code) {

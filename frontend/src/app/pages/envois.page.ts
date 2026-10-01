@@ -4,13 +4,14 @@ import { Router, RouterLink } from '@angular/router';
 import { dateHeureCourte, dateLongue } from '../core/outils';
 import { SessionService } from '../core/session.service';
 import { Envoi, EnvoisService } from '../hors-ligne/envois.service';
+import { NotesService, OperationNotes } from '../hors-ligne/notes.service';
 
 @Component({
   selector: 'app-envois',
   imports: [RouterLink],
   template: `
     <div class="page">
-      <h1>Mes appels</h1>
+      <h1>Mes envois</h1>
 
       @if (vientDeSaisir()) {
         <div class="alerte succes" role="status">
@@ -31,10 +32,10 @@ import { Envoi, EnvoisService } from '../hors-ligne/envois.service';
         <button
           type="button"
           class="bouton secondaire"
-          [disabled]="envois.synchronisation() || envois.enAttente() === 0 || session.horsConnexion()"
-          (click)="envois.synchroniser()"
+          [disabled]="envois.synchronisation() || notes.synchronisation() || (envois.enAttente() === 0 && notes.enAttente() === 0) || session.horsConnexion()"
+          (click)="envoyerTout()"
         >
-          {{ envois.synchronisation() ? 'Envoi…' : 'Envoyer maintenant' }}
+          {{ envois.synchronisation() || notes.synchronisation() ? 'Envoi…' : 'Envoyer maintenant' }}
         </button>
       </div>
 
@@ -80,6 +81,39 @@ import { Envoi, EnvoisService } from '../hors-ligne/envois.service';
       } @else {
         <p class="doux">Les appels envoyés restent affichés une semaine.</p>
       }
+
+      <h2 class="section">Notes</h2>
+      @if (notes.dernierBilan()?.erreur; as erreur) {
+        @if (notes.enAttente() > 0) {
+          <div class="alerte attention" role="status">{{ erreur }}</div>
+        }
+      }
+      <ul class="liste carte">
+        @for (o of notes.operations(); track o.cle) {
+          <li class="envoi">
+            <div class="entete">
+              <strong>{{ o.classeCode }} · {{ o.matiereLibelle }}</strong>
+              @if (o.etat === 'REFUSE') {
+                <span class="pastille absent">refusé</span>
+              } @else {
+                <span class="pastille">en attente</span>
+              }
+            </div>
+            <div class="doux">
+              {{ o.type === 'CREATION' ? 'Création de « ' + o.libelle + ' »' : 'Notes de « ' + o.libelle + ' » (' + nombreNotes(o) + ' élève(s))' }}
+            </div>
+            @if (o.etat === 'REFUSE') {
+              <p class="alerte erreur motif">{{ o.message }}</p>
+              <div class="actions-ligne">
+                <a class="bouton discret petit" [routerLink]="['/notes', o.classeId, o.matiereId, o.evaluationId]">Ouvrir</a>
+                <button type="button" class="bouton discret petit" (click)="abandonner(o)">Abandonner</button>
+              </div>
+            }
+          </li>
+        } @empty {
+          <li class="doux vide">Toutes les notes saisies sur ce téléphone ont été envoyées.</li>
+        }
+      </ul>
     </div>
   `,
   styles: `
@@ -97,6 +131,12 @@ import { Envoi, EnvoisService } from '../hors-ligne/envois.service';
       justify-content: space-between;
       align-items: center;
       gap: 0.5rem;
+    }
+    .section {
+      margin-top: 1.5rem;
+    }
+    .vide {
+      padding: 0.75rem 0;
     }
     .motif {
       margin: 0.5rem 0 0.25rem;
@@ -120,6 +160,29 @@ export class EnvoisPage {
       { titre: 'Envoyés', envois: tous.filter((e) => e.etat === 'ENVOYE') },
     ];
   });
+
+  protected readonly notes = inject(NotesService);
+
+  constructor() {
+    void this.notes.recharger();
+  }
+
+  protected nombreNotes(o: OperationNotes): number {
+    return Object.keys(o.notes ?? {}).length;
+  }
+
+  protected async envoyerTout(): Promise<void> {
+    await this.envois.synchroniser();
+    await this.notes.synchroniser();
+  }
+
+  protected abandonner(o: OperationNotes): Promise<void> {
+    const texte =
+      o.type === 'CREATION'
+        ? `Abandonner la création de « ${o.libelle} » et les notes saisies dessus ?`
+        : `Abandonner les notes de « ${o.libelle} » non envoyées ?`;
+    return window.confirm(texte) ? this.notes.abandonner(o) : Promise.resolve();
+  }
 
   protected retirer(e: Envoi): Promise<void> {
     return this.envois.retirer(e);

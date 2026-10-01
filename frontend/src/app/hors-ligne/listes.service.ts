@@ -24,7 +24,25 @@ export interface AffectationsLocales {
 
 export interface ClasseLocale {
   classeId: string;
+  /** Profil pédagogique de la classe : il détermine ses périodes (trimestres, semestres). */
+  profilId?: string;
   eleves: EleveLocal[];
+  prepareLe: string;
+}
+
+export interface PeriodeLocale {
+  id: string;
+  profilId: string;
+  libelle: string;
+  ordre: number;
+  debut: string;
+  fin: string;
+  verrouillee: boolean;
+}
+
+export interface PeriodesLocales {
+  anneeId: string;
+  periodes: PeriodeLocale[];
   prepareLe: string;
 }
 
@@ -93,7 +111,25 @@ export class ListesService {
     return this.stockage.lire<ClasseLocale>(cle);
   }
 
-  /** Télécharge les listes de toutes les classes de l'enseignant. */
+  /** Périodes de l'année (tous profils), réseau d'abord. */
+  async periodes(anneeId: string): Promise<PeriodesLocales | undefined> {
+    const cle = this.prefixe() + 'periodes';
+    if (this.enLigne()) {
+      try {
+        const periodes = await firstValueFrom(this.http.get<PeriodeLocale[]>(`${API}/annees/${anneeId}/periodes`));
+        const locales: PeriodesLocales = { anneeId, periodes, prepareLe: new Date().toISOString() };
+        await this.stockage.ecrire(cle, locales);
+        return locales;
+      } catch (e) {
+        if (!estErreurReseau(e)) {
+          throw e;
+        }
+      }
+    }
+    return this.stockage.lire<PeriodesLocales>(cle);
+  }
+
+  /** Télécharge les listes de toutes les classes de l'enseignant (et les périodes de l'année). */
   async toutPreparer(): Promise<AffectationsLocales | undefined> {
     const affectations = await this.affectations();
     if (!affectations) {
@@ -109,22 +145,32 @@ export class ListesService {
     } finally {
       this.preparation.set(null);
     }
+    // Périodes (pour les notes) après les listes : leur échec ne doit jamais priver l'appel de ses listes
+    try {
+      await this.periodes(affectations.anneeId);
+    } catch {
+      // Nouvel essai à la prochaine préparation
+    }
     return affectations;
   }
 
-  /** Recharge tout si les listes de l'appareil datent de plus de 12 heures. Silencieux en cas d'échec. */
-  async preparerSiAncien(): Promise<void> {
+  /**
+   * Recharge tout si les listes de l'appareil datent de plus de 12 heures. Silencieux en cas d'échec.
+   * Renvoie vrai si une préparation a eu lieu.
+   */
+  async preparerSiAncien(): Promise<boolean> {
     if (!this.enLigne() || !this.session.aLeRole('ENSEIGNANT')) {
-      return;
+      return false;
     }
     const actuel = await this.stockage.lire<AffectationsLocales>(this.prefixe() + 'affectations');
     if (actuel && Date.now() - Date.parse(actuel.prepareLe) < FRAICHEUR_MS) {
-      return;
+      return false;
     }
     try {
       await this.toutPreparer();
+      return true;
     } catch {
-      // Nouvel essai au prochain lancement
+      return false; // Nouvel essai au prochain lancement
     }
   }
 
@@ -139,9 +185,13 @@ export class ListesService {
   }
 
   private async telechargerClasse(classeId: string, cle: string): Promise<ClasseLocale> {
-    const inscriptions = await firstValueFrom(this.http.get<Inscription[]>(`${API}/classes/${classeId}/inscriptions`));
+    const [inscriptions, infos] = await Promise.all([
+      firstValueFrom(this.http.get<Inscription[]>(`${API}/classes/${classeId}/inscriptions`)),
+      firstValueFrom(this.http.get<{ profilId: string }>(`${API}/classes/${classeId}`)),
+    ]);
     const classe: ClasseLocale = {
       classeId,
+      profilId: infos.profilId,
       eleves: inscriptions.map((i) => ({
         inscriptionId: i.id,
         nom: i.nom,

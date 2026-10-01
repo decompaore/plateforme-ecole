@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -62,13 +63,43 @@ public class EvaluationsService {
     @Transactional
     public EvaluationVue creer(UUID classeId, UUID matiereId, UUID periodeId, String libelle, TypeEvaluation type,
             LocalDate date, BigDecimal bareme, BigDecimal poids) {
+        return creer(classeId, matiereId, periodeId, libelle, type, date, bareme, poids, null);
+    }
+
+    /**
+     * Création avec un identifiant choisi par l'appareil ({@code idClient}), pour
+     * les évaluations créées hors connexion : un renvoi après une coupure réseau
+     * retrouve l'évaluation déjà créée au lieu d'en créer une seconde. Le renvoi
+     * est reconnu avant les contrôles de saisie, pour qu'une période verrouillée
+     * entre-temps ne fasse pas passer une évaluation bien créée pour refusée.
+     */
+    @Transactional
+    public EvaluationVue creer(UUID classeId, UUID matiereId, UUID periodeId, String libelle, TypeEvaluation type,
+            LocalDate date, BigDecimal bareme, BigDecimal poids, UUID idClient) {
         UtilisateurConnecte.etablissementActif();
+        if (idClient != null) {
+            Optional<Evaluation> deja = evaluations.findById(idClient);
+            if (deja.isPresent()) {
+                Evaluation e = deja.get();
+                if (!e.getClasseId().equals(classeId) || !e.getMatiereId().equals(matiereId)
+                        || !e.getPeriodeId().equals(periodeId)) {
+                    throw new RegleMetierException("IDENTIFIANT_DEJA_UTILISE",
+                            "Cet identifiant d'évaluation est déjà utilisé pour une autre classe ou matière");
+                }
+                autorisations.verifierConsultation(classeId);
+                Contexte lecture = contextes.pourLecture(classeId, periodeId);
+                return vue(e, lecture, notes.findByEvaluationId(e.getId()).size());
+            }
+        }
         Contexte c = contextes.pourSaisie(classeId, periodeId);
         MatiereDeClasseVue matiere = matiereANotes(c, matiereId);
         autorisations.verifierSaisie(c.classe(), matiere);
         verifierDate(c, date);
         Evaluation evaluation = new Evaluation(classeId, matiereId, periodeId,
                 UtilisateurConnecte.idSiConnecte().orElse(null));
+        if (idClient != null) {
+            evaluation.imposerIdentifiant(idClient);
+        }
         evaluation.definir(libelle(libelle), type, date, bareme(bareme), poids(poids));
         evaluations.save(evaluation);
         audit.enregistrer("EVALUATION_CREEE", c.classe().code() + " / " + matiere.matiereCode(),

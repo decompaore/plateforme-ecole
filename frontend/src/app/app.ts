@@ -1,10 +1,12 @@
-import { Component, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { SwUpdate } from '@angular/service-worker';
 
+import { AnneeCourante } from './admin/annee-courante.service';
 import { SessionService } from './core/session.service';
 import { EnvoisService } from './hors-ligne/envois.service';
 import { ListesService } from './hors-ligne/listes.service';
+import { NotesService } from './hors-ligne/notes.service';
 
 const REPRISE_MS = 30 * 1000;
 
@@ -17,7 +19,12 @@ const REPRISE_MS = 30 * 1000;
 export class App {
   protected readonly session = inject(SessionService);
   protected readonly envois = inject(EnvoisService);
+  protected readonly notes = inject(NotesService);
+  /** Appels et saisies de notes pas encore acceptés par le serveur. */
+  protected readonly aEnvoyer = computed(() => this.envois.enAttente() + this.notes.enAttente());
+  protected readonly refuses = computed(() => this.envois.refuses() + this.notes.refusees());
   private readonly listes = inject(ListesService);
+  private readonly anneeCourante = inject(AnneeCourante);
   private readonly router = inject(Router);
   private readonly sw = inject(SwUpdate);
 
@@ -28,6 +35,7 @@ export class App {
   constructor() {
     const destroyRef = inject(DestroyRef);
     this.envois.demarrer(destroyRef);
+    this.notes.demarrer((f) => destroyRef.onDestroy(f));
 
     const enLigne = () => {
       this.reseau.set(true);
@@ -59,11 +67,19 @@ export class App {
       const cle = profil?.etablissement ? `${profil.utilisateurId}:${profil.etablissement.id}` : '';
       const connecte = this.session.jeton() !== null;
       untracked(() => {
+        if (cle !== precedent) {
+          // Autre établissement ou autre utilisateur : l'année de travail de l'administration est à relire
+          this.anneeCourante.oublier();
+        }
         if (cle !== precedent || connecte) {
           precedent = cle;
           void this.envois.recharger().then(() => this.envois.synchroniser());
+          if (cle) {
+            // Les appels d'abord (plus urgents pour les familles), puis les notes
+            void this.notes.recharger().then(() => this.notes.synchroniser());
+          }
           if (cle && connecte && !profil?.doitChangerMotDePasse) {
-            void this.listes.preparerSiAncien();
+            void this.listes.preparerSiAncien().then((fait) => (fait ? this.notes.preparerTout() : undefined));
           }
         }
         // Session terminée (expirée, révoquée) : retour à la connexion
@@ -89,11 +105,11 @@ export class App {
 
   protected async deconnexion(): Promise<void> {
     this.menuOuvert.set(false);
-    const attente = await this.envois.enAttenteTousEtablissements();
+    const attente = (await this.envois.enAttenteTousEtablissements()) + this.notes.enAttente();
     if (
       attente > 0 &&
       !window.confirm(
-        `${attente} appel(s) ne sont pas encore envoyés. Ils restent sur ce téléphone et partiront à votre prochaine connexion. Se déconnecter ?`,
+        `${attente} appel(s) ou saisie(s) de notes ne sont pas encore envoyés. Ils restent sur ce téléphone et partiront à votre prochaine connexion. Se déconnecter ?`,
       )
     ) {
       return;

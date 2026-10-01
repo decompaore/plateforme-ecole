@@ -1,22 +1,36 @@
 import { inject } from '@angular/core';
-import { CanActivateFn, Router, Routes } from '@angular/router';
+import { CanActivateFn, CanDeactivateFn, Router, Routes } from '@angular/router';
 
 import { anonyme, connecte, role } from './core/gardes';
 import { SessionService } from './core/session.service';
-// Accueil et écrans de l'appel chargés d'emblée (et non à la demande) : ils doivent s'ouvrir
+// Accueil, appel et notes chargés d'emblée (et non à la demande) : ils doivent s'ouvrir
 // sans réseau même avant que le service worker ait fini de tout mettre en cache.
 import { AccueilPage } from './pages/accueil.page';
 import { AppelChoixPage } from './pages/appel-choix.page';
 import { AppelSaisiePage } from './pages/appel-saisie.page';
 import { EnvoisPage } from './pages/envois.page';
+import { NotesChoixPage } from './pages/notes-choix.page';
+import { NotesEvaluationsPage } from './pages/notes-evaluations.page';
+import { NotesSaisiePage } from './pages/notes-saisie.page';
+
+/** Quitter la feuille de notes sans enregistrer : on demande confirmation. */
+const notesEnregistrees: CanDeactivateFn<NotesSaisiePage> = (page) =>
+  !page.aDesModifications() || window.confirm('Des notes ne sont pas enregistrées. Quitter quand même ?');
 
 /** Choix de l'établissement : pendant la connexion (jeton de sélection) ou une fois connecté. */
 const selectionOuConnecte: CanActivateFn = () => {
   const session = inject(SessionService);
-  return session.selection() !== null || (session.profil() !== null && !session.horsConnexion())
-    ? true
-    : inject(Router).parseUrl('/connexion');
+  if (session.selection() !== null) {
+    return true;
+  }
+  if (session.profil() === null) {
+    return inject(Router).parseUrl('/connexion');
+  }
+  return (!session.horsConnexion() && session.plusieursEtablissements()) || inject(Router).parseUrl('/');
 };
+
+const superAdmin: CanActivateFn = () =>
+  inject(SessionService).profil()?.superAdmin === true || inject(Router).parseUrl('/');
 
 const profilPresent: CanActivateFn = () =>
   inject(SessionService).profil() !== null || inject(Router).parseUrl('/connexion');
@@ -61,6 +75,72 @@ export const routes: Routes = [
         canActivate: [role('ENSEIGNANT')],
         title: 'Appel',
         component: AppelSaisiePage,
+      },
+      {
+        path: 'notes',
+        canActivate: [role('ENSEIGNANT')],
+        title: 'Saisie des notes',
+        component: NotesChoixPage,
+      },
+      {
+        path: 'notes/:classeId/:matiereId',
+        canActivate: [role('ENSEIGNANT')],
+        title: 'Évaluations',
+        component: NotesEvaluationsPage,
+      },
+      {
+        path: 'notes/:classeId/:matiereId/:evaluationId',
+        canActivate: [role('ENSEIGNANT')],
+        canDeactivate: [notesEnregistrees],
+        title: 'Notes',
+        component: NotesSaisiePage,
+      },
+      {
+        path: 'plateforme',
+        canActivate: [superAdmin],
+        title: 'Établissements',
+        loadComponent: () => import('./admin/pages/plateforme.page').then((m) => m.PlateformePage),
+      },
+      {
+        // Administration de l'établissement : en ligne uniquement, chargée à la demande
+        path: 'admin',
+        canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')],
+        children: [
+          { path: '', pathMatch: 'full', redirectTo: 'classes' },
+          {
+            path: 'classes',
+            title: 'Classes',
+            loadComponent: () => import('./admin/pages/classes.page').then((m) => m.ClassesPage),
+          },
+          {
+            path: 'classes/:id',
+            title: 'Classe',
+            loadComponent: () => import('./admin/pages/classe.page').then((m) => m.ClassePage),
+          },
+          {
+            path: 'eleves',
+            title: 'Élèves',
+            loadComponent: () => import('./admin/pages/eleves.page').then((m) => m.ElevesPage),
+          },
+          {
+            path: 'personnel',
+            canActivate: [role('ADMIN_ECOLE')],
+            title: 'Personnel',
+            loadComponent: () => import('./admin/pages/personnel.page').then((m) => m.PersonnelPage),
+          },
+          {
+            path: 'referentiel',
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR')],
+            title: 'Filières et matières',
+            loadComponent: () => import('./admin/pages/referentiel.page').then((m) => m.ReferentielPage),
+          },
+          {
+            path: 'annee',
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR')],
+            title: 'Année scolaire',
+            loadComponent: () => import('./admin/pages/annee.page').then((m) => m.AnneePage),
+          },
+        ],
       },
       {
         path: 'envois',

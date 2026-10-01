@@ -22,7 +22,7 @@ plateforme-ecoles/
 │   ├── src/test/java/           tests unitaires, d'intégration et de modularité
 │   ├── eclipse/                 formateur et configurations de lancement Eclipse
 │   └── Dockerfile
-├── frontend/                    application Angular 22 (PWA) : connexion, appel sans réseau
+├── frontend/                    application Angular 22 (PWA) : connexion, appel et notes sans réseau, administration
 ├── infra/postgres/init/         rôles et bases pour le développement et la CI
 ├── deploiement/                 compose, Caddy, .env modèle, script de déploiement (serveur)
 ├── .github/                     workflows CI, CD, CodeQL et Dependabot
@@ -48,7 +48,7 @@ Pour travailler avec Eclipse, suivre [docs/GUIDE_ECLIPSE.md](docs/GUIDE_ECLIPSE.
 | [docs/GUIDE_ECLIPSE.md](docs/GUIDE_ECLIPSE.md) | Installation du poste, import, lancement, tests, débogage |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Profils, variables d'environnement, rôles PostgreSQL, secrets |
 | [docs/CI_CD.md](docs/CI_CD.md) | Pipeline GitHub Actions, préparation des serveurs, déploiement, retour arrière |
-| [docs/FRONTEND.md](docs/FRONTEND.md) | Application web : démarrage, test sur téléphone, sécurité de la session, appel sans réseau |
+| [docs/FRONTEND.md](docs/FRONTEND.md) | Application web : démarrage, test sur téléphone, sécurité de la session, appel et notes sans réseau, espace d'administration |
 | [docs/API_SOCLE.md](docs/API_SOCLE.md) | Points d'accès du socle et parcours d'authentification |
 | [docs/API_ETABLISSEMENT.md](docs/API_ETABLISSEMENT.md) | Profils pédagogiques, années, périodes, filières, classes, matières |
 | [docs/API_ELEVES.md](docs/API_ELEVES.md) | Élèves, responsables, inscriptions, réinscriptions, bourses, import Excel, espace parent |
