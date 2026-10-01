@@ -1,7 +1,9 @@
 import { DatePipe } from '@angular/common';
-import { Component, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
+import { filtrer } from '../../core/recherche';
+import { RechercheComponent } from '../../partage/recherche.component';
 import { Action } from '../action';
 import { AdminApi } from '../admin-api.service';
 import { EtablissementVue, StatutTenant } from '../modeles-admin';
@@ -12,7 +14,7 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
 /** Super administrateur : établissements de la plateforme. */
 @Component({
   selector: 'app-plateforme',
-  imports: [FormsModule, DatePipe, MotDePasseTemporaireComponent],
+  imports: [FormsModule, DatePipe, MotDePasseTemporaireComponent, RechercheComponent],
   template: `
     <div class="page large">
       <h1>Établissements</h1>
@@ -74,13 +76,28 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
           </form>
         }
 
+        <div class="filtres">
+          <app-recherche
+            libelle="Rechercher un établissement (nom ou code)"
+            [(valeur)]="filtre"
+            [total]="etablissements().length"
+            [trouves]="affiches().length"
+          />
+          <label class="visuellement-cache" for="filtreStatut">Statut</label>
+          <select id="filtreStatut" [value]="filtreStatut()" (change)="filtreStatut.set($any($event.target).value)">
+            <option value="">Tous les statuts</option>
+            <option value="ACTIF">Actifs</option>
+            <option value="SUSPENDU">Suspendus</option>
+            <option value="RESILIE">Résiliés</option>
+          </select>
+        </div>
         <div class="tableau-defilant">
           <table class="tableau">
             <thead>
               <tr><th>Code</th><th>Nom</th><th>Créé le</th><th>Statut</th><th></th></tr>
             </thead>
             <tbody>
-              @for (e of etablissements(); track e.id) {
+              @for (e of affiches(); track e.id) {
                 <tr>
                   <td><strong>{{ e.code }}</strong></td>
                   <td>{{ e.nom }}</td>
@@ -99,7 +116,7 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
                   </td>
                 </tr>
               } @empty {
-                <tr><td colspan="5" class="doux">Aucun établissement.</td></tr>
+                <tr><td colspan="5" class="doux">{{ etablissements().length ? 'Aucun établissement ne correspond.' : 'Aucun établissement.' }}</td></tr>
               }
             </tbody>
           </table>
@@ -108,6 +125,19 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
     </div>
   `,
   styles: `
+    .filtres {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0 0.75rem;
+      align-items: flex-start;
+      app-recherche {
+        flex: 1 1 16rem;
+        min-width: 0;
+      }
+      select {
+        width: auto;
+      }
+    }
     .nouveau {
       border-bottom: 1px solid var(--bordure);
       padding-bottom: 1rem;
@@ -124,6 +154,15 @@ export class PlateformePage implements OnInit {
 
   protected readonly libelleStatut = LIBELLE_STATUT;
   protected readonly etablissements = signal<EtablissementVue[]>([]);
+  protected readonly filtre = signal('');
+  protected readonly filtreStatut = signal<StatutTenant | ''>('');
+  protected readonly affiches = computed(() =>
+    filtrer(
+      this.etablissements().filter((e) => !this.filtreStatut() || e.statut === this.filtreStatut()),
+      this.filtre(),
+      (e) => [e.nom, e.code],
+    ),
+  );
   protected readonly formulaire = signal(false);
   protected readonly cree = signal<{ nom: string; telephone: string; motDePasse: string } | null>(null);
   protected readonly liste = new Action();

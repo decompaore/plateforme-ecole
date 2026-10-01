@@ -5,13 +5,15 @@ import { Router, RouterLink } from '@angular/router';
 import { messageErreur } from '../core/erreurs';
 import { Affectation } from '../core/modeles';
 import { ajouterMinutes, dateLocale, dateLongue } from '../core/outils';
+import { filtrer } from '../core/recherche';
 import { EnvoisService } from '../hors-ligne/envois.service';
 import { ListesService } from '../hors-ligne/listes.service';
+import { RechercheComponent } from '../partage/recherche.component';
 import { CHOIX_MINUTES, FeuilleAppel } from './feuille-appel';
 
 @Component({
   selector: 'app-appel-saisie',
-  imports: [FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, RechercheComponent],
   templateUrl: './appel-saisie.page.html',
   styleUrl: './appel-saisie.page.scss',
 })
@@ -42,9 +44,8 @@ export class AppelSaisiePage implements OnInit {
 
   protected readonly elevesAffiches = computed(() => {
     const f = this.feuille();
-    const filtre = sansAccents(this.filtre().trim());
     const eleves = f?.eleves.map((e, i) => ({ ...e, rang: i + 1 })) ?? [];
-    return filtre ? eleves.filter((e) => sansAccents(`${e.nom} ${e.prenoms}`).includes(filtre)) : eleves;
+    return filtrer(eleves, this.filtre(), (e) => [e.nom, e.prenoms, e.matricule, e.rang]);
   });
 
   protected readonly horaireInvalide = computed(() => !(this.heureFin() > this.heureDebut()));
@@ -128,11 +129,4 @@ export class AppelSaisiePage implements OnInit {
 function heureRonde(): string {
   const d = new Date();
   return `${String(d.getHours()).padStart(2, '0')}:00`;
-}
-
-function sansAccents(t: string): string {
-  return t
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLowerCase();
 }

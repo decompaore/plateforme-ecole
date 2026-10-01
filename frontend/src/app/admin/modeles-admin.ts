@@ -175,6 +175,7 @@ export interface EnseignantVue {
   prenoms: string | null;
   telephone: string | null;
   sexe: Sexe | null;
+  matriculeFp?: string | null;
   specialite: string | null;
   type: TypeEngagement;
   statut: StatutEngagement;

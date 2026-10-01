@@ -30,12 +30,35 @@ import { periodeParDefaut } from '../hors-ligne/periodes';
             }
           </select>
         </div>
-      } @else if (!chargement()) {
-        <div class="alerte attention">Aucune période sur ce téléphone pour cette classe. Mettez à jour les listes avec du réseau.</div>
+      } @else if (!chargement() && affectation()) {
+        <div class="alerte attention" role="status">
+          @switch (absencePeriodes()) {
+            @case ('hors-ligne') {
+              Les trimestres de cette classe ne sont pas encore sur ce téléphone : ouvrez cette page une fois avec du
+              réseau pour pouvoir créer une évaluation.
+            }
+            @case ('autre-profil') {
+              Les périodes de cette classe ({{ classeProfil() }}) n'ont pas encore été créées. Demandez à
+              l'administration de les générer (Année scolaire → Générer les périodes).
+            }
+            @default {
+              Les trimestres de l'année n'ont pas encore été créés : impossible de créer une évaluation pour l'instant.
+              Demandez à l'administration de les générer (Année scolaire → Générer les périodes).
+            }
+          }
+          <div><button type="button" class="bouton secondaire petit" (click)="charger()">Réessayer</button></div>
+        </div>
       }
 
       @if (periode()?.verrouillee) {
-        <div class="alerte attention">Cette période est verrouillée : les notes ne se modifient plus.</div>
+        <div class="alerte attention">
+          {{ periode()!.libelle }} est verrouillée : ses notes ne se modifient plus et aucune évaluation ne peut y être
+          ajoutée. Choisissez une autre période.
+        </div>
+      }
+
+      @if (periode() && !periode()!.verrouillee && !formulaire()) {
+        <button type="button" class="bouton plein nouvelle" (click)="ouvrirFormulaire()">+ Nouvelle évaluation</button>
       }
 
       <ul class="liste carte">
@@ -60,14 +83,15 @@ import { periodeParDefaut } from '../hors-ligne/periodes';
             </a>
           </li>
         } @empty {
-          <li class="doux vide">Aucune évaluation sur cette période.</li>
+          <li class="doux vide">
+            Aucune évaluation sur cette période.@if (periode() && !periode()!.verrouillee) { Créez la première avec
+            « Nouvelle évaluation », puis saisissez les notes élève par élève. }
+          </li>
         }
       </ul>
 
       @if (!periode()?.verrouillee && periode()) {
-        @if (!formulaire()) {
-          <button type="button" class="bouton plein" (click)="ouvrirFormulaire()">Nouvelle évaluation</button>
-        } @else {
+        @if (formulaire()) {
           <form class="carte" (ngSubmit)="creer()">
             <h2>Nouvelle évaluation</h2>
             <div class="champ">
@@ -114,6 +138,9 @@ import { periodeParDefaut } from '../hors-ligne/periodes';
     .retour {
       margin-left: -0.5rem;
     }
+    .nouvelle {
+      margin-bottom: 0.75rem;
+    }
     .etat {
       display: flex;
       align-items: center;
@@ -153,6 +180,9 @@ export class NotesEvaluationsPage implements OnInit {
   protected readonly chargement = signal(true);
   protected readonly erreur = signal<string | null>(null);
   protected readonly periode = computed(() => this.periodes().find((p) => p.id === this.periodeId()));
+  /** Pourquoi aucune période n'est proposée (message adapté sous la liste). */
+  protected readonly absencePeriodes = signal<'hors-ligne' | 'aucune' | 'autre-profil'>('aucune');
+  protected readonly classeProfil = signal('');
 
   protected readonly formulaire = signal(false);
   protected readonly libelle = signal('');
@@ -181,6 +211,12 @@ export class NotesEvaluationsPage implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
+    await this.charger();
+  }
+
+  protected async charger(): Promise<void> {
+    this.chargement.set(true);
+    this.erreur.set(null);
     try {
       const affectations = await this.listes.affectations();
       const a = affectations?.affectations.find((x) => x.classeId === this.classeId() && x.matiereId === this.matiereId());
@@ -190,10 +226,13 @@ export class NotesEvaluationsPage implements OnInit {
       }
       this.affectation.set(a);
       const [classe, periodes] = await Promise.all([this.listes.eleves(a.classeId), this.listes.periodes(affectations.anneeId)]);
-      const duProfil = (periodes?.periodes ?? [])
+      const toutes = periodes?.periodes ?? [];
+      const duProfil = toutes
         .filter((p) => !classe?.profilId || p.profilId === classe.profilId)
         .sort((x, y) => x.ordre - y.ordre);
       this.periodes.set(duProfil);
+      this.absencePeriodes.set(!periodes ? 'hors-ligne' : toutes.length > 0 ? 'autre-profil' : 'aucune');
+      this.classeProfil.set(a.classeCode);
       const choisie = periodeParDefaut(duProfil, classe?.profilId, dateLocale());
       if (choisie) {
         await this.changerPeriode(choisie.id);
