@@ -198,6 +198,7 @@ select {
 
 .pastille {
   display: inline-block;
+  white-space: nowrap;
   min-width: 1.5rem;
   padding: 0.05rem 0.45rem;
   border-radius: 999px;
@@ -250,4 +251,123 @@ select {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
+}
+
+/* ---------- Espace d'administration (écrans plus larges, utilisables aussi sur téléphone) ---------- */
+
+.page.large {
+  max-width: 64rem;
+}
+
+.grille-champs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: 0 1rem;
+}
+
+.actions-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.entete-section {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+
+  h2 {
+    margin: 0;
+  }
+}
+
+.tableau-defilant {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+table.tableau {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+
+  th,
+  td {
+    text-align: left;
+    padding: 0.55rem 0.5rem;
+    border-bottom: 1px solid var(--bordure);
+    vertical-align: middle;
+  }
+
+  th {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--texte-doux);
+    font-weight: 600;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  input,
+  select {
+    min-height: 40px;
+    padding: 0.35rem 0.5rem;
+  }
+
+  .nombre {
+    text-align: right;
+    white-space: nowrap;
+  }
+}
+
+.bouton.petit {
+  min-height: 38px;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.9rem;
+}
+
+.bouton.danger {
+  border-color: var(--absent);
+  color: var(--absent);
+  background: transparent;
+}
+
+.onglets {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--bordure);
+  margin: 0 0 1rem;
+  -webkit-overflow-scrolling: touch;
+
+  a {
+    padding: 0.7rem 0.9rem;
+    white-space: nowrap;
+    text-decoration: none;
+    color: var(--texte-doux);
+    font-weight: 600;
+    border-bottom: 3px solid transparent;
+
+    &.actif {
+      color: var(--primaire);
+      border-bottom-color: var(--primaire);
+    }
+  }
+}
+
+.secret {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 1.15rem;
+  letter-spacing: 0.05em;
+  background: var(--surface);
+  border: 1px dashed var(--bordure);
+  border-radius: 8px;
+  padding: 0.3rem 0.6rem;
 }

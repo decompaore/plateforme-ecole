@@ -1,0 +1,156 @@
+<div class="page large">
+  <h1>Personnel</h1>
+  <app-admin-nav />
+
+  @if (secret(); as s) {
+    <app-mot-de-passe-temporaire [titre]="s.titre" [telephone]="s.telephone" [motDePasse]="s.motDePasse" (fermer)="secret.set(null)" />
+  }
+  @if (message(); as m) {
+    <div class="alerte" role="status">{{ m }}</div>
+  }
+  @if (action.erreur()) {
+    <div class="alerte erreur" role="alert">{{ action.erreur() }}</div>
+  }
+
+  <section class="carte">
+    <div class="entete-section">
+      <h2>Enseignants ({{ enseignants().length }})</h2>
+      <button type="button" class="bouton" (click)="formEnseignant.set(!formEnseignant())">
+        {{ formEnseignant() ? 'Annuler' : 'Engager un enseignant' }}
+      </button>
+    </div>
+
+    @if (formEnseignant()) {
+      <form (ngSubmit)="engager()" class="nouveau">
+        <div class="grille-champs">
+          <div class="champ">
+            <label for="eTel">Téléphone</label>
+            <input id="eTel" name="eTel" type="tel" inputmode="tel" required [(ngModel)]="eTelephone" />
+          </div>
+          <div class="champ">
+            <label for="eNom">Nom</label>
+            <input id="eNom" name="eNom" required [(ngModel)]="eNom" />
+          </div>
+          <div class="champ">
+            <label for="ePrenoms">Prénoms</label>
+            <input id="ePrenoms" name="ePrenoms" required [(ngModel)]="ePrenoms" />
+          </div>
+          <div class="champ">
+            <label for="eSexe">Sexe</label>
+            <select id="eSexe" name="eSexe" [(ngModel)]="eSexe">
+              <option value="M">Homme</option>
+              <option value="F">Femme</option>
+            </select>
+          </div>
+          <div class="champ">
+            <label for="eSpec">Spécialité</label>
+            <input id="eSpec" name="eSpec" placeholder="Électrotechnique" [(ngModel)]="eSpecialite" />
+          </div>
+          <div class="champ">
+            <label for="eType">Engagement</label>
+            <select id="eType" name="eType" [(ngModel)]="eType">
+              <option value="TITULAIRE">Titulaire</option>
+              <option value="VACATAIRE">Vacataire</option>
+            </select>
+          </div>
+          <div class="champ">
+            <label for="eDebut">Début</label>
+            <input id="eDebut" name="eDebut" type="date" required [(ngModel)]="eDebut" />
+          </div>
+          @if (eType() === 'VACATAIRE') {
+            <div class="champ">
+              <label for="eFin">Fin</label>
+              <input id="eFin" name="eFin" type="date" [(ngModel)]="eFin" />
+            </div>
+            <div class="champ">
+              <label for="eTaux">Taux horaire (FCFA)</label>
+              <input id="eTaux" name="eTaux" type="number" min="1" step="1" [(ngModel)]="eTaux" />
+            </div>
+          }
+        </div>
+        <p class="doux">
+          Un enseignant déjà inscrit sur la plateforme (dans un autre établissement) reçoit une invitation à accepter.
+          Un titulaire ne l'est que dans un seul établissement.
+        </p>
+        <button type="submit" class="bouton" [disabled]="action.enCours()">Engager</button>
+      </form>
+    }
+
+    <div class="tableau-defilant">
+      <table class="tableau">
+        <thead><tr><th>Nom et prénoms</th><th>Téléphone</th><th>Spécialité</th><th>Engagement</th><th>Statut</th></tr></thead>
+        <tbody>
+          @for (e of enseignants(); track e.engagementId) {
+            <tr [class.doux]="e.statut !== 'ACTIF'">
+              <td><strong>{{ e.nom }}</strong> {{ e.prenoms }}</td>
+              <td>{{ e.telephone }}</td>
+              <td>{{ e.specialite }}</td>
+              <td>{{ e.type === 'TITULAIRE' ? 'Titulaire' : 'Vacataire' }}</td>
+              <td><span class="pastille" [class.present]="e.statut === 'ACTIF'">{{ libelleStatut[e.statut] }}</span></td>
+            </tr>
+          } @empty {
+            <tr><td colspan="5" class="doux">Aucun enseignant.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <p class="doux">Les matières se confient aux enseignants dans le programme de chaque classe (onglet « Classes »).</p>
+  </section>
+
+  <section class="carte">
+    <div class="entete-section">
+      <h2>Administration</h2>
+      <button type="button" class="bouton" (click)="formMembre.set(!formMembre())">
+        {{ formMembre() ? 'Annuler' : 'Ajouter une personne' }}
+      </button>
+    </div>
+
+    @if (formMembre()) {
+      <form (ngSubmit)="ajouterMembre()" class="nouveau">
+        <div class="grille-champs">
+          <div class="champ">
+            <label for="mTel">Téléphone</label>
+            <input id="mTel" name="mTel" type="tel" inputmode="tel" required [(ngModel)]="mTelephone" />
+          </div>
+          <div class="champ">
+            <label for="mNom">Nom</label>
+            <input id="mNom" name="mNom" required [(ngModel)]="mNom" />
+          </div>
+          <div class="champ">
+            <label for="mPrenoms">Prénoms</label>
+            <input id="mPrenoms" name="mPrenoms" required [(ngModel)]="mPrenoms" />
+          </div>
+          <div class="champ">
+            <label for="mRole">Rôle</label>
+            <select id="mRole" name="mRole" [(ngModel)]="mRole">
+              @for (r of rolesPersonnel; track r) { <option [value]="r">{{ libelleRole[r] }}</option> }
+            </select>
+          </div>
+        </div>
+        <button type="submit" class="bouton" [disabled]="action.enCours()">Ajouter</button>
+      </form>
+    }
+
+    <div class="tableau-defilant">
+      <table class="tableau">
+        <thead><tr><th>Nom et prénoms</th><th>Téléphone</th><th>Rôle</th><th></th></tr></thead>
+        <tbody>
+          @for (m of administration(); track m.id) {
+            <tr [class.doux]="!m.actif">
+              <td><strong>{{ m.nom }}</strong> {{ m.prenoms }}</td>
+              <td>{{ m.telephone }}</td>
+              <td>{{ libelleRole[m.role] }}@if (!m.actif) { (retiré) }</td>
+              <td class="nombre">
+                @if (m.actif) {
+                  <button type="button" class="bouton danger petit" (click)="desactiver(m)">Retirer</button>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="4" class="doux">Personne.</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

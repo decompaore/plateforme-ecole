@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { Role } from '../core/modeles';
 import { SessionService } from '../core/session.service';
 import { EnvoisService } from '../hors-ligne/envois.service';
+import { NotesService } from '../hors-ligne/notes.service';
 
 interface Tuile {
   titre: string;
@@ -15,10 +16,13 @@ interface Tuile {
 /** Écrans disponibles selon le rôle. Les autres arrivent dans les prochaines versions. */
 const TUILES: Tuile[] = [
   { titre: "Faire l'appel", texte: 'Marche aussi sans réseau', lien: '/appel', roles: ['ENSEIGNANT'] },
-  { titre: 'Mes appels', texte: 'Envoyés, en attente, refusés', lien: '/envois', roles: ['ENSEIGNANT'] },
-  { titre: 'Saisie des notes', texte: 'Bientôt disponible', roles: ['ENSEIGNANT', 'CENSEUR'] },
+  { titre: 'Mes envois', texte: 'Appels et notes : envoyés, en attente', lien: '/envois', roles: ['ENSEIGNANT'] },
+  { titre: 'Classes', texte: 'Programmes, coefficients, enseignants', lien: '/admin/classes', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT'] },
+  { titre: 'Élèves', texte: 'Inscriptions, import Excel', lien: '/admin/eleves', roles: ['ADMIN_ECOLE', 'SECRETARIAT', 'CENSEUR'] },
+  { titre: 'Personnel', texte: 'Enseignants et administration', lien: '/admin/personnel', roles: ['ADMIN_ECOLE'] },
+  { titre: 'Année scolaire', texte: 'Périodes, ouverture, filières', lien: '/admin/annee', roles: ['ADMIN_ECOLE', 'CENSEUR'] },
+  { titre: 'Saisie des notes', texte: 'Marche aussi sans réseau', lien: '/notes', roles: ['ENSEIGNANT'] },
   { titre: 'Vie scolaire', texte: 'Bientôt disponible', roles: ['SURVEILLANT', 'CENSEUR', 'ADMIN_ECOLE'] },
-  { titre: 'Élèves et classes', texte: 'Bientôt disponible', roles: ['SECRETARIAT', 'CENSEUR', 'ADMIN_ECOLE'] },
   { titre: 'Scolarité et paiements', texte: 'Bientôt disponible', roles: ['INTENDANT', 'ADMIN_ECOLE'] },
   { titre: 'Statistiques', texte: 'Bientôt disponible', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'INTENDANT'] },
   { titre: 'Suivi de mon enfant', texte: 'Bientôt disponible', roles: ['PARENT'] },
@@ -36,14 +40,22 @@ const TUILES: Tuile[] = [
           {{ envois.enAttente() }} appel(s) en attente d'envoi.
         </a>
       }
+      @if (notes.enAttente() > 0) {
+        <a routerLink="/envois" class="alerte attention bloc">{{ notes.enAttente() }} saisie(s) de notes en attente d'envoi.</a>
+      }
+      @if (notes.refusees() > 0) {
+        <a routerLink="/envois" class="alerte erreur bloc">{{ notes.refusees() }} saisie(s) de notes refusée(s) : à vérifier.</a>
+      }
       @if (envois.refuses() > 0) {
         <a routerLink="/envois" class="alerte erreur bloc">{{ envois.refuses() }} appel(s) refusé(s) : à vérifier.</a>
       }
 
       @if (session.profil()?.superAdmin) {
-        <div class="carte">
-          <h2>Administration de la plateforme</h2>
-          <p class="doux">L'écran d'administration arrive dans une prochaine version. En attendant, utilisez l'API.</p>
+        <div class="grille">
+          <a class="tuile active" routerLink="/plateforme">
+            <strong>Établissements</strong>
+            <span>Créer, suivre, suspendre</span>
+          </a>
         </div>
       } @else if (!session.profil()?.etablissement) {
         <div class="carte">
@@ -104,6 +116,7 @@ const TUILES: Tuile[] = [
 export class AccueilPage {
   protected readonly session = inject(SessionService);
   protected readonly envois = inject(EnvoisService);
+  protected readonly notes = inject(NotesService);
 
   protected readonly tuiles = computed(() => {
     const roles = this.session.roles();

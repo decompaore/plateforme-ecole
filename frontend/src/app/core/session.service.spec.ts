@@ -46,6 +46,28 @@ describe('SessionService', () => {
     expect(JSON.stringify(enregistre)).not.toContain(jeton('u1'));
   });
 
+  it('un seul établissement : pas de choix d’établissement ; le renouvellement retrouve le nombre par /moi/etablissements', async () => {
+    const connexion = session.connexion('70000001', 'secret123');
+    http.expectOne('/api/v1/auth/connexion').flush(reponse('u1'));
+    await repondreMoi();
+    await connexion;
+    expect(session.plusieursEtablissements()).toBe(false);
+
+    // Lancement suivant : le renouvellement ne donne pas la liste, l'application la demande
+    TestBed.resetTestingModule();
+    ({ http, stockage } = configurer());
+    session = TestBed.inject(SessionService);
+    const demarrage = session.demarrer();
+    await attendre();
+    http.expectOne('/api/v1/auth/rafraichir').flush(reponse('u1', 2, { etablissements: [] }));
+    await attendre();
+    http.expectOne('/api/v1/moi').flush({ nom: 'OUEDRAOGO', prenoms: 'Awa' });
+    await attendre();
+    http.expectOne('/api/v1/moi/etablissements').flush([LYCEE, { ...LYCEE, id: 'etab-2' }]);
+    await demarrage;
+    expect(session.plusieursEtablissements()).toBe(true);
+  });
+
   it('demande le choix de l’établissement puis l’envoie avec le jeton de sélection', async () => {
     const autre = { ...LYCEE, id: 'etab-2', nom: 'CEG de Réo' };
     const promesse = session.connexion('70000001', 'secret123');

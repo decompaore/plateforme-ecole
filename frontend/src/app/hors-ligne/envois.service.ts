@@ -54,6 +54,7 @@ export class EnvoisService {
 
   private readonly envoisSignal = signal<Envoi[]>([]);
   private enCours?: Promise<Bilan>;
+  private relancer = false;
 
   readonly envois = this.envoisSignal.asReadonly();
   readonly enAttente = computed(() => this.envoisSignal().filter((e) => e.etat === 'EN_ATTENTE').length);
@@ -133,14 +134,29 @@ export class EnvoisService {
 
   /** Envoie la file par lots. Un seul envoi à la fois ; les appels suivants attendent le même. */
   synchroniser(): Promise<Bilan> {
-    this.enCours ??= this.executer().finally(() => {
+    if (this.enCours) {
+      // Une demande pendant un envoi (retour du réseau, nouvelle saisie) : un nouveau passage suivra
+      this.relancer = true;
+      return this.enCours;
+    }
+    this.enCours = this.executer().finally(() => {
       this.enCours = undefined;
       this.synchronisation.set(false);
+      if (this.relancer) {
+        this.relancer = false;
+        void this.synchroniser();
+      }
     });
     return this.enCours;
   }
 
-  private async executer(): Promise<Bilan> {
+  private executer(): Promise<Bilan> {
+    // Un seul envoi à la fois, y compris entre l'application installée et un onglet ouvert
+    const verrous = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+    return verrous ? verrous.request('plateforme-ecoles-appels', () => this.envoyer()) : this.envoyer();
+  }
+
+  private async envoyer(): Promise<Bilan> {
     const bilan: Bilan = { envoyes: 0, refuses: 0, restants: 0 };
     const prefixe = this.prefixe();
     if (!prefixe) {

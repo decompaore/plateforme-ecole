@@ -39,6 +39,7 @@ public class EvaluationsController {
     static final String SAISIE = "hasAnyRole('ENSEIGNANT','CENSEUR','ADMIN_ECOLE')";
     static final String CONSULTATION = "hasAnyRole('ENSEIGNANT','CENSEUR','ADMIN_ECOLE','SECRETARIAT')";
 
+    /** {@code idClient} : facultatif, identifiant généré par l'appareil pour une création idempotente. */
     public record DemandeEvaluation(
             @NotNull UUID matiereId,
             @NotNull UUID periodeId,
@@ -46,7 +47,8 @@ public class EvaluationsController {
             @NotNull TypeEvaluation type,
             @NotNull LocalDate date,
             BigDecimal bareme,
-            BigDecimal poids) {
+            BigDecimal poids,
+            UUID idClient) {
     }
 
     public record DemandeModificationEvaluation(
@@ -82,7 +84,7 @@ public class EvaluationsController {
     @PreAuthorize(SAISIE)
     public EvaluationVue creer(@PathVariable UUID classeId, @Valid @RequestBody DemandeEvaluation d) {
         return evaluations.creer(classeId, d.matiereId(), d.periodeId(), d.libelle(), d.type(), d.date(), d.bareme(),
-                d.poids());
+                d.poids(), d.idClient());
     }
 
     @GetMapping("/api/v1/classes/{classeId}/evaluations")

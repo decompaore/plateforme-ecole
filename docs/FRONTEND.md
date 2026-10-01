@@ -1,12 +1,15 @@
-# Application web (v0.13)
+# Application web (v0.15)
 
-Application Angular 22 installable sur smartphone (PWA). Cette première version couvre :
+Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
 - la **connexion** : téléphone et mot de passe, choix de l'établissement, changement du mot de passe provisoire,
   changement d'établissement, déconnexion ;
-- l'**appel sur smartphone, même sans réseau** (enseignants) ;
-- un **accueil par rôle** : les écrans des autres rôles sont annoncés « bientôt disponibles ». En attendant, ils
-  utilisent l'API (Swagger).
+- l'**appel sur smartphone, même sans réseau** (enseignants, v0.13) ;
+- la **saisie des notes, même sans réseau** (enseignants, v0.15) : création des évaluations et feuilles de notes ;
+- l'**espace d'administration** (v0.14) : établissements pour le super administrateur ; année scolaire, filières et
+  matières, classes et programmes, élèves, personnel pour l'établissement ;
+- un **accueil par rôle** : les écrans encore à venir (vie scolaire, scolarité, statistiques, parents) sont
+  annoncés « bientôt disponibles ». En attendant, ces fonctions s'utilisent par l'API (Swagger).
 
 ## Démarrer en local
 
@@ -22,8 +25,23 @@ cd frontend && npm ci && npm start                                     # applica
 paraissent ainsi venir de la même adresse, et le cookie de session fonctionne comme en production.
 
 Compte de développement : `70000000` / `ChangezMoi-Dev-2026`. C'est le super administrateur. Pour essayer l'appel,
-il faut un compte enseignant qui a des affectations : on le crée par l'API (établissement, année active, classes,
-matières, élèves, enseignant, affectation), puis on se connecte avec le mot de passe provisoire reçu.
+il faut un compte enseignant qui a des affectations. Le script de démonstration le prépare en une commande (API
+lancée) :
+
+```bash
+node scripts/demo/creer-etablissement-demo.mjs
+# si le mot de passe du super administrateur a été changé :
+SUPER_ADMIN_MOT_DE_PASSE=... node scripts/demo/creer-etablissement-demo.mjs
+```
+
+Il crée par l'API un lycée technique complet :
+- année ouverte contenant la date du jour, trimestres ;
+- filière F3, 6 matières regroupées (générales, techniques) ;
+- classes 2nde F3 et 1re F3, 46 élèves avec un parent chacun ;
+- un enseignant d'électrotechnique affecté aux deux classes.
+
+À la fin, il affiche les téléphones et le mot de passe (`Demo2026`) de l'enseignant et de l'administrateur. Chaque
+exécution crée un nouvel établissement : on peut le relancer sans rien nettoyer.
 
 | Commande (dans `frontend/`) | Rôle |
 |---|---|
@@ -53,6 +71,9 @@ puis onglet *Network* → *Offline*.
 | Appels non envoyés | IndexedDB, **conservés** à la déconnexion (envoyés à la connexion suivante) |
 
 - L'établissement ne vient jamais du téléphone : le serveur le lit dans le jeton.
+- Un compte (un téléphone) peut appartenir à plusieurs établissements, avec un rôle propre à chacun : enseignant
+  vacataire dans deux lycées, parent d'enfants dans deux écoles, promoteur d'un réseau. « Changer d'établissement »
+  n'apparaît que pour ces comptes. Un administrateur rattaché à un seul établissement ne le voit pas.
 - Sur une réponse 401, l'application renouvelle la session **une seule fois** pour toutes les requêtes en cours.
   Le serveur fait tourner le cookie et traite la réutilisation d'un ancien cookie comme un vol.
 - Le renouvellement est aussi verrouillé entre onglets : l'application installée et un onglet ouvert ne l'envoient
@@ -98,13 +119,76 @@ La session dure 30 jours sans nouvelle connexion, ce qui couvre largement les p�
 - **Lot rejeté en bloc** (réponse 400) : les appels sont renvoyés un par un, pour ne refuser que celui qui pose
   problème.
 
+## La saisie des notes sans réseau
+
+1. **Préparation**, en même temps que les listes de classes. Elle télécharge :
+   - les périodes de l'année ;
+   - pour chaque matière de l'enseignant, les évaluations de la période en cours et leurs feuilles de notes.
+2. **Évaluations**. L'enseignant choisit la classe et la matière, puis la période (celle du jour par défaut). Il voit
+   les évaluations avec le nombre de notes saisies. « Nouvelle évaluation » propose un intitulé, le type, la date
+   (contrôlée dans la période), le barème (20, ou 1 à 100) et le poids (2 pour une composition).
+3. **Feuille de notes**. L'enseignant tape la note (virgule acceptée, deux décimales au plus), puis Entrée pour passer
+   à l'élève suivant. Le bouton **Abs** marque un élève qui n'a pas composé. Une note au-dessus du barème est signalée
+   et bloque l'enregistrement. Le pied de page affiche le nombre de notes, d'absents et la moyenne. Quitter l'écran
+   avec des notes non enregistrées demande confirmation.
+4. **Envoi**. L'enregistrement garde la saisie sur le téléphone, puis l'envoie dès qu'il y a du réseau, comme pour
+   l'appel. La page « Mes envois » montre les saisies en attente ou refusées.
+
+Garanties :
+- **Pas de doublon.** Une évaluation créée sans réseau reçoit sur le téléphone un identifiant que le serveur réutilise
+  (`idClient`). Un renvoi après une coupure retrouve l'évaluation déjà créée.
+- **Pas d'effacement.** Seuls les élèves modifiés sur le téléphone sont envoyés. Une note saisie ailleurs (par le
+  censeur, par exemple) pour un autre élève n'est jamais effacée. Un « Abs » retiré redonne la note d'origine.
+- **Ordre respecté.** Les notes d'une évaluation créée sans réseau partent toujours après sa création, même si
+  l'horloge du téléphone a reculé entre-temps.
+- **Saisie pendant un envoi.** Les notes enregistrées pendant qu'un envoi est en cours partent au passage suivant.
+- **Refus.** Une note hors barème ou une période verrouillée est affichée avec le motif du serveur. Les notes
+  corrigées repartent. Une évaluation refusée (date hors période…) se corrige depuis sa feuille et se renvoie avec
+  ses notes, ou s'abandonne depuis « Mes envois ».
+- Plus de 200 notes : envoi en plusieurs fois (limite du serveur). Un seul envoi à la fois, même avec plusieurs
+  onglets ouverts.
+
+Limite : si le censeur et l'enseignant modifient **la même note** à des moments différents, la dernière saisie
+envoyée l'emporte.
+
+## Espace d'administration
+
+L'administration travaille en ligne : contrairement à l'appel, rien n'est gardé sur l'appareil. Les écrans sont
+utilisables sur ordinateur comme sur téléphone (les tableaux défilent horizontalement sur petit écran).
+
+| Écran | Rôles | Ce qu'on y fait |
+|---|---|---|
+| Établissements (`/plateforme`) | Super administrateur | Créer un établissement et son premier administrateur, suspendre ou réactiver |
+| Année scolaire (`/admin/annee`) | ADMIN_ECOLE, CENSEUR | Profils pédagogiques, nouvelle année, génération des trimestres ou semestres, ouverture de l'année |
+| Filières et matières (`/admin/referentiel`) | ADMIN_ECOLE, CENSEUR | Filières avec leur profil (général, technique, professionnel), matières |
+| Classes (`/admin/classes`) | ADMIN_ECOLE, CENSEUR, SECRETARIAT (lecture) | Classes de l'année par niveau, création |
+| Fiche d'une classe | idem | Programme : matières, coefficients, groupes, heures, **enseignant de chaque matière** ; liste des élèves |
+| Élèves (`/admin/eleves`) | ADMIN_ECOLE, SECRETARIAT (CENSEUR en lecture) | Nouvel élève avec son parent et son inscription, recherche, dossier, **import Excel** de la rentrée |
+| Personnel (`/admin/personnel`) | ADMIN_ECOLE | Engager un enseignant (titulaire ou vacataire), ajouter censeur, secrétariat, intendance, surveillance ; retirer un rôle |
+
+Mise en place d'un établissement, dans l'ordre :
+1. Année scolaire : créer les profils pédagogiques, puis l'année.
+2. Filières et matières.
+3. Classes, puis le programme de chaque classe (le profil technique exige un groupe par matière).
+4. Personnel : engager les enseignants, puis les affecter dans le programme des classes.
+5. Élèves : un par un, ou par l'import Excel (modèle, vérification, import).
+6. Année scolaire : générer les périodes, puis ouvrir l'année.
+
+Comptes créés (administrateur d'un établissement, enseignant, personnel) : le **mot de passe provisoire** s'affiche
+une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
+inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
+
+Toutes les règles restent vérifiées par le serveur (année figée, classe complète, groupe obligatoire, dernier
+administrateur…). L'écran affiche son message tel quel.
+
 ## Organisation du code
 
 ```
 frontend/src/app/
 ├── core/          session (connexion, renouvellement), intercepteur du jeton, gardes, modèles, outils
-├── hors-ligne/    stockage IndexedDB, listes de classes, file d'envoi des appels
-├── pages/         connexion, établissement, mot de passe, accueil, appel (choix, saisie), mes appels
+├── hors-ligne/    stockage IndexedDB, listes de classes et périodes, files d'envoi des appels et des notes
+├── pages/         connexion, établissement, mot de passe, accueil, appel, notes (classes, évaluations, feuille), mes envois
+├── admin/         espace d'administration : API typée, année de travail, onglets, écrans (chargés à la demande)
 └── testing/       aides pour les tests
 ```
 
@@ -115,7 +199,7 @@ frontend/src/app/
 
 ## Tests
 
-28 tests (Vitest) :
+46 tests (Vitest) :
 
 | Fichier | Ce qui est vérifié |
 |---|---|
@@ -123,6 +207,9 @@ frontend/src/app/
 | `envois.service.spec.ts` | Mise en file, accusés, coupure puis renvoi avec le même identifiant, refus, lot invalide renvoyé un par un, lots de 50 dans l'ordre, cloisonnement par utilisateur et établissement, un seul envoi à la fois |
 | `feuille-appel.spec.ts` | Absents et retards, bornes des minutes, récapitulatif, dates locales, identifiants, stockage |
 | `appel-saisie.page.spec.ts` | Appel complet hors connexion à partir des listes du téléphone, jusqu'à la file d'envoi |
+| `notes.service.spec.ts` | Création avec identifiant de l'appareil sans doublon, seuls les élèves modifiés envoyés, saisies regroupées, création refusée puis corrigée ou abandonnée avec ses notes, note refusée puis corrigée, saisie pendant un envoi, notes avant leur évaluation (horloge), conflit technique non bloquant, envoi par 200, lecture des notes saisies au clavier |
+| `notes-saisie.page.spec.ts` | Feuille hors connexion : note hors barème bloquée, absence, « Abs » retiré qui redonne la note d'origine, mise en file des seuls élèves modifiés |
+| `admin.spec.ts` | Création d'un établissement et affichage unique du mot de passe, programme d'une classe (coefficient, enseignant), nouvel élève avec parent et inscription, engagement (compte ou invitation), message du serveur sur une règle refusée |
 
 La CI (`.github/workflows/ci.yml`, job *Frontend*) exécute les tests et la construction de production à chaque pull
 request.
@@ -131,7 +218,13 @@ Le parcours complet a aussi été vérifié dans Chromium, à la taille d'un té
 - connexion ;
 - appel hors connexion, sans aucun envoi tant que le réseau manque ;
 - envoi automatique au retour du réseau ;
-- session expirée pendant la saisie, puis reconnexion et envoi.
+- session expirée pendant la saisie, puis reconnexion et envoi ;
+- (v0.14) administration complète d'un établissement de bout en bout : création d'une classe, programme refusé sans
+  groupe puis accepté, enseignant affecté, élève inscrit depuis la fiche de la classe, trimestres générés, année
+  ouverte, enseignant engagé ; création d'un établissement par le super administrateur ;
+- (v0.15) notes sans réseau : évaluation créée et notée en mode avion (Entrée d'un élève à l'autre, note hors barème
+  signalée), rien n'est envoyé sans réseau, puis au retour du réseau la création part avec son `idClient` et seules
+  les trois notes modifiées sont envoyées.
 
 ## Limite connue
 

@@ -6,6 +6,7 @@ import { Affectation } from '../core/modeles';
 import { dateHeureCourte } from '../core/outils';
 import { SessionService } from '../core/session.service';
 import { ListesService } from '../hors-ligne/listes.service';
+import { NotesService } from '../hors-ligne/notes.service';
 
 interface Groupe {
   classeId: string;
@@ -60,7 +61,7 @@ interface Groupe {
           @if (prepareLe(); as d) {
             Listes enregistrées sur ce téléphone le {{ d }}. Elles se mettent à jour toutes seules quand il y a du réseau.
           } @else {
-            Enregistrez vos listes de classe sur ce téléphone pour faire l'appel sans réseau.
+            Enregistrez vos listes de classe et vos évaluations sur ce téléphone pour faire l'appel et saisir les notes sans réseau.
           }
         </p>
         @if (listes.preparation(); as p) {
@@ -89,6 +90,7 @@ interface Groupe {
 export class AppelChoixPage implements OnInit {
   protected readonly session = inject(SessionService);
   protected readonly listes = inject(ListesService);
+  private readonly notes = inject(NotesService);
 
   private readonly affectations = signal<Affectation[]>([]);
   protected readonly chargement = signal(true);
@@ -123,6 +125,7 @@ export class AppelChoixPage implements OnInit {
     try {
       const resultat = await this.listes.toutPreparer();
       this.affectations.set(resultat?.affectations ?? []);
+      await this.notes.preparerTout();
       await this.majDate();
       this.preparationReussie.set(true);
     } catch (e) {

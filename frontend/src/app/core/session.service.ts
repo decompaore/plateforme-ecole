@@ -22,6 +22,8 @@ export interface ProfilLocal {
   superAdmin: boolean;
   etablissement: EtablissementAccessible | null;
   doitChangerMotDePasse: boolean;
+  /** Établissements accessibles à ce compte : le choix d'établissement n'a de sens qu'à partir de deux. */
+  nombreEtablissements?: number;
 }
 
 interface SelectionEnCours {
@@ -66,6 +68,8 @@ export class SessionService {
   /** Profil connu mais pas de jeton : serveur injoignable, ou session à rouvrir. */
   readonly horsConnexion = computed(() => this.profilSignal() !== null && this.jetonSignal() === null);
   readonly roles = computed<Role[]>(() => this.profilSignal()?.etablissement?.roles ?? []);
+  /** Vrai si le compte appartient à plusieurs établissements (enseignant vacataire, parent, réseau d'écoles). */
+  readonly plusieursEtablissements = computed(() => (this.profilSignal()?.nombreEtablissements ?? 0) > 1);
 
   aLeRole(...roles: Role[]): boolean {
     const miens = this.roles();
@@ -187,9 +191,12 @@ export class SessionService {
   async deconnexion(): Promise<void> {
     try {
       await firstValueFrom(this.limite(this.http.post(`${API}/auth/deconnexion`, null)));
-    } catch {
-      // Sans réseau, le cookie resterait valide : la révocation sera faite au prochain lancement
-      await this.sansEchec(() => this.stockage.ecrire(CLE_DECONNEXION, true));
+    } catch (e) {
+      // Sans réseau, le cookie resterait valide : la révocation sera faite au prochain lancement.
+      // Une réponse du serveur (même une erreur) veut dire qu'il a traité la demande.
+      if (estErreurReseau(e)) {
+        await this.sansEchec(() => this.stockage.ecrire(CLE_DECONNEXION, true));
+      }
     }
     const profil = this.profilSignal();
     this.jetonSignal.set(null);
@@ -218,6 +225,12 @@ export class SessionService {
       superAdmin: reponse.superAdmin,
       etablissement: reponse.etablissementActif,
       doitChangerMotDePasse: reponse.doitChangerMotDePasse,
+      // La connexion fournit la liste ; le renouvellement non (liste vide) : on garde ce qu'on sait
+      nombreEtablissements: reponse.etablissements?.length
+        ? reponse.etablissements.length
+        : memeUtilisateur
+          ? precedent.nombreEtablissements
+          : undefined,
     };
     this.profilSignal.set(profil);
     await this.sansEchec(() => this.stockage.supprimer(CLE_DECONNEXION));
@@ -232,6 +245,16 @@ export class SessionService {
         this.profilSignal.set({ ...profil });
       } catch {
         // Le nom n'est qu'un affichage : on continue sans
+      }
+    }
+    if (profil.nombreEtablissements === undefined && !profil.superAdmin) {
+      try {
+        const etablissements = await firstValueFrom(
+          this.limite(this.http.get<EtablissementAccessible[]>(`${API}/moi/etablissements`)),
+        );
+        this.profilSignal.set({ ...this.profilSignal()!, nombreEtablissements: etablissements.length });
+      } catch {
+        // Inconnu : le lien « Changer d'établissement » reste masqué
       }
     }
     await this.sansEchec(() => this.stockage.ecrire(CLE_PROFIL, this.profilSignal()));

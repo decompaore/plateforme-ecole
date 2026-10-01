@@ -36,6 +36,8 @@ export function reponse(sub = 'u1', n = 1, autres: Partial<ReponseConnexion> = {
 
 export function configurer(): { http: HttpTestingController; stockage: StockageMemoire } {
   const stockage = new StockageMemoire();
+  // Repart d'un module propre même si le test précédent a échoué avant son nettoyage
+  TestBed.resetTestingModule();
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
