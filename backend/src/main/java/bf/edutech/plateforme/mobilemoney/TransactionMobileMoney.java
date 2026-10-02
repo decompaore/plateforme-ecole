@@ -23,7 +23,7 @@ public class TransactionMobileMoney extends EntiteCloisonnee {
     private long montant;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "operateur", nullable = false, length = 12, updatable = false)
+    @Column(name = "operateur", nullable = false, length = 20, updatable = false)
     private Operateur operateur;
 
     @Column(name = "telephone", nullable = false, length = 20, updatable = false)

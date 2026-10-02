@@ -8,6 +8,7 @@ import { ClassePage } from './pages/classe.page';
 import { ElevesPage } from './pages/eleves.page';
 import { PersonnelPage } from './pages/personnel.page';
 import { PlateformePage } from './pages/plateforme.page';
+import { SuiviEvaluationsPage, taux } from './pages/suivi-evaluations.page';
 
 const ADMIN = { id: 'etab-1', code: 'LTK', nom: 'Lycée technique', roles: ['ADMIN_ECOLE' as const] };
 const ANNEE = { id: 'a1', libelle: '2026-2027', debut: '2026-10-01', fin: '2027-07-31', etat: 'ACTIVE' };
@@ -288,6 +289,50 @@ describe('Espace d’administration', () => {
     await attendre();
     expect(texte(f)).toContain('Fin d’engagement annulée'.replace('’', "'"));
     expect(texte(f)).not.toContain('part le');
+  });
+
+  it('suivi des évaluations : par enseignant, matières sans évaluation, puis un trimestre', async () => {
+    await session(http);
+    const f = TestBed.createComponent(SuiviEvaluationsPage);
+    f.detectChanges();
+    await attendre();
+    const ligne = (classe: string, matiere: string, enseignant: string | null, parType: object, saisies: number, attendues: number, derniere: string | null) => ({
+      classeId: classe, classeCode: classe, niveau: '2nde', matiereId: matiere, matiereCode: matiere, matiereLibelle: matiere,
+      engagementId: enseignant ? 'g-' + enseignant : null, enseignant,
+      evaluations: Object.values(parType).reduce((t: number, n) => t + (n as number), 0), parType, derniere, notesSaisies: saisies, notesAttendues: attendues,
+    });
+    const reponse = [
+      ligne('2nde F3', 'Électrotechnique', 'SANOU Paul', { DEVOIR: 2, INTERROGATION: 1 }, 120, 120, '2026-09-27'),
+      ligne('1re F3', 'Électrotechnique', 'SANOU Paul', { TP: 1 }, 20, 40, '2026-09-20'),
+      ligne('2nde F3', 'Français', 'KABORE Awa', {}, 0, 0, null),
+      ligne('2nde F3', 'EPS', null, {}, 0, 0, null),
+    ];
+    http.expectOne((r) => r.url === '/api/v1/annees/a1/suivi-evaluations' && !r.params.has('ordre')).flush(reponse);
+    http.expectOne('/api/v1/annees/a1/periodes').flush([
+      { id: 'p1', anneeId: 'a1', profilId: 'pt', libelle: 'Trimestre 1', ordre: 1, debut: '2026-10-01', fin: '2026-12-20', verrouillee: false },
+      { id: 'p2', anneeId: 'a1', profilId: 'pt', libelle: 'Trimestre 2', ordre: 2, debut: '2027-01-04', fin: '2027-03-31', verrouillee: false },
+    ]);
+    await attendre();
+    const t = texte(f);
+    const tuiles = [...(f.nativeElement as HTMLElement).querySelectorAll('.chiffres strong')].map((x) => x.textContent?.trim());
+    expect(tuiles).toEqual(['4', '2', '88 %']); // 4 évaluations, 2 matières sans évaluation, 140 / 160 notes
+    // Groupes : enseignants par ordre alphabétique, puis les matières sans enseignant
+    const titres = [...(f.nativeElement as HTMLElement).querySelectorAll('section h2')].map((h) => h.textContent?.trim().split(' ·')[0]);
+    expect(titres).toEqual(['KABORE Awa', 'SANOU Paul', 'Matières sans enseignant']);
+    expect(t).toContain('2 classe(s), 2 matière(s)');
+    expect(t).toContain('aucune');
+    expect(t).toContain('50 %'); // 1re F3 : 20 / 40
+
+    // Regroupement par classe, puis le 1er trimestre seulement
+    [...(f.nativeElement as HTMLElement).querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Classe')!.click();
+    f.detectChanges();
+    const parClasse = [...(f.nativeElement as HTMLElement).querySelectorAll('section h2')].map((h) => h.textContent?.trim().split(' ·')[0]);
+    expect(parClasse).toEqual(['1re F3', '2nde F3']);
+    saisir(f, '#periode', '1');
+    await attendre();
+    http.expectOne((r) => r.url === '/api/v1/annees/a1/suivi-evaluations' && r.params.get('ordre') === '1').flush([]);
+    await attendre();
+    expect(taux(0, 0)).toBeNull();
   });
 
   it('affiche le message du serveur quand une règle est refusée', async () => {

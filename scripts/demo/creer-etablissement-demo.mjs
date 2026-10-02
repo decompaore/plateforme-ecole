@@ -3,7 +3,9 @@
  * Crée, par l'API, un établissement de démonstration complet pour essayer l'application :
  * lycée technique, année scolaire ouverte (contenant la date du jour), filière F3,
  * deux classes avec leurs matières, un enseignant affecté et une cinquantaine d'élèves
- * inscrits avec un parent chacun.
+ * inscrits avec un parent chacun ; frais de scolarité en trois tranches, Mobile Money en
+ * simulation, et l'espace parent ouvert pour le parent du premier élève (avec une absence
+ * du jour à consulter).
  *
  * DÉVELOPPEMENT UNIQUEMENT : mots de passe connus, numéros de téléphone fictifs.
  *
@@ -97,7 +99,8 @@ function arreter(message) {
 }
 
 /** Appel de l'API. En cas d'erreur, affiche le message du serveur (Problem Details) et s'arrête. */
-async function api(methode, chemin, corps, jeton) {
+/** `facultatif` : une erreur du serveur est renvoyée ({ erreur }) au lieu d'arrêter le script. */
+async function api(methode, chemin, corps, jeton, { facultatif = false } = {}) {
   let reponse;
   try {
     reponse = await fetch(API + chemin, {
@@ -122,6 +125,9 @@ async function api(methode, chemin, corps, jeton) {
       ? '\n  Si vous avez changé le mot de passe du super administrateur, indiquez-le :' +
         '\n  SUPER_ADMIN_MOT_DE_PASSE=votre-mot-de-passe node scripts/demo/creer-etablissement-demo.mjs'
       : '';
+    if (facultatif) {
+      return { erreur: `${reponse.status}${code} : ${detail}` };
+    }
     arreter(`${methode} ${chemin} → ${reponse.status}${code} : ${detail}${champs}${conseil}`);
   }
   return donnees;
@@ -280,6 +286,8 @@ async function principal() {
 
   // 4. Élèves, un parent chacun, inscrits dans les classes
   let total = 0;
+  /** Premier élève inscrit : son parent reçoit un espace parent de démonstration. */
+  let premier = null;
   for (const c of classes) {
     etape(`Élèves de ${c.code}`);
     const nomsPris = new Set();
@@ -293,6 +301,7 @@ async function principal() {
       } while (nomsPris.has(nom + prenoms));
       nomsPris.add(nom + prenoms);
       const naissance = new Date(c.naissance - (tirage() < 0.2 ? 1 : 0), Math.floor(tirage() * 12), 1 + Math.floor(tirage() * 28));
+      const telParent = telephone('62');
       const dossier = await api('POST', '/eleves', {
         nom,
         prenoms,
@@ -302,17 +311,18 @@ async function principal() {
         responsables: [{
           nom,
           prenoms: choisir(tirage() < 0.5 ? PRENOMS_M : PRENOMS_F),
-          telephone: telephone('62'),
+          telephone: telParent,
           lien: choisir(['PERE', 'MERE', 'TUTEUR']),
           responsableLegal: true,
           contactPrioritaire: true,
         }],
       }, admin);
-      await api('POST', '/inscriptions', {
+      const inscription = await api('POST', '/inscriptions', {
         eleveId: dossier.eleve.id,
         classeId: c.id,
         redoublant: tirage() < 0.1,
       }, admin);
+      premier ??= { dossier, inscription, classe: c, telParent };
       total++;
     }
     ok(`${c.eleves} inscrits`);
@@ -324,6 +334,69 @@ async function principal() {
   const fiche = await api('GET', '/espace-enseignant/affectations', undefined, enseignant);
   ok(`${fiche.affectations.length} classes-matières visibles`);
 
+  // 6. Scolarité : frais de l'année en trois tranches (la première déjà échue)
+  etape('Frais de scolarité');
+  await api('POST', `/annees/${annee.id}/frais`, {
+    libelle: 'Scolarité',
+    montant: 75000,
+    obligatoire: true,
+    couvertParBourse: true,
+    portee: 'TOUTES',
+    tranches: [
+      { dateLimite: `${anDebut}-09-15`, montant: 25000 },
+      { dateLimite: `${anDebut + 1}-01-15`, montant: 25000 },
+      { dateLimite: `${anDebut + 1}-04-15`, montant: 25000 },
+    ],
+  }, admin);
+  ok('75 000 FCFA en 3 tranches');
+
+  // 7. Mobile Money en simulation (profil dev du serveur uniquement)
+  etape('Mobile Money (simulateur)');
+  const mm = await api('PUT', '/parametres/mobile-money', {
+    agregateur: 'SIMULATEUR',
+    identifiantMarchand: code,
+    cleApi: 'demo-cle-api',
+    secretWebhook: 'demo-secret-webhook',
+    actif: true,
+  }, admin, { facultatif: true });
+  if (mm?.erreur) {
+    console.log(`ignoré (${mm.erreur}) : lancez l'API avec le profil dev pour payer en simulation`);
+  } else {
+    ok();
+  }
+
+  // 8. Une absence aujourd'hui pour l'enfant du parent de démonstration
+  let telParent = null;
+  if (premier) {
+    const affectation = fiche.affectations.find((a) => a.classeId === premier.classe.id);
+    if (affectation) {
+      etape('Un appel avec une absence');
+      await api('POST', '/appels/lot', {
+        appels: [{
+          idClient: crypto.randomUUID(),
+          classeId: affectation.classeId,
+          matiereId: affectation.matiereId,
+          date: iso(new Date()),
+          heureDebut: '07:00',
+          heureFin: '09:00',
+          saisiLe: new Date().toISOString(),
+          marques: [{ inscriptionId: premier.inscription.id, type: 'ABSENCE' }],
+        }],
+      }, enseignant);
+      ok(`${premier.dossier.eleve.prenoms} ${premier.dossier.eleve.nom}, ${affectation.matiereLibelle}`);
+    }
+
+    // 9. Espace parent du premier élève
+    etape('Espace parent');
+    const responsable = premier.dossier.responsables[0];
+    const espace = await api('POST', `/responsables/${responsable.responsableId}/espace-parent`, undefined, admin);
+    if (espace.motDePasseTemporaire) {
+      await sessionDemo(premier.telParent, espace.motDePasseTemporaire);
+    }
+    telParent = premier.telParent;
+    ok(`parent de ${premier.dossier.eleve.prenoms} ${premier.dossier.eleve.nom}`);
+  }
+
   console.log(`
 ✔ Établissement de démonstration prêt : ${creation.etablissement.nom} (${code})
   ${classes.length} classes, ${MATIERES.length} matières, ${total} élèves inscrits, année ${libelle} ouverte.
@@ -331,7 +404,12 @@ async function principal() {
   Application : http://localhost:4200
 
   Enseignant (fait l'appel)   téléphone ${telEnseignant}   mot de passe ${DEMO_MOT_DE_PASSE}
-  Administrateur              téléphone ${telAdmin}   mot de passe ${DEMO_MOT_DE_PASSE}
+  Administrateur              téléphone ${telAdmin}   mot de passe ${DEMO_MOT_DE_PASSE}${telParent ? `
+  Parent (espace parent)      téléphone ${telParent}   mot de passe ${DEMO_MOT_DE_PASSE}` : ''}
+
+  Pour lui donner quelques semaines d'activité (appels, absences, notes, avertissements, justificatifs,
+  convocation) :
+    node scripts/demo/activite-enseignant.mjs ${telEnseignant} ${telAdmin}
 
   Comptes de développement uniquement.
 `);

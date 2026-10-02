@@ -23,6 +23,30 @@ Migration `V7__evaluations.sql`. Les bulletins PDF, leur publication et le SMS a
 - La saisie est **idempotente** : renvoyer la même feuille depuis un appareil hors connexion ne change rien.
   Les élèves qui ne sont plus dans la classe sont ignorés et listés dans `ignorees`.
 
+## Suivi des évaluations (v0.20)
+
+Combien d'évaluations, de quel type, par quel enseignant, dans quelle matière : une ligne par matière du programme
+de chaque classe de l'année, **y compris les matières sans aucune évaluation**.
+
+`GET /api/v1/annees/{anneeId}/suivi-evaluations?ordre=1` (`ordre` facultatif : rang de la période ; absent = toute
+l'année)
+
+```json
+[{"classeId":"…","classeCode":"2nde F3 A","niveau":"2nde","matiereId":"…","matiereCode":"MATH",
+  "matiereLibelle":"Mathématiques","engagementId":"…","enseignant":"SANOU Paul","evaluations":4,
+  "parType":{"DEVOIR":1,"INTERROGATION":2,"COMPOSITION":1},"derniere":"2026-09-30",
+  "notesSaisies":180,"notesAttendues":180}]
+```
+
+| Rôle | Ce qu'il voit |
+|---|---|
+| ADMIN_ECOLE, CENSEUR, SECRETARIAT | Tout l'établissement (page « Évaluations » de l'administration) |
+| ENSEIGNANT | Seulement ses matières (résumé sous chaque matière dans « Saisir des notes ») ; 403 sans engagement actif |
+
+- `notesAttendues` = effectif actif de la classe × nombre d'évaluations ; une absence compte comme une note saisie.
+- `enseignant` et `engagementId` sont `null` quand la matière n'a pas d'enseignant affecté.
+- Tri par classe puis par matière.
+
 ## Compétences (formation professionnelle)
 
 | Étape | Appel |

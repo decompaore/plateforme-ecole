@@ -1,4 +1,4 @@
-# Application web (v0.18.1)
+# Application web (v0.20)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -12,8 +12,10 @@ Application Angular 22 installable sur smartphone (PWA). Elle couvre :
   chez l'enseignant pour envoyer ses appels et notes avant la date ;
 - la **vie scolaire** (v0.18) : absences du jour et justificatifs, fiche de l'élève (incidents, convocations des
   parents), agenda des convocations ;
+- l'**espace parent** (v0.19) : résumé par enfant, absences avec leur discipline, bulletins, vie scolaire,
+  scolarité et paiement Mobile Money, lisible aussi sans réseau ;
 - des **zones de recherche** (v0.17) sur les listes longues, qui marchent aussi sans réseau côté enseignant ;
-- un **accueil par rôle** : les écrans encore à venir (scolarité, statistiques, parents) sont
+- un **accueil par rôle** : les écrans encore à venir (scolarité côté intendance, statistiques) sont
   annoncés « bientôt disponibles ». En attendant, ces fonctions s'utilisent par l'API (Swagger).
 
 ## Démarrer en local
@@ -43,9 +45,30 @@ Il crée par l'API un lycée technique complet :
 - année ouverte contenant la date du jour, trimestres ;
 - filière F3, 6 matières regroupées (générales, techniques) ;
 - classes 2nde F3 et 1re F3, 46 élèves avec un parent chacun ;
-- un enseignant d'électrotechnique affecté aux deux classes.
+- un enseignant d'électrotechnique affecté aux deux classes ;
+- (v0.19) frais de scolarité de 75 000 FCFA en trois tranches (la première déjà échue), Mobile Money en simulation
+  (API en profil `dev`), une absence du jour pour le premier élève et l'espace parent de son parent.
 
-À la fin, il affiche les téléphones et le mot de passe (`Demo2026`) de l'enseignant et de l'administrateur. Chaque
+À la fin, il affiche les téléphones et le mot de passe (`Demo2026`) de l'enseignant, de l'administrateur et du
+parent.
+
+**Quelques semaines d'activité** (v0.19.1) : `scripts/demo/activite-enseignant.mjs` fait « vivre » l'enseignant de
+démonstration, par l'API, comme s'il travaillait depuis la rentrée :
+
+```bash
+node scripts/demo/activite-enseignant.mjs <téléphone enseignant> [<téléphone administrateur>]
+SEMAINES=6 node scripts/demo/activite-enseignant.mjs …     # 4 semaines par défaut
+```
+
+- un emploi du temps de deux séances par semaine pour chaque classe et matière, et l'appel de chaque séance passée :
+  la plupart des élèves viennent presque toujours, quelques-uns manquent souvent ; quelques retards ;
+- une interrogation (sur 10) et un devoir (sur 20, poids 2) notés par classe et matière dans la période en cours ;
+- deux avertissements donnés en classe (SMS aux familles) ;
+- avec le téléphone de l'administrateur : environ la moitié des journées d'absence justifiées (certificat, mot des
+  parents) et les parents de l'élève le plus absent convoqués.
+
+Les tirages sont reproductibles et les identifiants calculés (appels, évaluations) : relancer le script ne crée
+pas de doublon. Chaque
 exécution crée un nouvel établissement : on peut le relancer sans rien nettoyer.
 
 | Commande (dans `frontend/`) | Rôle |
@@ -134,7 +157,8 @@ La session dure 30 jours sans nouvelle connexion, ce qui couvre largement les p�
 1. **Préparation**, en même temps que les listes de classes. Elle télécharge :
    - les périodes de l'année ;
    - pour chaque matière de l'enseignant, les évaluations de la période en cours et leurs feuilles de notes.
-2. **Évaluations**. L'enseignant choisit la classe et la matière, puis la période (celle du jour par défaut). Il voit
+2. **Évaluations**. L'enseignant choisit la classe et la matière (sous chacune, quand le réseau est là, le résumé de
+   l'année : « 4 évaluations cette année : 1 devoir, 2 interrogations, 1 composition », v0.20), puis la période (celle du jour par défaut). Il voit
    les évaluations avec le nombre de notes saisies. « Nouvelle évaluation » propose un intitulé, le type, la date
    (contrôlée dans la période), le barème (20, ou 1 à 100) et le poids (2 pour une composition).
 3. **Feuille de notes**. L'enseignant tape la note (virgule acceptée, deux décimales au plus), puis Entrée pour passer
@@ -174,6 +198,7 @@ utilisables sur ordinateur comme sur téléphone (les tableaux défilent horizon
 | Classes (`/admin/classes`) | ADMIN_ECOLE, CENSEUR, SECRETARIAT (lecture) | Classes de l'année par niveau, création |
 | Fiche d'une classe | idem | Programme : matières, coefficients, groupes, heures, **enseignant de chaque matière** ; liste des élèves |
 | Élèves (`/admin/eleves`) | ADMIN_ECOLE, SECRETARIAT (CENSEUR en lecture) | Nouvel élève avec son parent et son inscription, recherche, dossier, **import Excel** de la rentrée |
+| Évaluations (`/admin/evaluations`) | ADMIN_ECOLE, CENSEUR, SECRETARIAT | **Suivi des évaluations** (v0.20) : par enseignant ou par classe, sur l'année ou une période, nombre d'évaluations par type (devoirs, interrogations, compositions, TP/ateliers), date de la dernière, % de notes saisies (en rouge sous 90 %), matières sans évaluation surlignées, recherche |
 | Personnel (`/admin/personnel`) | ADMIN_ECOLE | Engager un enseignant (titulaire ou vacataire), **terminer un engagement** (mutation, démission, retraite, fin de contrat) ou annuler une fin programmée, annuler une invitation ; ajouter censeur, secrétariat, intendance, surveillance ; retirer un rôle |
 
 Mise en place d'un établissement, dans l'ordre :
@@ -187,6 +212,28 @@ Mise en place d'un établissement, dans l'ordre :
 Comptes créés (administrateur d'un établissement, enseignant, personnel) : le **mot de passe provisoire** s'affiche
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
+
+## Espace parent (v0.19)
+
+Pour le parent (rôle PARENT), dont l'espace a été ouvert par le secrétariat. Pensé pour un petit téléphone et un
+réseau faible : chaque lecture est gardée sur le téléphone, et sans réseau le parent revoit la dernière situation
+connue, avec sa date (« Pas de réseau : situation du … »). Ces copies sont effacées à la déconnexion.
+
+| Écran | Ce qu'on y voit |
+|---|---|
+| Mes enfants (`/parent`) | Une carte par enfant : classe, convocation à venir, jours d'absence non justifiée des 30 derniers jours, scolarité (en retard, reste à payer et prochaine échéance, ou soldée) |
+| Suivi d'un enfant (`/parent/enfants/:id`) | Quatre rubriques : **Absences** (heures de l'année, dont non justifiées, retards ; jour par jour avec la discipline de chaque cours) ; **Bulletins** publiés (moyenne, rang, distinction, PDF à télécharger) ; **Vie scolaire** (convocations, incidents non annulés, sans les comptes rendus internes) ; **Scolarité** (dû, payé, reste, retard, échéances, paiements et reçus PDF) |
+
+**Paiement Mobile Money** (rubrique Scolarité) : le parent choisit Orange Money, Moov Money ou Telecel Money, le montant (le
+retard est proposé, ou tout le reste) et le numéro qui paie. Il confirme sur son téléphone avec son code secret ;
+l'écran suit la transaction toutes les 5 secondes jusqu'au résultat (reçu, échec, délai dépassé, à vérifier par
+l'intendance) puis relit la situation. Une clé unique par demande évite tout double paiement (double appui, réseau
+lent). Le paiement et les PDF demandent du réseau. En développement (`npm start`), deux boutons simulent la
+réponse de l'opérateur (API en profil `dev`, agrégateur SIMULATEUR).
+
+Côté serveur, rien de nouveau : l'espace parent utilise les points d'accès `espace-parent` existants (voir
+`API_ELEVES.md`, `API_ABSENCES.md`, `API_VIE_SCOLAIRE.md`, `API_BULLETINS.md`, `API_SCOLARITE.md`,
+`API_MOBILE_MONEY.md`).
 
 ## Vie scolaire (v0.18)
 
@@ -270,7 +317,7 @@ frontend/src/app/
 
 ## Tests
 
-60 tests (Vitest) :
+66 tests (Vitest) :
 
 | Fichier | Ce qui est vérifié |
 |---|---|
@@ -281,13 +328,20 @@ frontend/src/app/
 | `notes.service.spec.ts` | Création avec identifiant de l'appareil sans doublon, seuls les élèves modifiés envoyés, saisies regroupées, création refusée puis corrigée ou abandonnée avec ses notes, note refusée puis corrigée, saisie pendant un envoi, notes avant leur évaluation (horloge), conflit technique non bloquant, envoi par 200, lecture des notes saisies au clavier |
 | `notes-saisie.page.spec.ts` | Feuille hors connexion : note hors barème bloquée, absence, « Abs » retiré qui redonne la note d'origine, mise en file des seuls élèves modifiés |
 | `invitations.component.spec.ts` | Titulaire dans X invité comme vacataire dans Y : acceptation, choix d'établissement qui apparaît, passage dans Y |
-| `admin.spec.ts` | Création d'un établissement et affichage unique du mot de passe, programme d'une classe (coefficient, enseignant), nouvel élève avec parent et inscription, engagement (compte ou invitation), mutation programmée avec les matières à réaffecter puis annulée, message du serveur sur une règle refusée |
+| `admin.spec.ts` | Création d'un établissement et affichage unique du mot de passe, programme d'une classe (coefficient, enseignant), nouvel élève avec parent et inscription, engagement (compte ou invitation), mutation programmée avec les matières à réaffecter puis annulée, message du serveur sur une règle refusée, suivi des évaluations (tuiles, regroupement par enseignant puis par classe, filtre de période) |
+| `parent.spec.ts` | Résumés (absences des 30 derniers jours, retard, reste, soldée), cartes des enfants puis même situation sans réseau, fiche d'un enfant (discipline, appel général, bulletin téléchargé, incidents), paiement Mobile Money suivi toutes les 5 secondes jusqu'à la confirmation puis situation relue, sans suivi au-delà |
 | `vie-scolaire.spec.ts` | Absences du jour (discipline de chaque créneau, appel général, bilan, filtre « à justifier », justification puis liste à jour), fiche élève (parent prioritaire en premier, heures par discipline, avertissement avec SMS, blâme absent pour un surveillant, convocation préremplie depuis l'incident), clôture d'une convocation passée, synthèse d'une classe par discipline et par élève, sur l'année puis sur un trimestre |
 | `recherche.spec.ts` | Accents, majuscules et ordre des mots, téléphone avec espaces ; feuille de notes filtrée qui garde le n° d'ordre et place le curseur sur la note ; message clair quand les trimestres manquent |
 | `fin-engagement.component.spec.ts` | Bandeau de mutation : envois en attente comptés et envoyés tout de suite, rien à 60 jours, affichage sans réseau le jour même, annonce effacée quand la fin est annulée, calcul des jours |
 
 La CI (`.github/workflows/ci.yml`, job *Frontend*) exécute les tests et la construction de production à chaque pull
-request.
+request, puis `scripts/verifier-routes.mjs` (v0.20) : **chaque appel de l'application doit avoir sa route dans le
+backend**, sinon la CI échoue.
+
+Sur un poste de développement, `node scripts/verifier-routes.mjs --api` compare aussi le code avec l'API qui tourne
+(profil dev, `/v3/api-docs`) : une route présente dans le code mais absente de l'API signale une API lancée avec une
+ancienne version compilée (erreur « No static resource … » dans l'application). Arrêtez-la puis
+`cd backend && mvn clean spring-boot:run -Dspring-boot.run.profiles=dev`.
 
 Le parcours complet a aussi été vérifié dans Chromium, à la taille d'un téléphone, avec une API simulée :
 - connexion ;
@@ -305,7 +359,11 @@ Le parcours complet a aussi été vérifié dans Chromium, à la taille d'un té
 - (v0.17) recherche d'un établissement par le super administrateur, à la taille d'un téléphone ;
 - (v0.18) vie scolaire d'un surveillant : absences du jour sur téléphone, justification, fiche de l'élève sur
   ordinateur, formulaire d'incident, agenda des convocations ;
-- (v0.18.1) disciplines : liste du jour sur téléphone, heures par discipline dans la fiche, synthèse d'une classe.
+- (v0.18.1) disciplines : liste du jour sur téléphone, heures par discipline dans la fiche, synthèse d'une classe ;
+- (v0.19) espace parent sur un téléphone de 360 px : deux enfants, absences, bulletin, scolarité, paiement Orange
+  Money simulé jusqu'au reçu ;
+- (v0.20) suivi des évaluations sur ordinateur : regroupement par enseignant, matières sans évaluation, taux de
+  notes saisies.
 
 ## Session sur réseau faible (v0.18)
 

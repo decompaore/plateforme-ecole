@@ -31,6 +31,7 @@ import bf.edutech.plateforme.evaluations.Vues.GrilleCompetencesVue;
 import bf.edutech.plateforme.evaluations.Vues.ResultatsPeriodeVue;
 import bf.edutech.plateforme.evaluations.Vues.SaisieCompetence;
 import bf.edutech.plateforme.evaluations.Vues.SaisieNote;
+import bf.edutech.plateforme.evaluations.Vues.SuiviEvaluationVue;
 
 /** Évaluations, notes, compétences et résultats d'une période. */
 @RestController
@@ -72,11 +73,26 @@ public class EvaluationsController {
     private final EvaluationsService evaluations;
     private final CompetencesService competences;
     private final ResultatsService resultats;
+    private final SuiviEvaluationsService suivi;
 
-    EvaluationsController(EvaluationsService evaluations, CompetencesService competences, ResultatsService resultats) {
+    EvaluationsController(EvaluationsService evaluations, CompetencesService competences, ResultatsService resultats,
+            SuiviEvaluationsService suivi) {
         this.evaluations = evaluations;
         this.competences = competences;
         this.resultats = resultats;
+        this.suivi = suivi;
+    }
+
+    /**
+     * Suivi des évaluations de l'année : par classe et matière, l'enseignant, le nombre
+     * d'évaluations par type, la dernière, et les notes saisies sur les notes attendues.
+     * {@code ordre} : 1er, 2e… trimestre ou semestre ; absent : toute l'année. Un enseignant
+     * ne voit que ses matières.
+     */
+    @GetMapping("/api/v1/annees/{anneeId}/suivi-evaluations")
+    @PreAuthorize(CONSULTATION)
+    public List<SuiviEvaluationVue> suivi(@PathVariable UUID anneeId, @RequestParam(required = false) Integer ordre) {
+        return suivi.suivi(anneeId, ordre);
     }
 
     @PostMapping("/api/v1/classes/{classeId}/evaluations")

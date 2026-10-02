@@ -123,6 +123,11 @@ export const routes: Routes = [
             loadComponent: () => import('./admin/pages/eleves.page').then((m) => m.ElevesPage),
           },
           {
+            path: 'evaluations',
+            title: 'Suivi des évaluations',
+            loadComponent: () => import('./admin/pages/suivi-evaluations.page').then((m) => m.SuiviEvaluationsPage),
+          },
+          {
             path: 'personnel',
             canActivate: [role('ADMIN_ECOLE')],
             title: 'Personnel',
@@ -139,6 +144,24 @@ export const routes: Routes = [
             canActivate: [role('ADMIN_ECOLE', 'CENSEUR')],
             title: 'Année scolaire',
             loadComponent: () => import('./admin/pages/annee.page').then((m) => m.AnneePage),
+          },
+        ],
+      },
+      {
+        // Espace parent : chargé à la demande ; la dernière situation reste lisible sans réseau
+        path: 'parent',
+        canActivate: [role('PARENT')],
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            title: 'Mes enfants',
+            loadComponent: () => import('./parent/pages/enfants.page').then((m) => m.EnfantsPage),
+          },
+          {
+            path: 'enfants/:eleveId',
+            title: 'Suivi de mon enfant',
+            loadComponent: () => import('./parent/pages/enfant.page').then((m) => m.EnfantPage),
           },
         ],
       },

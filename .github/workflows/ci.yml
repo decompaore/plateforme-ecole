@@ -97,6 +97,9 @@ jobs:
       - name: Construction de production (avec service worker)
         run: npx ng build
 
+      - name: Chaque appel de l'application a sa route dans l'API
+        run: node ../scripts/verifier-routes.mjs
+
       - name: Publier l'application construite
         uses: actions/upload-artifact@v4
         with:

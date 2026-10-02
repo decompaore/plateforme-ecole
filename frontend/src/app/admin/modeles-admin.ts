@@ -248,3 +248,22 @@ export const LIBELLE_STATUT_ENGAGEMENT: Record<StatutEngagement, string> = {
   TERMINE: 'Terminé',
   REFUSE: 'Refusé',
 };
+
+export type TypeEvaluation = 'DEVOIR' | 'INTERROGATION' | 'COMPOSITION' | 'TP' | 'ATELIER' | 'AUTRE';
+
+/** Suivi des évaluations d'une matière dans une classe (une ligne par matière du programme). */
+export interface SuiviEvaluationVue {
+  classeId: string;
+  classeCode: string;
+  niveau: string;
+  matiereId: string;
+  matiereCode: string;
+  matiereLibelle: string;
+  engagementId: string | null;
+  enseignant: string | null;
+  evaluations: number;
+  parType: Partial<Record<TypeEvaluation, number>>;
+  derniere: string | null;
+  notesSaisies: number;
+  notesAttendues: number;
+}

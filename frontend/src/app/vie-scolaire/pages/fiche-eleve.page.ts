@@ -11,6 +11,7 @@ import { JustificationComponent } from '../justification.component';
 import {
   AbsenceVue,
   ConvocationVue,
+  dateHeure,
   discipline,
   heures,
   HistoriqueVue,
@@ -338,10 +339,4 @@ export class FicheElevePage implements OnInit {
 function minutes(h: string): number {
   const [hh, mm] = h.split(':').map(Number);
   return hh * 60 + mm;
-}
-
-/** « 2026-10-15T10:00 » → « 15/10/2026 à 10h00 ». */
-export function dateHeure(iso: string): string {
-  const [jour, h = '00:00'] = iso.split('T');
-  return `${dateCourte(jour)} à ${heure(h)}`;
 }

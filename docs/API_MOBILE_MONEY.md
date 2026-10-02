@@ -1,6 +1,6 @@
 # Domaine Mobile Money (v0.9)
 
-Module `mobilemoney` : paiement des frais de scolarité par Orange Money ou Moov Money depuis l'espace parent,
+Module `mobilemoney` : paiement des frais de scolarité par Orange Money, Moov Money ou Telecel Money (v0.19.1) depuis l'espace parent,
 via un **agrégateur** (CinetPay, Ligdicash, PayDunya…). Chaque école a son propre compte marchand. La
 notification de l'agrégateur est signée, et le statut est toujours revérifié auprès de l'agrégateur. Les transactions
 sans réponse expirent. Un rapprochement avec le relevé de l'agrégateur a lieu chaque nuit. Migration
@@ -29,7 +29,7 @@ développement. Brancher CinetPay ou un autre revient à écrire une classe qui 
 
 | Étape | Appel |
 |---|---|
-| Demander | `POST /api/v1/espace-parent/inscriptions/{inscriptionId}/mobile-money` `{"montant":25000,"operateur":"ORANGE_MONEY","telephone":"70 11 22 33","cleIdempotence":"<uuid>"}` → **202** |
+| Demander | `POST /api/v1/espace-parent/inscriptions/{inscriptionId}/mobile-money` `{"montant":25000,"operateur":"ORANGE_MONEY","telephone":"70 11 22 33","cleIdempotence":"<uuid>"}` → **202** ; `operateur` : `ORANGE_MONEY`, `MOOV_MONEY` ou `TELECEL_MONEY` |
 | Suivre | `GET /api/v1/espace-parent/mobile-money/{id}` (l'écran interroge toutes les 5 secondes) |
 
 Statuts : `INITIEE` → `EN_ATTENTE` (« Confirmez sur votre téléphone ») → `CONFIRMEE` (paiement et reçu enregistrés, SMS
@@ -49,7 +49,7 @@ La même `cleIdempotence` (double clic) renvoie la même transaction.
 1. La signature est vérifiée avec le secret de **cette** école (sinon `401`, toujours le même message).
 2. Le statut est **redemandé à l'agrégateur** : le contenu de la notification ne suffit jamais.
 3. Si le montant reçu est le montant demandé, le paiement est enregistré, avec son reçu numéroté, dans le module
-   Scolarité (payeur FAMILLE, moyen ORANGE_MONEY ou MOOV_MONEY).
+   Scolarité (payeur FAMILLE, moyen ORANGE_MONEY, MOOV_MONEY ou TELECEL_MONEY).
 
 Une notification reçue deux fois, ou en même temps que la tâche d'expiration, ne crée jamais deux paiements.
 
@@ -93,3 +93,10 @@ Chaque lundi à 7 h 30 : les familles en retard reçoivent un SMS, avec les mêm
    montant différent). La transaction passe à `CONFIRMEE` et le reçu apparaît dans la situation de l'élève.
 
 Ce point d'accès n'existe qu'en profil `dev`. En production, l'agrégateur SIMULATEUR est refusé.
+
+## Telecel Money (v0.19.1)
+
+Troisième opérateur du Burkina Faso, au même titre qu'Orange Money et Moov Money : opérateur `TELECEL_MONEY` pour
+les transactions, moyen de paiement `TELECEL_MONEY` (« Telecel Money ») pour les encaissements et les reçus.
+Migration `V15__telecel_money.sql` (contraintes et longueur des colonnes `paiement.moyen` et
+`transaction_mobile_money.operateur`). L'agrégateur réel devra accepter les trois opérateurs.

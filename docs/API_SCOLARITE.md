@@ -68,7 +68,7 @@ avance, prochaine échéance, paiements.
  "cleIdempotence":"<uuid généré par l'écran>"}
 ```
 
-- `moyen` : `ESPECES`, `ORANGE_MONEY`, `MOOV_MONEY` (reçu sur le numéro marchand de l'école), `VIREMENT`,
+- `moyen` : `ESPECES`, `ORANGE_MONEY`, `MOOV_MONEY`, `TELECEL_MONEY` (reçu sur le numéro marchand de l'école), `VIREMENT`,
   `CHEQUE` ; la `referenceExterne` est obligatoire sauf en espèces.
 - `payeur` : `FAMILLE` ou `ORGANISME` (l'organisme de la prise en charge). `datePaiement` : aujourd'hui par défaut,
   jamais dans le futur.
