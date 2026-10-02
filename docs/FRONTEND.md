@@ -1,4 +1,4 @@
-# Application web (v0.17)
+# Application web (v0.18.1)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -10,8 +10,10 @@ Application Angular 22 installable sur smartphone (PWA). Elle couvre :
   matières, classes et programmes, élèves, personnel pour l'établissement ;
 - la **mutation d'un enseignant** (v0.16) : fin d'engagement programmée par l'établissement, bandeau d'avertissement
   chez l'enseignant pour envoyer ses appels et notes avant la date ;
+- la **vie scolaire** (v0.18) : absences du jour et justificatifs, fiche de l'élève (incidents, convocations des
+  parents), agenda des convocations ;
 - des **zones de recherche** (v0.17) sur les listes longues, qui marchent aussi sans réseau côté enseignant ;
-- un **accueil par rôle** : les écrans encore à venir (vie scolaire, scolarité, statistiques, parents) sont
+- un **accueil par rôle** : les écrans encore à venir (scolarité, statistiques, parents) sont
   annoncés « bientôt disponibles ». En attendant, ces fonctions s'utilisent par l'API (Swagger).
 
 ## Démarrer en local
@@ -83,7 +85,7 @@ puis onglet *Network* → *Offline*.
   L'établissement X n'est jamais informé. Le serveur refuse un second poste de **titulaire** sur la même période
   (`POSTE_TITULAIRE_OCCUPE`).
 - Sur une réponse 401, l'application renouvelle la session **une seule fois** pour toutes les requêtes en cours.
-  Le serveur fait tourner le cookie et traite la réutilisation d'un ancien cookie comme un vol.
+  Le serveur fait tourner le cookie et traite la réutilisation d'un ancien cookie comme un vol (sauf, quelques secondes, quand la réponse précédente s'est perdue : voir plus bas).
 - Le renouvellement est aussi verrouillé entre onglets : l'application installée et un onglet ouvert ne l'envoient
   jamais en même temps.
 - **Déconnexion sans réseau** : le cookie reste valide tant que le serveur ne l'a pas révoqué. L'application note
@@ -186,6 +188,21 @@ Comptes créés (administrateur d'un établissement, enseignant, personnel) : le
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
 
+## Vie scolaire (v0.18)
+
+En ligne, comme l'administration. Rôles : SURVEILLANT, CENSEUR, ADMIN_ECOLE ; SECRETARIAT en consultation et pour
+les justificatifs. Le serveur vérifie chaque action.
+
+| Écran | Ce qu'on y fait |
+|---|---|
+| Absences du jour (`/vie-scolaire`) | Tous les élèves absents ou en retard dans l'établissement, classe par classe, d'après les appels reçus, avec la **discipline** de chaque créneau (« absent 08h00–10h00 · Mathématiques », « appel général » sans matière) ; jour précédent ou suivant ; bilan (absents, retards, à justifier) ; recherche et filtre « à justifier » ; **Justifier** sur place (motif, période, précision) |
+| Élèves (`/vie-scolaire/eleves`) | Recherche sur le serveur (nom, prénoms, matricule) pour ouvrir une fiche |
+| Fiche de l'élève (`/vie-scolaire/eleves/:id`) | Parents à contacter (celui qui reçoit les SMS en premier, numéro cliquable), bilan de l'année, absences jour par jour avec leur discipline, **heures manquées par discipline** (dont non justifiées, retards) et justificatifs, **incidents** (retard à l'entrée, avertissement ; blâme et exclusion pour la direction ; SMS à la famille proposé selon le type ; annulation avec motif), **convocations** des parents (motif prérempli depuis un incident ; clôture : venu, pas venu, annulé) ; choix de l'année |
+| Classes (`/vie-scolaire/classes`, v0.18.1) | Pour une classe, sur l'année, un trimestre (ou semestre) du profil de la classe, ou les 30 derniers jours : absences **par discipline** (cours manqués, élèves concernés, heures, non justifiées, retards ; les plus manquées d'abord) et **par élève** (heures non justifiées d'abord, lien vers la fiche) |
+| Convocations (`/vie-scolaire/convocations`) | Rendez-vous des 30 prochains jours ; ceux des 14 derniers jours à clôturer d'un geste (« Venu », « Pas venu ») |
+
+La liste du jour vient de `GET /api/v1/absences/jour` (v0.18, voir `API_ABSENCES.md`).
+
 ### Recherche (v0.17)
 
 Un même composant (`partage/recherche.component.ts`, règles dans `core/recherche.ts`) filtre la liste déjà
@@ -253,7 +270,7 @@ frontend/src/app/
 
 ## Tests
 
-56 tests (Vitest) :
+60 tests (Vitest) :
 
 | Fichier | Ce qui est vérifié |
 |---|---|
@@ -265,6 +282,7 @@ frontend/src/app/
 | `notes-saisie.page.spec.ts` | Feuille hors connexion : note hors barème bloquée, absence, « Abs » retiré qui redonne la note d'origine, mise en file des seuls élèves modifiés |
 | `invitations.component.spec.ts` | Titulaire dans X invité comme vacataire dans Y : acceptation, choix d'établissement qui apparaît, passage dans Y |
 | `admin.spec.ts` | Création d'un établissement et affichage unique du mot de passe, programme d'une classe (coefficient, enseignant), nouvel élève avec parent et inscription, engagement (compte ou invitation), mutation programmée avec les matières à réaffecter puis annulée, message du serveur sur une règle refusée |
+| `vie-scolaire.spec.ts` | Absences du jour (discipline de chaque créneau, appel général, bilan, filtre « à justifier », justification puis liste à jour), fiche élève (parent prioritaire en premier, heures par discipline, avertissement avec SMS, blâme absent pour un surveillant, convocation préremplie depuis l'incident), clôture d'une convocation passée, synthèse d'une classe par discipline et par élève, sur l'année puis sur un trimestre |
 | `recherche.spec.ts` | Accents, majuscules et ordre des mots, téléphone avec espaces ; feuille de notes filtrée qui garde le n° d'ordre et place le curseur sur la note ; message clair quand les trimestres manquent |
 | `fin-engagement.component.spec.ts` | Bandeau de mutation : envois en attente comptés et envoyés tout de suite, rien à 60 jours, affichage sans réseau le jour même, annonce effacée quand la fin est annulée, calcul des jours |
 
@@ -284,14 +302,16 @@ Le parcours complet a aussi été vérifié dans Chromium, à la taille d'un té
   les trois notes modifiées sont envoyées ;
 - (v0.16) mutation : fin programmée depuis Personnel (matières à réaffecter, « part le … »), puis bandeau sur
   l'accueil de l'enseignant, à la taille d'un téléphone ;
-- (v0.17) recherche d'un établissement par le super administrateur, à la taille d'un téléphone.
+- (v0.17) recherche d'un établissement par le super administrateur, à la taille d'un téléphone ;
+- (v0.18) vie scolaire d'un surveillant : absences du jour sur téléphone, justification, fiche de l'élève sur
+  ordinateur, formulaire d'incident, agenda des convocations ;
+- (v0.18.1) disciplines : liste du jour sur téléphone, heures par discipline dans la fiche, synthèse d'une classe.
 
-## Limite connue
+## Session sur réseau faible (v0.18)
 
-Si la réponse d'un renouvellement se perd (réseau très faible), le téléphone garde l'ancien cookie, que le serveur
-a déjà remplacé. Au renouvellement suivant, le serveur voit un cookie révoqué réutilisé : il ferme la session par
-précaution et l'enseignant doit se reconnecter. Aucun appel n'est perdu. Correction prévue côté serveur : accepter
-le cookie précédent pendant quelques secondes et renvoyer le même successeur.
+Si la réponse d'un renouvellement de session se perd, le téléphone renvoie l'ancien cookie quelques secondes plus
+tard : le serveur l'accepte désormais une fois (voir `CONFIGURATION.md`) au lieu de fermer la session. Un cookie
+volé rejoué plus tard reste détecté.
 
 ## Mise en production (à venir)
 

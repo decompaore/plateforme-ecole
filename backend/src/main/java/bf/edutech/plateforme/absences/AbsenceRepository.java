@@ -22,4 +22,11 @@ interface AbsenceRepository extends JpaRepository<Absence, UUID> {
             order by p.dateAppel desc, p.heureDebut desc""")
     List<Object[]> avecAppels(@Param("inscriptions") Collection<UUID> inscriptionIds, @Param("du") LocalDate du,
             @Param("au") LocalDate au);
+
+    /** Absences et retards de tout l'établissement un jour donné, avec leur appel. */
+    @Query("""
+            select a, p from Absence a join Appel p on p.id = a.appelId
+            where p.dateAppel = :date
+            order by p.heureDebut, p.classeId""")
+    List<Object[]> duJour(@Param("date") LocalDate date);
 }

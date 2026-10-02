@@ -148,6 +148,13 @@ public class AuthService {
      * Rotation du jeton de rafraîchissement. La réutilisation d'un jeton déjà
      * révoqué révoque toute la famille (vol probable) ; cette révocation est
      * conservée malgré l'erreur renvoyée.
+     * <p>
+     * Exception : un jeton renouvelé il y a moins de quelques secondes
+     * ({@code app.securite.grace-rafraichissement}) dont le successeur n'a encore
+     * jamais servi. C'est le cas d'une réponse perdue sur un réseau faible : le
+     * téléphone n'a jamais reçu le nouveau cookie. Le successeur inutilisé est alors
+     * révoqué et un autre est émis, dans la même famille. Un jeton volé rejoué plus
+     * tard, ou après que le successeur a servi, reste détecté comme un vol.
      */
     @Transactional(noRollbackFor = AuthentificationException.class)
     public ResultatConnexion rafraichir(String valeur) {
@@ -158,15 +165,23 @@ public class AuthService {
         JetonRafraichissement jeton = jetonsRafraichissement.findByHache(ServiceJetons.hacher(valeur))
                 .orElseThrow(() -> new AuthentificationException("Session expirée"));
         if (jeton.estRevoque()) {
-            jetonsRafraichissement.revoquerFamille(jeton.getFamille(), maintenant);
-            audit.enregistrerPour(jeton.getUtilisateurId(), "REUTILISATION_JETON", null,
+            Optional<JetonRafraichissement> successeurInutilise = jeton.renouveleRecemment(maintenant,
+                    securite.graceRafraichissement())
+                            ? jetonsRafraichissement.findById(jeton.getRemplacePar()).filter(j -> !j.estRevoque())
+                            : Optional.empty();
+            if (successeurInutilise.isEmpty()) {
+                jetonsRafraichissement.revoquerFamille(jeton.getFamille(), maintenant);
+                audit.enregistrerPour(jeton.getUtilisateurId(), "REUTILISATION_JETON", null,
+                        Map.of("famille", jeton.getFamille()));
+                throw new AuthentificationException("Session expirée");
+            }
+            successeurInutilise.get().revoquer(maintenant);
+            audit.enregistrerPour(jeton.getUtilisateurId(), "RENOUVELLEMENT_REJOUE", null,
                     Map.of("famille", jeton.getFamille()));
-            throw new AuthentificationException("Session expirée");
         }
         if (jeton.estExpire(maintenant)) {
             throw new AuthentificationException("Session expirée");
         }
-        jeton.revoquer(maintenant);
         Utilisateur utilisateur = utilisateurs.findById(jeton.getUtilisateurId())
                 .filter(Utilisateur::isActif)
                 .orElseThrow(() -> new AuthentificationException("Session expirée"));
@@ -175,9 +190,10 @@ public class AuthService {
             etablissement = acces.trouver(utilisateur.getId(), jeton.getTenantId())
                     .orElseThrow(() -> new AuthentificationException("L'accès à cet établissement a été retiré"));
         }
-        String nouveau = jetons.nouveauJetonRafraichissement(utilisateur.getId(), jeton.getTenantId(),
-                jeton.getFamille());
-        return new ResultatConnexion(jetons.jetonAcces(utilisateur, etablissement), null, nouveau,
+        ServiceJetons.JetonEmis nouveau = jetons.emettreJetonRafraichissement(utilisateur.getId(),
+                jeton.getTenantId(), jeton.getFamille());
+        jeton.remplacer(nouveau.id(), maintenant);
+        return new ResultatConnexion(jetons.jetonAcces(utilisateur, etablissement), null, nouveau.valeur(),
                 jetons.dureeAccesEnSecondes(), etablissement, List.of(), utilisateur.isSuperAdmin(),
                 utilisateur.isDoitChangerMotDePasse());
     }
