@@ -25,6 +25,7 @@ import {
   ResultatAjoutMembre,
   ResultatCreationEtablissement,
   ResultatEngagement,
+  SuiviEvaluationVue,
   Sexe,
   StatutBourse,
   StatutTenant,
@@ -261,5 +262,12 @@ export class AdminApi {
 
   annulerInvitation(engagementId: string): Promise<void> {
     return this.delete(`/engagements/${engagementId}`);
+  }
+
+  // ---------- Suivi des évaluations
+
+  /** `ordre` : 1er, 2e… trimestre ou semestre ; absent : toute l'année. */
+  suiviEvaluations(anneeId: string, ordre?: number): Promise<SuiviEvaluationVue[]> {
+    return this.get(`/annees/${anneeId}/suivi-evaluations`, ordre ? { ordre } : undefined);
   }
 }

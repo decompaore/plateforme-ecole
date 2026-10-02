@@ -172,6 +172,13 @@ export const LIBELLE_CONVOCATION: Record<StatutConvocation, string> = {
   ANNULEE: 'Annulée',
 };
 
+/** « 2026-10-15T10:00 » → « 15/10/2026 à 10h00 ». */
+export function dateHeure(iso: string): string {
+  const [jour, h = '00:00'] = iso.split('T');
+  const [a, m, j] = jour.split('-');
+  return `${j}/${m}/${a} à ${heure(h)}`;
+}
+
 /** « 08:00:00 » → « 08h00 ». */
 export function heure(h: string): string {
   return h.slice(0, 5).replace(':', 'h');

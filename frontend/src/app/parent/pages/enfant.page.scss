@@ -1,0 +1,111 @@
+.retour {
+  margin-left: -0.5rem;
+}
+h1 {
+  margin-bottom: 0.1rem;
+}
+.sous-titre {
+  margin-top: 0;
+}
+h2 {
+  font-size: 1.05rem;
+}
+.onglets-enfant {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.25rem;
+  margin: 0.5rem 0 1rem;
+  padding: 0.25rem;
+  border-radius: var(--rayon);
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  button {
+    min-height: 44px;
+    border: none;
+    border-radius: calc(var(--rayon) - 4px);
+    background: none;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--texte-doux);
+    cursor: pointer;
+    padding: 0 0.25rem;
+  }
+  button.actif {
+    background: var(--primaire);
+    color: var(--sur-primaire);
+  }
+  button:focus-visible {
+    outline: 2px solid var(--primaire);
+    outline-offset: 2px;
+  }
+}
+.chiffres {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+  strong {
+    font-size: 1.15rem;
+    font-variant-numeric: tabular-nums;
+  }
+  span {
+    font-size: 0.8rem;
+    color: var(--texte-doux);
+  }
+  .alerte-valeur strong {
+    color: var(--absent);
+  }
+}
+.ligne {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+}
+.creneaux {
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+.liste > li {
+  padding: 0.6rem 0;
+}
+.bulletin {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.moyenne {
+  margin: 0.15rem 0 0.25rem;
+  .note {
+    font-size: 1.4rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+}
+tr.retard td {
+  color: var(--absent);
+}
+.annule {
+  opacity: 0.6;
+}
+table {
+  font-variant-numeric: tabular-nums;
+}
+.montant {
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+td.nombre {
+  white-space: nowrap;
+}

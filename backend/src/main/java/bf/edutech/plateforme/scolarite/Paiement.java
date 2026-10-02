@@ -28,7 +28,7 @@ public class Paiement extends EntiteCloisonnee {
     private long montant;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "moyen", nullable = false, length = 12, updatable = false)
+    @Column(name = "moyen", nullable = false, length = 20, updatable = false)
     private MoyenPaiement moyen;
 
     @Enumerated(EnumType.STRING)

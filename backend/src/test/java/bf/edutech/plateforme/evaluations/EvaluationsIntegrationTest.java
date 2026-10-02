@@ -55,6 +55,7 @@ import bf.edutech.plateforme.evaluations.Vues.ResultatEleveVue;
 import bf.edutech.plateforme.evaluations.Vues.ResultatsPeriodeVue;
 import bf.edutech.plateforme.evaluations.Vues.SaisieCompetence;
 import bf.edutech.plateforme.evaluations.Vues.SaisieNote;
+import bf.edutech.plateforme.evaluations.Vues.SuiviEvaluationVue;
 import bf.edutech.plateforme.pedagogie.ProfilVue;
 import bf.edutech.plateforme.pedagogie.ProfilsService;
 import bf.edutech.plateforme.pedagogie.ProfilsService.DonneesProfil;
@@ -87,6 +88,7 @@ class EvaluationsIntegrationTest {
     @Autowired private EvaluationsService evaluations;
     @Autowired private CompetencesService competences;
     @Autowired private ResultatsService resultats;
+    @Autowired private SuiviEvaluationsService suiviEvaluations;
     @Autowired private WebApplicationContext contexte;
 
     private final LocalDate aujourdhui = LocalDate.now(ZoneOffset.UTC);
@@ -273,6 +275,29 @@ class EvaluationsIntegrationTest {
                         .with(jeton(compte, "ENSEIGNANT")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.eleves[0].moyenne").value(9.67)); // (14,5×4 + 0×2)/6
+
+        // Suivi des évaluations : l'enseignant ne voit que sa matière, avec le décompte par type
+        mvc.perform(get("/api/v1/annees/{id}/suivi-evaluations", annee.id()).with(jeton(compte, "ENSEIGNANT")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].matiereCode").value("MATH"))
+                .andExpect(jsonPath("$[0].enseignant").value("SANOU Paul"))
+                .andExpect(jsonPath("$[0].evaluations").value(1))
+                .andExpect(jsonPath("$[0].parType.INTERROGATION").value(1))
+                .andExpect(jsonPath("$[0].derniere").value(aujourdhui.toString()))
+                .andExpect(jsonPath("$[0].notesSaisies").value(1))
+                .andExpect(jsonPath("$[0].notesAttendues").value(1));
+        // La direction voit tout le programme, y compris la matière sans enseignant ni évaluation
+        List<SuiviEvaluationVue> suivi = commeCenseur(() -> suiviEvaluations.suivi(annee.id(), null));
+        assertThat(suivi).extracting(SuiviEvaluationVue::matiereCode).containsExactlyInAnyOrder("MATH", "FR");
+        assertThat(suivi).filteredOn(l -> l.matiereCode().equals("FR")).singleElement().satisfies(l -> {
+            assertThat(l.evaluations()).isZero();
+            assertThat(l.enseignant()).isNull();
+            assertThat(l.derniere()).isNull();
+        });
+        // Une période sans évaluation (rang inexistant) : tout à zéro
+        assertThat(commeCenseur(() -> suiviEvaluations.suivi(annee.id(), 9)))
+                .allSatisfy(l -> assertThat(l.evaluations()).isZero());
 
         // Période verrouillée : plus aucune saisie
         dans(() -> periodes.verrouiller(trimestre));

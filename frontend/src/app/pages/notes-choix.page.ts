@@ -1,9 +1,11 @@
+import { HttpClient } from '@angular/common/http';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { firstValueFrom } from 'rxjs';
 
 import { messageErreur } from '../core/erreurs';
 import { Affectation } from '../core/modeles';
-import { SessionService } from '../core/session.service';
+import { API, SessionService } from '../core/session.service';
 import { ListesService } from '../hors-ligne/listes.service';
 import { NotesService } from '../hors-ligne/notes.service';
 
@@ -42,7 +44,10 @@ import { NotesService } from '../hors-ligne/notes.service';
               @for (a of g.affectations; track a.matiereId) {
                 <li>
                   <a class="ligne-lien" [routerLink]="['/notes', a.classeId, a.matiereId]">
-                    <span>{{ a.matiereLibelle }}</span>
+                    <span>
+                      {{ a.matiereLibelle }}
+                      @if (resume(a); as r) { <br /><span class="doux resume">{{ r }}</span> }
+                    </span>
                     <span aria-hidden="true">›</span>
                   </a>
                 </li>
@@ -61,6 +66,9 @@ import { NotesService } from '../hors-ligne/notes.service';
     h2 {
       margin-bottom: 0.25rem;
     }
+    .resume {
+      font-size: 0.85rem;
+    }
   `,
 })
 export class NotesChoixPage implements OnInit {
@@ -68,7 +76,10 @@ export class NotesChoixPage implements OnInit {
   protected readonly notes = inject(NotesService);
   private readonly listes = inject(ListesService);
 
+  private readonly http = inject(HttpClient);
   private readonly affectations = signal<Affectation[]>([]);
+  /** Évaluations de l'année par classe et matière (en ligne seulement ; simple information). */
+  private readonly suivi = signal<Map<string, { evaluations: number; parType: Record<string, number> }>>(new Map());
   protected readonly chargement = signal(true);
   protected readonly erreur = signal<string | null>(null);
 
@@ -84,12 +95,54 @@ export class NotesChoixPage implements OnInit {
 
   async ngOnInit(): Promise<void> {
     try {
-      this.affectations.set((await this.listes.affectations())?.affectations ?? []);
+      const fiche = await this.listes.affectations();
+      this.affectations.set(fiche?.affectations ?? []);
       await this.notes.recharger();
+      if (fiche && !this.session.horsConnexion()) {
+        void this.chargerSuivi(fiche.anneeId);
+      }
     } catch (e) {
       this.erreur.set(messageErreur(e));
     } finally {
       this.chargement.set(false);
     }
   }
+
+  private async chargerSuivi(anneeId: string): Promise<void> {
+    try {
+      const lignes = await firstValueFrom(
+        this.http.get<{ classeId: string; matiereId: string; evaluations: number; parType: Record<string, number> }[]>(
+          `${API}/annees/${anneeId}/suivi-evaluations`,
+        ),
+      );
+      this.suivi.set(new Map(lignes.map((l) => [`${l.classeId}/${l.matiereId}`, l])));
+    } catch {
+      // Simple information : sans réseau ou en cas d'erreur, la page reste utilisable
+    }
+  }
+
+  /** « 3 évaluations cette année : 2 devoirs, 1 interrogation ». */
+  protected resume(a: Affectation): string | null {
+    const s = this.suivi().get(`${a.classeId}/${a.matiereId}`);
+    if (!s) {
+      return null;
+    }
+    if (s.evaluations === 0) {
+      return 'Aucune évaluation cette année';
+    }
+    const detail = Object.entries(s.parType)
+      .filter(([, n]) => n > 0)
+      .map(([type, n]) => `${n} ${(LIBELLES_PLURIEL[type] ?? ['évaluation', 'évaluations'])[n > 1 ? 1 : 0]}`)
+      .join(', ');
+    return `${s.evaluations} évaluation${s.evaluations > 1 ? 's' : ''} cette année : ${detail}`;
+  }
 }
+
+const LIBELLES_PLURIEL: Record<string, [string, string]> = {
+  DEVOIR: ['devoir', 'devoirs'],
+  INTERROGATION: ['interrogation', 'interrogations'],
+  COMPOSITION: ['composition', 'compositions'],
+  TP: ['TP', 'TP'],
+  ATELIER: ['atelier', 'ateliers'],
+  AUTRE: ['autre', 'autres'],
+};
