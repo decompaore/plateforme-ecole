@@ -11,7 +11,7 @@ RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp -q dependency:go-offline
 COPY src ./src
 RUN --mount=type=cache,target=/root/.m2 mvn -B -ntp -q package -DskipTests
 
-FROM eclipse-temurin:21-jre
+FROM eclipse-temurin:24-jre
 LABEL org.opencontainers.image.title="plateforme-api" \
       org.opencontainers.image.description="API de la plateforme SaaS de gestion des établissements secondaires"
 RUN groupadd --system app && useradd --system --gid app --home /app app
