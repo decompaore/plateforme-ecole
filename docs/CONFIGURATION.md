@@ -67,3 +67,11 @@ en production il est refusé.
 La branche 3.x n'est plus maintenue depuis le 30 juin 2026. Spring Boot 4 impose quelques changements, déjà appliqués :
 `spring-boot-starter-webmvc` (au lieu de `-web`), `spring-boot-starter-security-oauth2-resource-server`, `spring-boot-starter-flyway`
 (obligatoire en plus de `flyway-database-postgresql`), `spring-boot-starter-security-test`, Jackson 3, et `@MockitoBean` au lieu de `@MockBean` dans les tests.
+
+## Session : réponse de renouvellement perdue (v0.18)
+
+`app.securite.grace-rafraichissement` (20 s par défaut). Sur un réseau faible, la réponse d'un renouvellement de
+session peut se perdre : le téléphone renvoie alors l'ancien cookie. Pendant ce délai, et tant que le cookie émis
+entre-temps n'a jamais servi, le serveur l'accepte (journal `RENOUVELLEMENT_REJOUE`) au lieu de fermer la session
+pour vol. Un ancien cookie rejoué plus tard, ou après que son successeur a servi, ferme toujours la session
+(journal `REUTILISATION_JETON`). Migration `V14__grace_rafraichissement.sql`.

@@ -87,6 +87,7 @@ app:
     origines-autorisees: ${ORIGINES_AUTORISEES:}
     max-echecs-connexion: 5
     duree-verrouillage: 15m
+    grace-rafraichissement: 20s           # réponse de renouvellement perdue : l'ancien cookie reste valable une fois
   notifications:
     envoi-automatique: ${NOTIFICATIONS_ENVOI_AUTOMATIQUE:true}
     intervalle-ms: 10000                  # passage du worker d'envoi des SMS

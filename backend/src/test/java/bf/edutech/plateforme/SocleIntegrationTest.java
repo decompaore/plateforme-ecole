@@ -174,18 +174,46 @@ class SocleIntegrationTest {
         MvcResult creation = creerEtablissement("rotation", telAdmin);
         Session session = connecterUnique(telAdmin, lire(creation, "$.motDePasseTemporaire"));
 
-        MvcResult rotation = mvc.perform(post("/api/v1/auth/rafraichir").cookie(session.cookie()))
-                .andExpect(status().isOk())
-                .andReturn();
-        Cookie nouveau = rotation.getResponse().getCookie(COOKIE);
-        assertThat(nouveau).isNotNull();
+        Cookie deuxieme = renouveler(session.cookie());
+        Cookie troisieme = renouveler(deuxieme);
 
-        // L'ancien jeton est réutilisé (vol simulé) : refus...
+        // Le premier jeton est rejoué alors que son successeur a déjà servi (vol simulé) : refus...
         mvc.perform(post("/api/v1/auth/rafraichir").cookie(session.cookie()))
                 .andExpect(status().isUnauthorized());
         // ... et toute la famille est révoquée, y compris le jeton légitime
-        mvc.perform(post("/api/v1/auth/rafraichir").cookie(nouveau))
+        mvc.perform(post("/api/v1/auth/rafraichir").cookie(troisieme))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void uneReponseDeRenouvellementPerdueNeFermePasLaSession() throws Exception {
+        String telAdmin = telephone();
+        MvcResult creation = creerEtablissement("grace", telAdmin);
+        Session session = connecterUnique(telAdmin, lire(creation, "$.motDePasseTemporaire"));
+
+        // Le serveur renouvelle, mais la réponse n'arrive jamais au téléphone : le cookie émis est perdu
+        Cookie perdu = renouveler(session.cookie());
+
+        // Le téléphone renvoie l'ancien cookie quelques secondes plus tard : accepté, nouveau cookie
+        Cookie repris = renouveler(session.cookie());
+        assertThat(repris.getValue()).isNotEqualTo(perdu.getValue());
+
+        // La session continue normalement avec le nouveau cookie
+        Cookie suivant = renouveler(repris);
+        assertThat(suivant).isNotNull();
+
+        // Le cookie perdu, lui, ne sert plus : le présenter révèle un vol et ferme la session
+        mvc.perform(post("/api/v1/auth/rafraichir").cookie(perdu)).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/v1/auth/rafraichir").cookie(suivant)).andExpect(status().isUnauthorized());
+    }
+
+    private Cookie renouveler(Cookie cookie) throws Exception {
+        MvcResult r = mvc.perform(post("/api/v1/auth/rafraichir").cookie(cookie))
+                .andExpect(status().isOk())
+                .andReturn();
+        Cookie nouveau = r.getResponse().getCookie(COOKIE);
+        assertThat(nouveau).isNotNull();
+        return nouveau;
     }
 
     @Test

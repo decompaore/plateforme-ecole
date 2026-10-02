@@ -143,6 +143,39 @@ export const routes: Routes = [
         ],
       },
       {
+        // Vie scolaire : en ligne, chargée à la demande
+        path: 'vie-scolaire',
+        canActivate: [role('SURVEILLANT', 'CENSEUR', 'ADMIN_ECOLE', 'SECRETARIAT')],
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            title: 'Absences du jour',
+            loadComponent: () => import('./vie-scolaire/pages/absences-jour.page').then((m) => m.AbsencesJourPage),
+          },
+          {
+            path: 'eleves',
+            title: 'Vie scolaire · Élèves',
+            loadComponent: () => import('./vie-scolaire/pages/eleves-vs.page').then((m) => m.ElevesVsPage),
+          },
+          {
+            path: 'eleves/:eleveId',
+            title: 'Fiche de vie scolaire',
+            loadComponent: () => import('./vie-scolaire/pages/fiche-eleve.page').then((m) => m.FicheElevePage),
+          },
+          {
+            path: 'classes',
+            title: 'Vie scolaire · Classes',
+            loadComponent: () => import('./vie-scolaire/pages/classe-vs.page').then((m) => m.ClasseVsPage),
+          },
+          {
+            path: 'convocations',
+            title: 'Convocations',
+            loadComponent: () => import('./vie-scolaire/pages/convocations.page').then((m) => m.ConvocationsPage),
+          },
+        ],
+      },
+      {
         path: 'envois',
         canActivate: [role('ENSEIGNANT')],
         title: 'Mes appels',
