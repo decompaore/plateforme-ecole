@@ -90,13 +90,21 @@ class ServiceJetons {
 
     /** Crée un jeton de rafraîchissement ; {@code famille} null = nouvelle chaîne. */
     String nouveauJetonRafraichissement(UUID utilisateurId, UUID tenantId, UUID famille) {
+        return emettreJetonRafraichissement(utilisateurId, tenantId, famille).valeur();
+    }
+
+    /** Jeton émis : identifiant en base et valeur (remise une seule fois, dans le cookie). */
+    record JetonEmis(UUID id, String valeur) {
+    }
+
+    JetonEmis emettreJetonRafraichissement(UUID utilisateurId, UUID tenantId, UUID famille) {
         byte[] octets = new byte[32];
         ALEA.nextBytes(octets);
         String valeur = Base64.getUrlEncoder().withoutPadding().encodeToString(octets);
-        depot.save(new JetonRafraichissement(utilisateurId, tenantId, hacher(valeur),
+        JetonRafraichissement jeton = depot.save(new JetonRafraichissement(utilisateurId, tenantId, hacher(valeur),
                 famille != null ? famille : UUID.randomUUID(),
                 horloge.instant().plus(proprietes.dureeJetonRafraichissement())));
-        return valeur;
+        return new JetonEmis(jeton.getId(), valeur);
     }
 
     static String hacher(String valeur) {

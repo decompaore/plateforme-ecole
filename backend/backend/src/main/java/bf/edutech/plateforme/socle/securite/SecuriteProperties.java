@@ -26,6 +26,8 @@ import org.springframework.validation.annotation.Validated;
  * @param originesAutorisees         origines CORS autorisées (application Angular)
  * @param maxEchecsConnexion         échecs avant verrouillage temporaire
  * @param dureeVerrouillage          durée du verrouillage
+ * @param graceRafraichissement      délai pendant lequel un jeton qui vient d'être renouvelé reste accepté une
+ *                                   fois (réponse perdue sur un réseau faible) ; 20 secondes par défaut
  */
 @Validated
 @ConfigurationProperties(prefix = "app.securite")
@@ -39,12 +41,16 @@ public record SecuriteProperties(
         boolean cookieSecurise,
         List<String> originesAutorisees,
         int maxEchecsConnexion,
-        @NotNull Duration dureeVerrouillage) {
+        @NotNull Duration dureeVerrouillage,
+        Duration graceRafraichissement) {
 
     public SecuriteProperties {
         originesAutorisees = originesAutorisees == null ? List.of() : List.copyOf(originesAutorisees);
         if (maxEchecsConnexion <= 0) {
             maxEchecsConnexion = 5;
+        }
+        if (graceRafraichissement == null || graceRafraichissement.isNegative()) {
+            graceRafraichissement = Duration.ofSeconds(20);
         }
     }
 }

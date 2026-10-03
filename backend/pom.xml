@@ -13,7 +13,7 @@
 
     <groupId>bf.edutech</groupId>
     <artifactId>plateforme-api</artifactId>
-    <version>0.22.0-SNAPSHOT</version>
+    <version>0.23.0-SNAPSHOT</version>
     <name>plateforme-api</name>
     <description>API de la plateforme SaaS de gestion des établissements secondaires</description>
 

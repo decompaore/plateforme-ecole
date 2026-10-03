@@ -1,0 +1,104 @@
+.retour {
+  display: inline-block;
+  margin-bottom: 0.75rem;
+  color: var(--primaire);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.entete {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.75rem;
+  h1 {
+    margin: 0;
+    font-size: 1.35rem;
+  }
+  p {
+    margin: 0.25rem 0 0;
+  }
+}
+
+h2 {
+  font-size: 1rem;
+  margin: 0;
+}
+
+textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: 10px;
+  padding: 0.65rem 0.85rem;
+  width: 100%;
+  resize: vertical;
+  &:focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--primaire) 40%, transparent);
+    border-color: var(--primaire);
+  }
+}
+
+.entete-sequence {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.grille-sequence {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 0.7fr) minmax(0, 1fr);
+  gap: 0 1rem;
+}
+
+@media (max-width: 40rem) {
+  .grille-sequence {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    .titre {
+      grid-column: 1 / -1;
+    }
+  }
+}
+
+.sequence .champ:last-child {
+  margin-bottom: 0;
+}
+
+.lecture .contenu {
+  white-space: pre-line;
+  margin: 0 0 0.5rem;
+}
+
+.barre {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  box-shadow: var(--ombre);
+}
+
+.rouge {
+  color: var(--absent);
+  font-weight: 600;
+}
+
+.visa {
+  border: 1px solid var(--primaire);
+  h2 {
+    margin-bottom: 0.75rem;
+  }
+}

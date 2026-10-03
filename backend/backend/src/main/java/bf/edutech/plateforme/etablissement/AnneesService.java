@@ -2,6 +2,7 @@ package bf.edutech.plateforme.etablissement;
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -130,8 +131,8 @@ public class AnneesService {
     public ResultatCopie copier(UUID sourceId, String libelle, LocalDate debut, LocalDate fin) {
         AnneeScolaire source = charger(sourceId);
         AnneeScolaire cible = creerSansAudit(libelle, debut, fin);
-        long decalageAnnees = ChronoUnit.YEARS.between(source.getDebut().withDayOfMonth(1),
-                cible.getDebut().withDayOfMonth(1));
+        // Écart en années civiles (2025-2026 → 2026-2027 : 1), même si la rentrée change de mois
+        long decalageAnnees = cible.getDebut().getYear() - source.getDebut().getYear();
 
         int nbPeriodes = 0;
         for (Periode p : periodes.findByAnneeIdOrderByProfilIdAscOrdreAsc(sourceId)) {
@@ -146,9 +147,11 @@ public class AnneesService {
 
         int nbClasses = 0;
         int nbMatieres = 0;
+        Map<UUID, UUID> correspondance = new HashMap<>();
         for (Classe c : classes.findByAnneeIdOrderByCodeAsc(sourceId)) {
             Classe copie = classes.save(new Classe(cible.getId(), c.getFiliereId(), c.getCode(), c.getNiveau(),
                     c.getEffectifMax()));
+            correspondance.put(c.getId(), copie.getId());
             nbClasses++;
             for (ClasseMatiere cm : matieresDeClasse.findByClasseId(c.getId())) {
                 ClasseMatiere nouvelle = new ClasseMatiere(copie.getId(), cm.getMatiereId());

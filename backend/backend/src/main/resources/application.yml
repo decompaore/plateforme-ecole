@@ -87,6 +87,26 @@ app:
     origines-autorisees: ${ORIGINES_AUTORISEES:}
     max-echecs-connexion: 5
     duree-verrouillage: 15m
+    grace-rafraichissement: 20s           # réponse de renouvellement perdue : l'ancien cookie reste valable une fois
+  notifications:
+    envoi-automatique: ${NOTIFICATIONS_ENVOI_AUTOMATIQUE:true}
+    intervalle-ms: 10000                  # passage du worker d'envoi des SMS
+    taille-lot: 50
+    bail: 2m                              # réservation d'un message par une instance
+    max-tentatives: 6                     # 2, 4, 8, 16, 32 minutes entre les tentatives
+    seuil-coupe-circuit: 5                # échecs consécutifs avant suspension
+    pause-coupe-circuit: 5m
+  enseignants:
+    cron-fins: "0 15 0 * * *"             # chaque nuit à 0 h 15 : clôture des engagements échus
+  scolarite:
+    relances-automatiques: ${RELANCES_AUTOMATIQUES:true}
+    cron-relances: "0 30 7 * * MON"       # chaque lundi à 7 h 30, heure de Ouagadougou
+  mobile-money:
+    cle-chiffrement: ${MOBILE_MONEY_CLE_CHIFFREMENT:}   # openssl rand -base64 32 ; vide : Mobile Money inactif
+    duree-validite: 15m                   # délai laissé au parent pour confirmer
+    taches-automatiques: true             # expiration (chaque minute) et rapprochement (2 h 30)
+    simulateur-autorise: false
+    cron-rapprochement: "0 30 2 * * *"
   amorcage:
     super-admin-telephone: ${SUPER_ADMIN_TELEPHONE:}
     super-admin-mot-de-passe: ${SUPER_ADMIN_MOT_DE_PASSE:}
