@@ -3,6 +3,7 @@ import { Router, RouterLink } from '@angular/router';
 
 import { dateHeureCourte, dateLongue } from '../core/outils';
 import { SessionService } from '../core/session.service';
+import { CahierService } from '../hors-ligne/cahier.service';
 import { Envoi, EnvoisService } from '../hors-ligne/envois.service';
 import { NotesService, OperationNotes } from '../hors-ligne/notes.service';
 
@@ -19,7 +20,15 @@ import { NotesService, OperationNotes } from '../hors-ligne/notes.service';
           @if (envois.enAttente() > 0) {
             Il sera envoyé dès qu'il y aura du réseau.
           }
+          @if (cours(); as c) {
+            <br /><a [routerLink]="['/cahier', c.classeId, c.matiereId]" [queryParams]="{ date: c.date, debut: c.debut, fin: c.fin }">Remplir le cahier de textes de ce cours ›</a>
+          }
         </div>
+      }
+      @if (cahier.enAttente() + cahier.refusees() > 0) {
+        <a routerLink="/cahier" class="alerte {{ cahier.refusees() > 0 ? 'erreur' : 'attention' }} bloc">
+          Cahier de textes : {{ cahier.enAttente() }} séance(s) en attente@if (cahier.refusees() > 0) {, {{ cahier.refusees() }} refusée(s)} ›
+        </a>
       }
       @if (envois.dernierBilan()?.erreur; as erreur) {
         @if (envois.enAttente() > 0) {
@@ -144,12 +153,17 @@ import { NotesService, OperationNotes } from '../hors-ligne/notes.service';
   `,
 })
 export class EnvoisPage {
+  protected readonly cahier = inject(CahierService);
   protected readonly envois = inject(EnvoisService);
   protected readonly session = inject(SessionService);
   protected readonly dateLongue = dateLongue;
   protected readonly dateHeureCourte = dateHeureCourte;
   protected readonly vientDeSaisir = signal(
     Boolean(inject(Router).currentNavigation()?.extras.state?.['vientDeSaisir']),
+  );
+  /** Cours dont l'appel vient d'être fait (pour enchaîner sur le cahier de textes). */
+  protected readonly cours = signal<{ classeId: string; matiereId: string; date: string; debut: string; fin: string } | null>(
+    inject(Router).currentNavigation()?.extras.state?.['cours'] ?? null,
   );
 
   protected readonly groupes = computed(() => {

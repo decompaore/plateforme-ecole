@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { API } from '../core/session.service';
-import { FicheVue, SaisieSequence, SuiviProgressionVue } from './modeles-progression';
+import { FicheVue, SaisieSequence, SeanceVue, SuiviProgressionVue } from './modeles-progression';
 
 /** Appels de l'API des fiches de progression (en ligne). */
 @Injectable({ providedIn: 'root' })
@@ -35,5 +35,9 @@ export class ProgressionApi {
         accepte,
         commentaire,
       }));
+  }
+
+  seances(classeId: string, matiereId: string): Promise<SeanceVue[]> {
+    return firstValueFrom(this.http.get<SeanceVue[]>(`${API}/classes/${classeId}/matieres/${matiereId}/cahier-textes`));
   }
 }

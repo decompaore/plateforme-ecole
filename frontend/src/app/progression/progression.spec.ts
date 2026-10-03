@@ -55,7 +55,8 @@ function fiche(autres: object = {}) {
     id: null, classeId: 'c1', classeCode: '2nde F3', matiereId: 'm-elec', matiereCode: 'ELEC', matiereLibelle: 'Électrotechnique',
     type: 'TECHNIQUE', domaine: 'TECHNIQUE', engagementId: 'g1', enseignant: 'SANOU Paul', statut: null, sequences: [],
     heuresPrevues: 0, volumeHebdo: 4, volumeTotal: null, modifieeLe: null, soumiseLe: null, viseLe: null, visePar: null,
-    commentaireVisa: null, modifiable: true, visable: false,
+    commentaireVisa: null, auteur: true, modifiable: true, visable: false,
+    avancement: { heuresRealisees: 0, heuresHorsSequence: 0, seances: 0, derniereSeance: null },
     ...autres,
   };
 }
@@ -64,6 +65,7 @@ const ligne = (classe: string, matiere: string, statut: string | null, sequences
   classeId: classe, classeCode: classe, niveau: '2nde', matiereId: 'm-' + matiere, matiereCode: matiere, matiereLibelle: matiere,
   type: 'TECHNIQUE', domaine: 'TECHNIQUE', engagementId: 'g1', enseignant: 'SANOU Paul', statut, sequences,
   heuresPrevues: sequences * 10, volumeHebdo: 4, soumiseLe: null, viseLe: null,
+  avancement: { heuresRealisees: sequences * 4, heuresHorsSequence: 0, seances: sequences, derniereSeance: sequences ? '2026-10-02' : null },
 });
 
 describe('Fiches de progression', () => {
@@ -94,7 +96,7 @@ describe('Fiches de progression', () => {
     await attendre();
     const t = texte(f);
     expect(t).toContain('1 progression(s) renvoyée(s)');
-    expect(t).toContain('3 séquence(s) · 30 h prévues');
+    expect(t).toContain('3 séquence(s) · 12 h faites / 30 h prévues');
     expect(t).toContain('Non commencée');
     expect(t).toContain('À revoir');
   });
@@ -122,7 +124,7 @@ describe('Fiches de progression', () => {
     expect(put.request.body).toEqual({
       sequences: [{ titre: 'Lois de l’électricité', contenu: 'Loi d’Ohm', competences: null, heuresPrevues: 12.5, semaineDebut: null }],
     });
-    const seq = { ordre: 1, titre: 'Lois de l’électricité', contenu: 'Loi d’Ohm', competences: null, heuresPrevues: 12.5, semaineDebut: null };
+    const seq = { ordre: 1, titre: 'Lois de l’électricité', contenu: 'Loi d’Ohm', competences: null, heuresPrevues: 12.5, semaineDebut: null, heuresRealisees: 0, seances: 0 };
     put.flush(fiche({ id: 'fp1', statut: 'BROUILLON', sequences: [seq], heuresPrevues: 12.5 }));
     await attendre();
     http.expectOne(`${URL_FICHE}/soumission`).flush(
@@ -142,10 +144,12 @@ describe('Fiches de progression', () => {
     f.componentRef.setInput('matiereId', 'm-elec');
     f.detectChanges();
     await attendre();
-    const seq = { ordre: 1, titre: 'Lois', contenu: null, competences: 'C1', heuresPrevues: 10, semaineDebut: '2026-10-05' };
-    http.expectOne(URL_FICHE).flush(fiche({ id: 'fp1', statut: 'SOUMISE', sequences: [seq], heuresPrevues: 10, soumiseLe: '2026-10-03T10:00:00Z', modifiable: false, visable: true }));
+    const seq = { ordre: 1, titre: 'Lois', contenu: null, competences: 'C1', heuresPrevues: 10, semaineDebut: '2026-10-05', heuresRealisees: 4, seances: 2 };
+    http.expectOne(URL_FICHE).flush(fiche({ id: 'fp1', statut: 'SOUMISE', sequences: [seq], heuresPrevues: 10, soumiseLe: '2026-10-03T10:00:00Z', auteur: false, modifiable: false, visable: true, avancement: { heuresRealisees: 5.5, heuresHorsSequence: 1.5, seances: 3, derniereSeance: '2026-10-02' } }));
     await attendre();
-    expect(texte(f)).toContain('10 h · à partir du 05/10/2026');
+    expect(texte(f)).toContain('4 h faites / 10 h · à partir du 05/10/2026');
+    expect(texte(f)).toContain('5,5 h faites sur 10 h prévues · 3 séance(s), la dernière le 02/10/2026 · dont 1,5 h hors séquence');
+    expect(texte(f)).toContain('Lire le cahier de textes');
     bouton(f, 'Renvoyer').click();
     await attendre();
     expect(texte(f)).toContain("Dites à l'enseignant ce qu'il faut revoir.");
@@ -177,6 +181,7 @@ describe('Fiches de progression', () => {
     f.detectChanges();
     const titres = [...(f.nativeElement as HTMLElement).querySelectorAll('section h2')].map((h) => h.textContent?.trim());
     expect(titres).toEqual(['2nde F3']);
-    expect(texte(f)).toContain('4 séquence(s) · 40 h');
+    expect(texte(f)).toContain('4 séquence(s) · 16 h faites / 40 h prévues');
+    expect(texte(f)).toContain("cahier tenu jusqu'au 02/10/2026");
   });
 });

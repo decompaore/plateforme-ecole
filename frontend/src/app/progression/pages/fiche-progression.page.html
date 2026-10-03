@@ -40,6 +40,31 @@
       <div class="alerte succes" role="status">{{ message() }}</div>
     }
 
+    <!-- Réalisé d'après le cahier de textes -->
+    <section class="carte realise">
+      <div class="entete-sequence">
+        <h2>Réalisé</h2>
+        @if (f.auteur) {
+          <a class="bouton secondaire petit" [routerLink]="['/cahier', f.classeId, f.matiereId]">Cahier de textes</a>
+        }
+      </div>
+      @if (f.avancement.seances) {
+        <div class="jauge-totale" [title]="heures(f.avancement.heuresRealisees) + ' sur ' + heures(f.heuresPrevues)">
+          <span [style.width.%]="f.heuresPrevues ? Math.min(100, (f.avancement.heuresRealisees / f.heuresPrevues) * 100) : 0"></span>
+        </div>
+        <p>
+          <strong>{{ heures(f.avancement.heuresRealisees) }}</strong> faites sur {{ heures(f.heuresPrevues) }} prévues ·
+          {{ f.avancement.seances }} séance(s), la dernière le {{ dateCourte(f.avancement.derniereSeance!) }}
+          @if (f.avancement.heuresHorsSequence) { · dont {{ heures(f.avancement.heuresHorsSequence) }} hors séquence }
+        </p>
+        @if (!f.auteur) {
+          <a [routerLink]="['/progression', f.classeId, f.matiereId, 'cahier']">Lire le cahier de textes ›</a>
+        }
+      } @else {
+        <p class="doux">Aucune séance notée dans le cahier de textes.</p>
+      }
+    </section>
+
     <!-- Visa par la direction -->
     @if (f.visable) {
       <section class="carte visa">
@@ -120,7 +145,7 @@
         <section class="carte sequence lecture">
           <div class="entete-sequence">
             <h2>{{ s.ordre }}. {{ s.titre }}</h2>
-            <span class="doux">{{ heures(s.heuresPrevues) }}@if (s.semaineDebut) { · à partir du {{ dateCourte(s.semaineDebut) }} }</span>
+            <span class="doux">{{ heures(s.heuresRealisees) }} faites / {{ heures(s.heuresPrevues) }}@if (s.semaineDebut) { · à partir du {{ dateCourte(s.semaineDebut) }} }</span>
           </div>
           @if (s.contenu) { <p class="contenu">{{ s.contenu }}</p> }
           @if (s.competences) { <p class="doux">Compétences : {{ s.competences }}</p> }

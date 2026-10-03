@@ -3,17 +3,22 @@ package bf.edutech.plateforme.progression;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import bf.edutech.plateforme.progression.Vues.DemandeVisa;
 import bf.edutech.plateforme.progression.Vues.DonneesFiche;
+import bf.edutech.plateforme.progression.Vues.DonneesSeance;
 import bf.edutech.plateforme.progression.Vues.FicheVue;
+import bf.edutech.plateforme.progression.Vues.SeanceVue;
 import bf.edutech.plateforme.progression.Vues.SuiviProgressionVue;
 
 /** Fiches de progression : préparation par l'enseignant, visa et suivi par la direction. */
@@ -25,9 +30,11 @@ public class ProgressionController {
     private static final String BASE = "/api/v1/classes/{classeId}/matieres/{matiereId}/progression";
 
     private final ProgressionService service;
+    private final CahierTextesService cahier;
 
-    ProgressionController(ProgressionService service) {
+    ProgressionController(ProgressionService service, CahierTextesService cahier) {
         this.service = service;
+        this.cahier = cahier;
     }
 
     @GetMapping(BASE)
@@ -64,5 +71,27 @@ public class ProgressionController {
     @PreAuthorize("hasRole('ENSEIGNANT')")
     public List<SuiviProgressionVue> mesFiches() {
         return service.mesFiches();
+    }
+
+    // ---------------- Cahier de textes
+
+    @GetMapping("/api/v1/classes/{classeId}/matieres/{matiereId}/cahier-textes")
+    @PreAuthorize(LECTURE)
+    public List<SeanceVue> seances(@PathVariable UUID classeId, @PathVariable UUID matiereId) {
+        return cahier.seances(classeId, matiereId);
+    }
+
+    /** Crée ou modifie une séance ; l'identifiant est choisi par le téléphone (renvoi sans doublon). */
+    @PutMapping("/api/v1/cahier-textes/{id}")
+    @PreAuthorize("hasRole('ENSEIGNANT')")
+    public SeanceVue enregistrer(@PathVariable UUID id, @RequestBody DonneesSeance d) {
+        return cahier.enregistrer(id, d);
+    }
+
+    @DeleteMapping("/api/v1/cahier-textes/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasRole('ENSEIGNANT')")
+    public void supprimer(@PathVariable UUID id) {
+        cahier.supprimer(id);
     }
 }

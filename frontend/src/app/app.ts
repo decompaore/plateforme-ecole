@@ -4,6 +4,7 @@ import { SwUpdate } from '@angular/service-worker';
 
 import { AnneeCourante } from './admin/annee-courante.service';
 import { SessionService } from './core/session.service';
+import { CahierService } from './hors-ligne/cahier.service';
 import { EnvoisService } from './hors-ligne/envois.service';
 import { ListesService } from './hors-ligne/listes.service';
 import { NotesService } from './hors-ligne/notes.service';
@@ -20,9 +21,10 @@ export class App {
   protected readonly session = inject(SessionService);
   protected readonly envois = inject(EnvoisService);
   protected readonly notes = inject(NotesService);
+  protected readonly cahier = inject(CahierService);
   /** Appels et saisies de notes pas encore acceptés par le serveur. */
-  protected readonly aEnvoyer = computed(() => this.envois.enAttente() + this.notes.enAttente());
-  protected readonly refuses = computed(() => this.envois.refuses() + this.notes.refusees());
+  protected readonly aEnvoyer = computed(() => this.envois.enAttente() + this.notes.enAttente() + this.cahier.enAttente());
+  protected readonly refuses = computed(() => this.envois.refuses() + this.notes.refusees() + this.cahier.refusees());
   private readonly listes = inject(ListesService);
   private readonly anneeCourante = inject(AnneeCourante);
   private readonly router = inject(Router);
@@ -36,6 +38,7 @@ export class App {
     const destroyRef = inject(DestroyRef);
     this.envois.demarrer(destroyRef);
     this.notes.demarrer((f) => destroyRef.onDestroy(f));
+    this.cahier.demarrer((f) => destroyRef.onDestroy(f));
 
     const enLigne = () => {
       this.reseau.set(true);
@@ -77,6 +80,7 @@ export class App {
           if (cle) {
             // Les appels d'abord (plus urgents pour les familles), puis les notes
             void this.notes.recharger().then(() => this.notes.synchroniser());
+            void this.cahier.recharger().then(() => this.cahier.synchroniser());
           }
           if (cle && connecte && !profil?.doitChangerMotDePasse) {
             void this.listes.preparerSiAncien().then((fait) => (fait ? this.notes.preparerTout() : undefined));

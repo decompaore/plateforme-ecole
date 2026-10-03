@@ -102,3 +102,20 @@ textarea {
     margin-bottom: 0.75rem;
   }
 }
+
+.realise p {
+  margin: 0.5rem 0;
+}
+
+.jauge-totale {
+  height: 10px;
+  border-radius: 5px;
+  background: var(--bordure);
+  overflow: hidden;
+  span {
+    display: block;
+    height: 100%;
+    background: var(--primaire);
+    border-radius: 5px;
+  }
+}

@@ -23,6 +23,7 @@ const TUILES: Tuile[] = [
   { titre: 'Élèves', texte: 'Inscriptions, import Excel', lien: '/admin/eleves', roles: ['ADMIN_ECOLE', 'SECRETARIAT', 'CENSEUR'] },
   { titre: 'Personnel', texte: 'Enseignants et administration', lien: '/admin/personnel', roles: ['ADMIN_ECOLE'] },
   { titre: 'Année scolaire', texte: 'Périodes, ouverture, filières', lien: '/admin/annee', roles: ['ADMIN_ECOLE', 'CENSEUR'] },
+  { titre: 'Cahier de textes', texte: 'Après chaque cours, même sans réseau', lien: '/cahier', roles: ['ENSEIGNANT'] },
   { titre: 'Mes progressions', texte: 'Séquences de l’année, visa', lien: '/progression', roles: ['ENSEIGNANT'] },
   { titre: 'Progressions', texte: 'Fiches des enseignants à viser', lien: '/progression/suivi', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX'] },
   { titre: 'Saisie des notes', texte: 'Marche aussi sans réseau', lien: '/notes', roles: ['ENSEIGNANT'] },

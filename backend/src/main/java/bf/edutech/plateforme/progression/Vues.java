@@ -3,6 +3,7 @@ package bf.edutech.plateforme.progression;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -34,8 +35,9 @@ public final class Vues {
     public record DemandeVisa(Boolean accepte, String commentaire) {
     }
 
+    /** Séquence de la fiche, avec ce que le cahier de textes en a déjà fait. */
     public record SequenceVue(int ordre, String titre, String contenu, String competences, BigDecimal heuresPrevues,
-            LocalDate semaineDebut) {
+            LocalDate semaineDebut, BigDecimal heuresRealisees, int seances) {
     }
 
     /**
@@ -47,13 +49,30 @@ public final class Vues {
             String matiereLibelle, TypeMatiere type, Domaine domaine, UUID engagementId, String enseignant,
             StatutFiche statut, List<SequenceVue> sequences, BigDecimal heuresPrevues, BigDecimal volumeHebdo,
             BigDecimal volumeTotal, Instant modifieeLe, Instant soumiseLe, Instant viseLe, String visePar,
-            String commentaireVisa, boolean modifiable, boolean visable) {
+            String commentaireVisa, boolean auteur, boolean modifiable, boolean visable, Avancement avancement) {
+    }
+
+    /**
+     * Réalisé d'après le cahier de textes : heures faites (toutes séances), dont celles hors de
+     * toute séquence, nombre de séances et date de la dernière.
+     */
+    public record Avancement(BigDecimal heuresRealisees, BigDecimal heuresHorsSequence, int seances,
+            LocalDate derniereSeance) {
+    }
+
+    public record DonneesSeance(UUID classeId, UUID matiereId, LocalDate date, LocalTime heureDebut,
+            LocalTime heureFin, Integer sequenceOrdre, String contenu, String travailAFaire) {
+    }
+
+    public record SeanceVue(UUID id, UUID classeId, UUID matiereId, LocalDate date, LocalTime heureDebut,
+            LocalTime heureFin, BigDecimal heures, Integer sequenceOrdre, String sequenceTitre, String contenu,
+            String travailAFaire, Instant saisiLe, Instant modifieLe) {
     }
 
     /** Une ligne du suivi : chaque matière du programme de chaque classe, fiche commencée ou non. */
     public record SuiviProgressionVue(UUID classeId, String classeCode, String niveau, UUID matiereId,
             String matiereCode, String matiereLibelle, TypeMatiere type, Domaine domaine, UUID engagementId,
             String enseignant, StatutFiche statut, int sequences, BigDecimal heuresPrevues, BigDecimal volumeHebdo,
-            Instant soumiseLe, Instant viseLe) {
+            Instant soumiseLe, Instant viseLe, Avancement avancement) {
     }
 }
