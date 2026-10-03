@@ -40,6 +40,7 @@ export class FicheProgressionPage implements OnInit {
   readonly matiereId = input.required<string>();
 
   protected readonly heures = heures;
+  protected readonly Math = Math;
   protected readonly pastille = pastille;
   protected readonly dateCourte = dateCourte;
   protected readonly dateHeureCourte = dateHeureCourte;

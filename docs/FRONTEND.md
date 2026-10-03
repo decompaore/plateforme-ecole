@@ -1,4 +1,4 @@
-# Application web (v0.23)
+# Application web (v0.24)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -20,6 +20,8 @@ Application Angular 22 installable sur smartphone (PWA). Elle couvre :
   journal de caisse, frais de l'année, bourses et exonérations ;
 - les **fiches de progression** (v0.23) : préparées par l'enseignant, visées par le censeur (matières générales)
   ou le nouveau **chef des travaux** (matières techniques et pratiques) ;
+- le **cahier de textes, même sans réseau** (v0.24) : après chaque cours, ce qui a été fait et le travail donné,
+  rattaché à une séquence ; réalisé face au prévu pour l'enseignant et la direction ;
 - un **accueil par rôle** : chaque personne ne voit que les tuiles de ses rôles.
 
 ## Démarrer en local
@@ -218,6 +220,27 @@ Comptes créés (administrateur d'un établissement, enseignant, personnel) : le
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
 
+## Cahier de textes sans réseau (v0.24)
+
+Comme l'appel et les notes, la saisie se fait d'abord sur le téléphone, puis part dès que le réseau revient.
+
+1. **Accès** : tuile « Cahier de textes » (choix de la classe et de la matière, à partir des listes du téléphone), ou
+   lien « Remplir le cahier de textes de ce cours » juste après un appel : la date et l'horaire sont préremplis.
+2. **Saisie** : date (pas dans le futur), début, fin, séquence de la fiche de progression (la première pas encore
+   terminée est proposée ; « hors séquence » pour une révision ou une évaluation), ce qui a été fait, travail à faire.
+   Le bouton affiche la durée (« Enregistrer (2 h) »).
+3. **Sans réseau** : la séance est gardée sur le téléphone (« en attente d'envoi ») et comptée dans l'avancement ;
+   le compteur de l'en-tête et « Mes envois » la signalent. Au retour du réseau elle part toute seule, avec son
+   identifiant : un renvoi ne crée pas de doublon. Une séance refusée (doublon, date future) reste visible avec le
+   message du serveur, à modifier ou abandonner.
+4. **Lecture sans réseau** : la fiche de progression et les séances déjà envoyées sont gardées sur le téléphone
+   (effacées à la déconnexion, comme les listes ; les séances en attente, elles, sont gardées).
+5. **Avancement** : heures faites / prévues par séquence.
+
+Côté direction, la fiche de progression montre le **réalisé** (jauge, heures faites, séances, dernière séance, heures
+hors séquence) et « Lire le cahier de textes » ; le suivi des progressions affiche pour chaque matière les heures
+faites face aux prévues et la date jusqu'à laquelle le cahier est tenu.
+
 ## Fiches de progression (v0.23)
 
 En ligne. Règles et API : [API_PROGRESSION.md](API_PROGRESSION.md).
@@ -353,7 +376,7 @@ frontend/src/app/
 
 ## Tests
 
-78 tests (Vitest) :
+81 tests (Vitest) :
 
 | Fichier | Ce qui est vérifié |
 |---|---|
@@ -366,6 +389,7 @@ frontend/src/app/
 | `invitations.component.spec.ts` | Titulaire dans X invité comme vacataire dans Y : acceptation, choix d'établissement qui apparaît, passage dans Y |
 | `admin.spec.ts` | Création d'un établissement et affichage unique du mot de passe, programme d'une classe (coefficient, enseignant), nouvel élève avec parent et inscription, engagement (compte ou invitation), mutation programmée avec les matières à réaffecter puis annulée, message du serveur sur une règle refusée, suivi des évaluations (tuiles, regroupement par enseignant puis par classe, filtre de période), statistiques (chiffres clés, âges par sexe, recouvrement sous 50 % en rouge, résultats à venir, classeur Excel) |
 | `parent.spec.ts` | Résumés (absences des 30 derniers jours, retard, reste, soldée), cartes des enfants puis même situation sans réseau, fiche d'un enfant (discipline, appel général, bulletin téléchargé, incidents), paiement Mobile Money suivi toutes les 5 secondes jusqu'à la confirmation puis situation relue, sans suivi au-delà |
+| `cahier.page.spec.ts` | Contrôles de la séance (date future, horaire, 8 heures, contenu) ; après l'appel : créneau prérempli, séquence en cours proposée, séance gardée sans réseau et comptée dans l'avancement, renvoi avec le même identifiant puis « Séance envoyée » ; refus du serveur conservé avec son message |
 | `progression.spec.ts` | Contrôle des séquences (titre, heures à une décimale), liste de l'enseignant avec renvoi signalé, première séquence enregistrée puis soumise au chef des travaux, renvoi par le chef des travaux avec commentaire obligatoire, suivi (chiffres, filtre « À viser ») |
 | `scolarite.spec.ts` | Contrôles avant l'envoi (montant, reste, référence, date, tranches, répartition), guichet d'une semi-boursière : retard proposé, référence Orange Money exigée, encaissement avec clé d'idempotence puis reçu, annulation avec motif ; secrétariat en lecture seule ouvert depuis une inscription ; journal de caisse (totaux par moyen, élève et classe, plus récent d'abord) ; retards d'une classe et relance SMS ; nouveau frais en trois tranches |
 | `vie-scolaire.spec.ts` | Absences du jour (discipline de chaque créneau, appel général, bilan, filtre « à justifier », justification puis liste à jour), fiche élève (parent prioritaire en premier, heures par discipline, avertissement avec SMS, blâme absent pour un surveillant, convocation préremplie depuis l'incident), clôture d'une convocation passée, synthèse d'une classe par discipline et par élève, sur l'année puis sur un trimestre |
@@ -406,7 +430,9 @@ Le parcours complet a aussi été vérifié dans Chromium, à la taille d'un té
 - (v0.22) guichet : recherche de l'élève, encaissement du retard, reçu proposé ; retards et relance d'une classe ;
   journal de caisse ; nouveau frais en tranches ; fiche de l'élève sur un téléphone de 390 px ;
 - (v0.23) progression : deux séquences saisies sur un téléphone par l'enseignant puis soumises, suivi du chef des
-  travaux, visa avec commentaire.
+  travaux, visa avec commentaire ;
+- (v0.24) cahier de textes sur un téléphone : une séance envoyée, une seconde en mode avion (en attente, comptée
+  dans l'avancement), envoi automatique au retour du réseau ; réalisé et lecture du cahier par le chef des travaux.
 
 ## Session sur réseau faible (v0.18)
 

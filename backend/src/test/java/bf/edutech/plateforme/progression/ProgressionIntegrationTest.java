@@ -2,6 +2,7 @@ package bf.edutech.plateforme.progression;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
@@ -192,6 +193,90 @@ class ProgressionIntegrationTest {
         mvc.perform(get("/api/v1/espace-enseignant/progressions").with(jeton(kabore, "ENSEIGNANT")))
                 .andExpect(jsonPath("$.length()").value(1)).andExpect(jsonPath("$[0].matiereCode").value("MATH"))
                 .andExpect(jsonPath("$[0].statut").doesNotExist());
+    }
+
+    @Test
+    void leCahierDeTextesMesureLeRealiseFaceAuPrevu() throws Exception {
+        UUID technique = dans(() -> profils.lister()).stream().filter(p -> p.code().equals("TECHNIQUE")).findFirst()
+                .orElseThrow().id();
+        UUID filiere = dans(() -> filieres.creer("F4" + ThreadLocalRandom.current().nextInt(100, 999),
+                "Génie civil", "Second cycle", "BAC F4", technique)).id();
+        UUID classe = dans(() -> classes.creer(annee.id(), filiere, "1re F4", "1re", null)).id();
+        UUID maths = matiere("MATH", TypeMatiere.GENERALE, classe);
+        UUID elec = matiere("ELEC", TypeMatiere.TECHNIQUE, classe);
+        dans(() -> periodes.generer(annee.id(), technique));
+        dans(() -> annees.ouvrir(annee.id()));
+        UUID sanou = enseignant("Sanou", "Paul", classe, elec);
+        UUID kabore = enseignant("Kabore", "Awa", classe, maths);
+        UUID censeur = membre(Role.CENSEUR, "Zongo", "Ines");
+
+        mvc.perform(put("/api/v1/classes/{c}/matieres/{m}/progression", classe, elec).with(jeton(sanou, "ENSEIGNANT"))
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                        {"sequences":[{"titre":"Lois de l'électricité","heuresPrevues":10},
+                                      {"titre":"Installations","heuresPrevues":6}]}""")).andExpect(status().isOk());
+
+        UUID s1 = UUID.randomUUID();
+        String seance = """
+                {"classeId":"%s","matiereId":"%s","date":"%s","heureDebut":"%s","heureFin":"%s",
+                 "sequenceOrdre":%s,"contenu":"%s","travailAFaire":"Exercices 1 à 3"}""";
+        mvc.perform(put("/api/v1/cahier-textes/{id}", s1).with(jeton(sanou, "ENSEIGNANT")).contentType(MediaType.APPLICATION_JSON)
+                .content(seance.formatted(classe, elec, aujourdhui, "08:00", "10:00", "1", "Loi d'Ohm")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.heures").value(2.0))
+                .andExpect(jsonPath("$.sequenceTitre").value("Lois de l'électricité"));
+        // Renvoi du même identifiant (coupure de réseau, correction) : la même séance est modifiée
+        mvc.perform(put("/api/v1/cahier-textes/{id}", s1).with(jeton(sanou, "ENSEIGNANT")).contentType(MediaType.APPLICATION_JSON)
+                .content(seance.formatted(classe, elec, aujourdhui, "08:00", "10:00", "1", "Loi d'Ohm et puissance")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.contenu").value("Loi d'Ohm et puissance"));
+        // Même cours sous un autre identifiant, cours futur, autre enseignant : refusés
+        mvc.perform(put("/api/v1/cahier-textes/{id}", UUID.randomUUID()).with(jeton(sanou, "ENSEIGNANT"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(seance.formatted(classe, elec, aujourdhui, "08:00", "09:00", "1", "Doublon")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("SEANCE_EXISTANTE"));
+        mvc.perform(put("/api/v1/cahier-textes/{id}", UUID.randomUUID()).with(jeton(sanou, "ENSEIGNANT"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(seance.formatted(classe, elec, aujourdhui.plusDays(1), "08:00", "10:00", "1", "Demain")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("DATE_FUTURE"));
+        mvc.perform(put("/api/v1/cahier-textes/{id}", UUID.randomUUID()).with(jeton(kabore, "ENSEIGNANT"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(seance.formatted(classe, elec, aujourdhui, "14:00", "15:00", "null", "Pas ma matière")))
+                .andExpect(status().isForbidden());
+        // Séquence inconnue (fiche raccourcie depuis une saisie hors connexion) : séance hors séquence
+        UUID s2 = UUID.randomUUID();
+        mvc.perform(put("/api/v1/cahier-textes/{id}", s2).with(jeton(sanou, "ENSEIGNANT")).contentType(MediaType.APPLICATION_JSON)
+                .content(seance.formatted(classe, elec, aujourdhui.minusDays(1), "10:00", "11:30", "9", "Révisions")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.sequenceOrdre").doesNotExist())
+                .andExpect(jsonPath("$.heures").value(1.5));
+
+        // Réalisé face au prévu, dans la fiche et dans le suivi de la direction
+        mvc.perform(get("/api/v1/classes/{c}/matieres/{m}/progression", classe, elec).with(jeton(censeur, "CENSEUR")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sequences[0].heuresRealisees").value(2.0))
+                .andExpect(jsonPath("$.sequences[0].seances").value(1))
+                .andExpect(jsonPath("$.sequences[1].heuresRealisees").value(0))
+                .andExpect(jsonPath("$.avancement.heuresRealisees").value(3.5))
+                .andExpect(jsonPath("$.avancement.heuresHorsSequence").value(1.5))
+                .andExpect(jsonPath("$.avancement.seances").value(2))
+                .andExpect(jsonPath("$.avancement.derniereSeance").value(aujourdhui.toString()));
+        mvc.perform(get("/api/v1/annees/{a}/progressions", annee.id()).with(jeton(censeur, "CENSEUR")))
+                .andExpect(jsonPath("$[0].matiereCode").value("ELEC"))
+                .andExpect(jsonPath("$[0].avancement.seances").value(2))
+                .andExpect(jsonPath("$[1].avancement.seances").value(0));
+
+        // Lecture : enseignant et direction ; pas un autre enseignant
+        mvc.perform(get("/api/v1/classes/{c}/matieres/{m}/cahier-textes", classe, elec).with(jeton(censeur, "CENSEUR")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].date").value(aujourdhui.toString()))
+                .andExpect(jsonPath("$[0].travailAFaire").value("Exercices 1 à 3"));
+        mvc.perform(get("/api/v1/classes/{c}/matieres/{m}/cahier-textes", classe, elec).with(jeton(kabore, "ENSEIGNANT")))
+                .andExpect(status().isForbidden());
+
+        // Suppression : seulement l'enseignant de la matière
+        mvc.perform(delete("/api/v1/cahier-textes/{id}", s2).with(jeton(censeur, "CENSEUR"))).andExpect(status().isForbidden());
+        mvc.perform(delete("/api/v1/cahier-textes/{id}", s2).with(jeton(kabore, "ENSEIGNANT"))).andExpect(status().isForbidden());
+        mvc.perform(delete("/api/v1/cahier-textes/{id}", s2).with(jeton(sanou, "ENSEIGNANT"))).andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/classes/{c}/matieres/{m}/cahier-textes", classe, elec).with(jeton(sanou, "ENSEIGNANT")))
+                .andExpect(jsonPath("$.length()").value(1));
     }
 
     // ------------------------------------------------------------------

@@ -3,11 +3,11 @@ package bf.edutech.plateforme.progression;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -21,7 +21,9 @@ import bf.edutech.plateforme.enseignants.EnseignantsService;
 import bf.edutech.plateforme.etablissement.AnneesService;
 import bf.edutech.plateforme.etablissement.ClassesService;
 import bf.edutech.plateforme.etablissement.Vues.ClasseVue;
+import bf.edutech.plateforme.progression.AccesMatiere.Contexte;
 import bf.edutech.plateforme.etablissement.Vues.MatiereDeClasseVue;
+import bf.edutech.plateforme.progression.Vues.Avancement;
 import bf.edutech.plateforme.progression.Vues.DemandeVisa;
 import bf.edutech.plateforme.progression.Vues.DonneesFiche;
 import bf.edutech.plateforme.progression.Vues.Domaine;
@@ -52,11 +54,13 @@ public class ProgressionService {
     private final EnseignantsService enseignants;
     private final MembresService membres;
     private final Supervision supervision;
+    private final AccesMatiere acces;
+    private final SeanceCahierRepository seances;
     private final Clock horloge;
 
     ProgressionService(FicheProgressionRepository fiches, SequenceProgressionRepository sequences,
             ClassesService classes, AnneesService annees, EnseignantsService enseignants, MembresService membres,
-            Supervision supervision, Clock horloge) {
+            Supervision supervision, AccesMatiere acces, SeanceCahierRepository seances, Clock horloge) {
         this.fiches = fiches;
         this.sequences = sequences;
         this.classes = classes;
@@ -64,6 +68,8 @@ public class ProgressionService {
         this.enseignants = enseignants;
         this.membres = membres;
         this.supervision = supervision;
+        this.acces = acces;
+        this.seances = seances;
         this.horloge = horloge;
     }
 
@@ -72,18 +78,15 @@ public class ProgressionService {
     /** Fiche d'une matière : pour son enseignant et pour qui supervise son domaine. */
     @Transactional(readOnly = true)
     public FicheVue fiche(UUID classeId, UUID matiereId) {
-        Contexte c = contexte(classeId, matiereId);
-        if (!c.auteur() && !c.superviseur()) {
-            throw new AccesRefuseException("Vous n'enseignez pas " + c.matiere().matiereLibelle() + " en "
-                    + c.classe().code() + " et ne supervisez pas cette matière");
-        }
+        Contexte c = acces.contexte(classeId, matiereId);
+        c.exigerLecture();
         return vue(c, fiches.findByClasseIdAndMatiereId(classeId, matiereId).orElse(null));
     }
 
     /** Les fiches de l'enseignant connecté pour l'année active (une ligne par matière confiée). */
     @Transactional(readOnly = true)
     public List<SuiviProgressionVue> mesFiches() {
-        UUID engagement = monEngagement()
+        UUID engagement = acces.monEngagement()
                 .orElseThrow(() -> new AccesRefuseException("Réservé aux enseignants en fonction"));
         return lignes(annees.active().id(), m -> engagement.equals(m.engagementId()));
     }
@@ -102,8 +105,8 @@ public class ProgressionService {
 
     @Transactional
     public FicheVue enregistrer(UUID classeId, UUID matiereId, DonneesFiche d) {
-        Contexte c = contexte(classeId, matiereId);
-        exigerAuteur(c);
+        Contexte c = acces.contexte(classeId, matiereId);
+        c.exigerAuteur("prépare sa progression");
         List<SaisieSequence> saisies = valider(d);
         Instant maintenant = horloge.instant();
         FicheProgression fiche = fiches.findByClasseIdAndMatiereId(classeId, matiereId)
@@ -123,8 +126,8 @@ public class ProgressionService {
 
     @Transactional
     public FicheVue soumettre(UUID classeId, UUID matiereId) {
-        Contexte c = contexte(classeId, matiereId);
-        exigerAuteur(c);
+        Contexte c = acces.contexte(classeId, matiereId);
+        c.exigerAuteur("prépare sa progression");
         FicheProgression fiche = fiches.findByClasseIdAndMatiereId(classeId, matiereId)
                 .orElseThrow(() -> new RegleMetierException("FICHE_VIDE", "Ajoutez au moins une séquence avant de soumettre"));
         if (sequences.findByFicheIdOrderByOrdre(fiche.getId()).isEmpty()) {
@@ -139,7 +142,7 @@ public class ProgressionService {
 
     @Transactional
     public FicheVue viser(UUID classeId, UUID matiereId, DemandeVisa d) {
-        Contexte c = contexte(classeId, matiereId);
+        Contexte c = acces.contexte(classeId, matiereId);
         if (!c.superviseur()) {
             throw new AccesRefuseException(c.domaine() == Domaine.TECHNIQUE
                     ? "Les progressions des matières techniques sont visées par le chef des travaux"
@@ -162,33 +165,6 @@ public class ProgressionService {
     }
 
     // ------------------------------------------------------------------ outils
-
-    private record Contexte(ClasseVue classe, MatiereDeClasseVue matiere, Domaine domaine, boolean auteur,
-            boolean superviseur) {
-    }
-
-    private Contexte contexte(UUID classeId, UUID matiereId) {
-        UtilisateurConnecte.etablissementActif();
-        ClasseVue classe = classes.trouver(classeId);
-        MatiereDeClasseVue matiere = classes.matieres(classeId).stream()
-                .filter(m -> m.matiereId().equals(matiereId)).findFirst()
-                .orElseThrow(() -> new RessourceIntrouvableException("Matière absente du programme de " + classe.code()));
-        Domaine domaine = Domaine.de(matiere.type());
-        boolean auteur = matiere.engagementId() != null
-                && monEngagement().map(e -> e.equals(matiere.engagementId())).orElse(false);
-        return new Contexte(classe, matiere, domaine, auteur, supervision.domaines().contains(domaine));
-    }
-
-    private static void exigerAuteur(Contexte c) {
-        if (!c.auteur()) {
-            throw new AccesRefuseException("Seul l'enseignant de " + c.matiere().matiereLibelle() + " en "
-                    + c.classe().code() + " prépare sa progression");
-        }
-    }
-
-    private Optional<UUID> monEngagement() {
-        return UtilisateurConnecte.idSiConnecte().flatMap(enseignants::engagementActif);
-    }
 
     private static List<SaisieSequence> valider(DonneesFiche d) {
         List<SaisieSequence> saisies = d == null || d.sequences() == null ? List.of() : d.sequences();
@@ -224,10 +200,17 @@ public class ProgressionService {
     }
 
     private FicheVue vue(Contexte c, FicheProgression fiche) {
+        List<SeanceCahier> faites = seances.findByClasseIdAndMatiereIdOrderByDateDescHeureDebutDesc(c.classe().id(),
+                c.matiere().matiereId());
+        Map<Integer, List<SeanceCahier>> parOrdre = faites.stream().filter(x -> x.getSequenceOrdre() != null)
+                .collect(Collectors.groupingBy(SeanceCahier::getSequenceOrdre));
         List<SequenceVue> liste = fiche == null ? List.of()
                 : sequences.findByFicheIdOrderByOrdre(fiche.getId()).stream()
-                        .map(s -> new SequenceVue(s.getOrdre(), s.getTitre(), s.getContenu(), s.getCompetences(),
-                                s.getHeuresPrevues(), s.getSemaineDebut()))
+                        .map(s -> {
+                            List<SeanceCahier> l = parOrdre.getOrDefault(s.getOrdre(), List.of());
+                            return new SequenceVue(s.getOrdre(), s.getTitre(), s.getContenu(), s.getCompetences(),
+                                    s.getHeuresPrevues(), s.getSemaineDebut(), somme(l), l.size());
+                        })
                         .toList();
         BigDecimal heures = liste.stream().map(SequenceVue::heuresPrevues).reduce(BigDecimal.ZERO, BigDecimal::add);
         UUID engagement = c.matiere().engagementId();
@@ -239,9 +222,25 @@ public class ProgressionService {
                 c.domaine(), engagement, enseignant, statut, liste, heures, c.matiere().volumeHebdo(),
                 c.matiere().volumeTotal(), fiche == null ? null : fiche.getModifieeLe(),
                 fiche == null ? null : fiche.getSoumiseLe(), fiche == null ? null : fiche.getViseLe(), visePar,
-                fiche == null ? null : fiche.getCommentaireVisa(),
+                fiche == null ? null : fiche.getCommentaireVisa(), c.auteur(),
                 c.auteur() && statut != StatutFiche.SOUMISE,
-                c.superviseur() && !c.auteur() && statut == StatutFiche.SOUMISE);
+                c.superviseur() && !c.auteur() && statut == StatutFiche.SOUMISE,
+                avancement(faites, liste.size()));
+    }
+
+    /**
+     * Réalisé d'une matière : une séance rattachée à une séquence qui n'existe plus dans la fiche
+     * (fiche raccourcie depuis) compte hors séquence.
+     */
+    static Avancement avancement(List<SeanceCahier> faites, int nombreSequences) {
+        BigDecimal hors = somme(faites.stream()
+                .filter(x -> x.getSequenceOrdre() == null || x.getSequenceOrdre() > nombreSequences).toList());
+        LocalDate derniere = faites.stream().map(SeanceCahier::getDate).max(Comparator.naturalOrder()).orElse(null);
+        return new Avancement(somme(faites), hors, faites.size(), derniere);
+    }
+
+    static BigDecimal somme(List<SeanceCahier> l) {
+        return l.stream().map(SeanceCahier::heures).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     private String nomDe(UUID utilisateurId) {
@@ -259,6 +258,8 @@ public class ProgressionService {
         Map<UUID, List<SequenceProgression>> parFiche = parCle.isEmpty() ? Map.of()
                 : sequences.findByFicheIdIn(parCle.values().stream().map(FicheProgression::getId).toList()).stream()
                         .collect(Collectors.groupingBy(SequenceProgression::getFicheId));
+        Map<String, List<SeanceCahier>> seancesParCle = seances.findByClasseIdIn(lesClasses.stream().map(ClasseVue::id).toList())
+                .stream().collect(Collectors.groupingBy(x -> cle(x.getClasseId(), x.getMatiereId())));
         List<SuiviProgressionVue> lignes = new ArrayList<>();
         List<UUID> engagements = new ArrayList<>();
         record Ligne(ClasseVue classe, MatiereDeClasseVue matiere) {
@@ -283,7 +284,9 @@ public class ProgressionService {
                     l.matiere().matiereId(), l.matiere().matiereCode(), l.matiere().matiereLibelle(), l.matiere().type(),
                     Domaine.de(l.matiere().type()), e, e == null ? null : noms.get(e), f == null ? null : f.getStatut(),
                     seq.size(), seq.stream().map(SequenceProgression::getHeuresPrevues).reduce(BigDecimal.ZERO, BigDecimal::add),
-                    l.matiere().volumeHebdo(), f == null ? null : f.getSoumiseLe(), f == null ? null : f.getViseLe()));
+                    l.matiere().volumeHebdo(), f == null ? null : f.getSoumiseLe(), f == null ? null : f.getViseLe(),
+                    avancement(seancesParCle.getOrDefault(cle(l.classe().id(), l.matiere().matiereId()), List.of()),
+                            seq.size())));
         }
         lignes.sort(Comparator.comparing(SuiviProgressionVue::classeCode).thenComparing(SuiviProgressionVue::matiereLibelle));
         return lignes;

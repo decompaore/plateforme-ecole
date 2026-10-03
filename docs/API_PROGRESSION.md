@@ -1,4 +1,4 @@
-# Progression pédagogique (v0.23)
+# Progression pédagogique et cahier de textes (v0.23, v0.24)
 
 Module `progression` : fiche de progression annuelle de chaque matière dans chaque classe, préparée par
 l'enseignant, visée par la direction. Migration `V16__chef_travaux_progression.sql`.
@@ -39,8 +39,28 @@ Le domaine d'une matière vient de son type (Filières et matières) : `GENERALE
 Séquence : titre (150 caractères), contenu (2 000), compétences (500), heures prévues de 0,5 à 999 (une
 décimale), semaine de début facultative ; 60 séquences au plus.
 
+## Cahier de textes (v0.24)
+
+Migration `V17__cahier_textes.sql`. Après chaque cours, l'enseignant note **ce qui a été fait** et le **travail à
+faire**, en rattachant la séance à une séquence de sa fiche (ou hors séquence : révision, évaluation).
+
+| Appel | Rôles |
+|---|---|
+| `PUT /api/v1/cahier-textes/{id}` `{"classeId":"…","matiereId":"…","date":"2026-10-02","heureDebut":"08:00","heureFin":"10:00","sequenceOrdre":1,"contenu":"Loi d'Ohm","travailAFaire":"Exercices 1 à 3"}` | L'enseignant de la matière. Crée ou modifie : **l'identifiant est choisi par le téléphone**, un renvoi après une coupure modifie la même séance |
+| `GET /api/v1/classes/{classeId}/matieres/{matiereId}/cahier-textes` | L'enseignant ; la direction du domaine (censeur, chef des travaux, administration). La plus récente d'abord |
+| `DELETE /api/v1/cahier-textes/{id}` | L'enseignant de la matière |
+
+Règles :
+- pas de séance dans le futur (`409 DATE_FUTURE`) ; fin après le début, 8 heures au plus ; contenu obligatoire
+  (2 000 caractères), travail à faire facultatif (1 000) ;
+- un seul cours par classe, matière, date et heure de début (`409 SEANCE_EXISTANTE`) ;
+- le titre de la séquence est gardé tel qu'au jour du cours ; un numéro de séquence qui n'existe plus (fiche
+  raccourcie depuis une saisie hors connexion) laisse la séance **hors séquence**, sans refus.
+
+**Réalisé face au prévu** : la fiche (`GET …/progression`) donne pour chaque séquence `heuresRealisees` et
+`seances`, et `avancement` (heures faites, dont hors séquence, nombre de séances, dernière séance). Le suivi de la
+direction (`GET /annees/{id}/progressions`) et la liste de l'enseignant donnent le même `avancement` par matière.
+
 ## À venir
 
-- **Cahier de textes** (v0.24) : après chaque cours, l'enseignant note ce qui a été fait ; le censeur et le chef des
-  travaux comparent le réalisé au prévu de la fiche.
 - Format officiel : si l'inspection impose un modèle de fiche (colonnes, découpage), il s'adaptera sur ces séquences.

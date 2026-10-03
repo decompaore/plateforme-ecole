@@ -79,7 +79,10 @@ describe('AppelSaisiePage hors connexion', () => {
     expect(envois).toHaveLength(1);
     expect(envois[0].etat).toBe('EN_ATTENTE');
     expect(envois[0].appel.marques).toEqual([{ inscriptionId: 'i2', type: 'ABSENCE', minutesRetard: null }]);
-    expect(navigation).toHaveBeenCalledWith(['/envois'], { state: { vientDeSaisir: true } });
+    // Le cours est transmis pour proposer ensuite le cahier de textes du même créneau
+    expect(navigation).toHaveBeenCalledWith(['/envois'], {
+      state: { vientDeSaisir: true, cours: expect.objectContaining({ classeId: 'c1', matiereId: 'm1' }) },
+    });
     // Pas de jeton : rien n'est parti vers le serveur, la session sera rouverte au retour du réseau
     http.expectNone('/api/v1/appels/lot');
     await attendre();

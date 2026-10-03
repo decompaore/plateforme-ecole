@@ -8,6 +8,8 @@ import { SessionService } from './core/session.service';
 import { AccueilPage } from './pages/accueil.page';
 import { AppelChoixPage } from './pages/appel-choix.page';
 import { AppelSaisiePage } from './pages/appel-saisie.page';
+import { CahierChoixPage } from './pages/cahier-choix.page';
+import { CahierPage } from './pages/cahier.page';
 import { EnvoisPage } from './pages/envois.page';
 import { NotesChoixPage } from './pages/notes-choix.page';
 import { NotesEvaluationsPage } from './pages/notes-evaluations.page';
@@ -94,6 +96,18 @@ export const routes: Routes = [
         canDeactivate: [notesEnregistrees],
         title: 'Notes',
         component: NotesSaisiePage,
+      },
+      {
+        path: 'cahier',
+        canActivate: [role('ENSEIGNANT')],
+        title: 'Cahier de textes',
+        component: CahierChoixPage,
+      },
+      {
+        path: 'cahier/:classeId/:matiereId',
+        canActivate: [role('ENSEIGNANT')],
+        title: 'Cahier de textes',
+        component: CahierPage,
       },
       {
         path: 'plateforme',
@@ -196,6 +210,12 @@ export const routes: Routes = [
             canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX')],
             title: 'Suivi des progressions',
             loadComponent: () => import('./progression/pages/suivi-progressions.page').then((m) => m.SuiviProgressionsPage),
+          },
+          {
+            path: ':classeId/:matiereId/cahier',
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX')],
+            title: 'Cahier de textes',
+            loadComponent: () => import('./progression/pages/cahier-lecture.page').then((m) => m.CahierLecturePage),
           },
           {
             path: ':classeId/:matiereId',

@@ -28,6 +28,78 @@ export interface SequenceVue {
   competences: string | null;
   heuresPrevues: number;
   semaineDebut: string | null;
+  /** Fait d'après le cahier de textes (v0.24). */
+  heuresRealisees: number;
+  seances: number;
+}
+
+/** Réalisé d'une matière d'après le cahier de textes. */
+export interface Avancement {
+  heuresRealisees: number;
+  heuresHorsSequence: number;
+  seances: number;
+  derniereSeance: string | null;
+}
+
+export interface DonneesSeance {
+  classeId: string;
+  matiereId: string;
+  date: string;
+  heureDebut: string;
+  heureFin: string;
+  sequenceOrdre: number | null;
+  contenu: string;
+  travailAFaire: string | null;
+}
+
+export interface SeanceVue {
+  id: string;
+  classeId: string;
+  matiereId: string;
+  date: string;
+  heureDebut: string;
+  heureFin: string;
+  heures: number;
+  sequenceOrdre: number | null;
+  sequenceTitre: string | null;
+  contenu: string;
+  travailAFaire: string | null;
+  saisiLe: string;
+  modifieLe: string;
+}
+
+/** Durée d'une séance en heures (« 08:00 » → « 10:30 » : 2,5), null si l'horaire est invalide. */
+export function dureeHeures(debut: string, fin: string): number | null {
+  const m = (h: string) => {
+    const [a, b] = h.split(':').map(Number);
+    return Number.isFinite(a) && Number.isFinite(b) ? a * 60 + b : NaN;
+  };
+  const d = m(fin) - m(debut);
+  return Number.isFinite(d) && d > 0 ? Math.round((d / 60) * 10) / 10 : null;
+}
+
+/** Contrôle d'une séance avant l'enregistrement : message à afficher, ou null. */
+export function erreurSeance(d: { date: string; heureDebut: string; heureFin: string; contenu: string; travailAFaire: string }, aujourdhui: string): string | null {
+  if (!d.date || !d.heureDebut || !d.heureFin) {
+    return 'Indiquez la date et l’horaire du cours.';
+  }
+  if (d.date > aujourdhui) {
+    return 'Le cahier de textes se remplit après le cours, pas avant.';
+  }
+  const duree = dureeHeures(d.heureDebut, d.heureFin);
+  if (duree === null) {
+    return 'L’heure de fin doit suivre l’heure de début.';
+  }
+  if (duree > 8) {
+    return 'Une séance dure 8 heures au plus.';
+  }
+  if (!d.contenu.trim()) {
+    return 'Notez ce qui a été fait pendant le cours.';
+  }
+  if (d.contenu.trim().length > 2000 || d.travailAFaire.trim().length > 1000) {
+    return 'Texte trop long (contenu 2 000 caractères, travail à faire 1 000).';
+  }
+  return null;
 }
 
 export interface FicheVue {
@@ -51,8 +123,11 @@ export interface FicheVue {
   viseLe: string | null;
   visePar: string | null;
   commentaireVisa: string | null;
+  /** La personne connectée enseigne cette matière dans cette classe. */
+  auteur: boolean;
   modifiable: boolean;
   visable: boolean;
+  avancement: Avancement;
 }
 
 export interface SuiviProgressionVue {
@@ -72,6 +147,7 @@ export interface SuiviProgressionVue {
   volumeHebdo: number | null;
   soumiseLe: string | null;
   viseLe: string | null;
+  avancement: Avancement;
 }
 
 export interface SaisieSequence {

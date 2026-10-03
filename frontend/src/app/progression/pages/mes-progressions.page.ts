@@ -42,7 +42,7 @@ export function pastille(statut: StatutFiche | null): { texte: string; classe: s
                   <strong>{{ f.classeCode }}</strong> · {{ f.matiereLibelle }}
                   <br />
                   <span class="doux">
-                    @if (f.sequences) { {{ f.sequences }} séquence(s) · {{ heures(f.heuresPrevues) }} prévues } @else { Aucune séquence }
+                    @if (f.sequences) { {{ f.sequences }} séquence(s) · {{ heures(f.avancement.heuresRealisees) }} faites / {{ heures(f.heuresPrevues) }} prévues } @else { Aucune séquence }
                     @if (f.volumeHebdo) { · programme {{ heures(f.volumeHebdo) }}/semaine }
                   </span>
                 </span>

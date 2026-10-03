@@ -116,7 +116,13 @@ export class AppelSaisiePage implements OnInit {
         },
         { classeCode: a.classeCode, matiereLibelle: a.matiereLibelle },
       );
-      await this.router.navigate(['/envois'], { state: { vientDeSaisir: true } });
+      await this.router.navigate(['/envois'], {
+        state: {
+          vientDeSaisir: true,
+          // Pour proposer de remplir le cahier de textes du même cours
+          cours: { classeId: a.classeId, matiereId: a.matiereId, date: this.date(), debut: this.heureDebut(), fin: this.heureFin() },
+        },
+      });
     } catch (e) {
       this.erreur.set(messageErreur(e, "L'appel n'a pas pu être enregistré sur le téléphone."));
     } finally {

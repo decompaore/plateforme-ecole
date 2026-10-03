@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 
 import { Action } from '../../admin/action';
 import { AnneeCourante } from '../../admin/annee-courante.service';
+import { dateCourte } from '../../core/outils';
 import { filtrer } from '../../core/recherche';
 import { RechercheComponent } from '../../partage/recherche.component';
 import { Domaine, heures, LIBELLE_DOMAINE, SuiviProgressionVue } from '../modeles-progression';
@@ -56,8 +57,8 @@ type Filtre = 'toutes' | 'a-viser' | 'non-commencees';
                       <strong>{{ l.matiereLibelle }}</strong> · {{ l.enseignant ?? 'sans enseignant' }}
                       <br />
                       <span class="doux">
-                        @if (l.sequences) { {{ l.sequences }} séquence(s) · {{ heures(l.heuresPrevues) }} } @else { Aucune séquence }
-                        @if (l.volumeHebdo) { · {{ heures(l.volumeHebdo) }}/semaine au programme }
+                        @if (l.sequences) { {{ l.sequences }} séquence(s) · {{ heures(l.avancement.heuresRealisees) }} faites / {{ heures(l.heuresPrevues) }} prévues } @else { Aucune séquence }
+                        @if (l.avancement.derniereSeance) { · cahier tenu jusqu'au {{ dateCourte(l.avancement.derniereSeance) }} } @else { · cahier vide }
                       </span>
                     </span>
                     <span class="pastille {{ pastille(l.statut).classe }}">{{ pastille(l.statut).texte }}</span>
@@ -135,6 +136,7 @@ export class SuiviProgressionsPage {
   private readonly annee = inject(AnneeCourante);
 
   protected readonly heures = heures;
+  protected readonly dateCourte = dateCourte;
   protected readonly pastille = pastille;
   protected readonly action = new Action();
   protected readonly lignes = signal<SuiviProgressionVue[]>([]);
