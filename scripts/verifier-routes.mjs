@@ -64,7 +64,7 @@ function appelsDuFrontend() {
     const s = readFileSync(f, 'utf8');
     for (const m of s.matchAll(/\.(get|post|put|delete|patch)(?:<[^(]*>)?\(\s*`\$\{API\}([^`]+)`/g)) ajouter(m[1], m[2], f);
     for (const m of s.matchAll(/this\.(get|post|put|delete|patch)(?:<[^>]*>)?\(\s*[`'](\/[^`']+)[`']/g)) ajouter(m[1], m[2], f);
-    for (const m of s.matchAll(/this\.lire(?:<[^>]*>)?\(\s*[`'](\/[^`']+)[`']/g)) ajouter('get', m[1], f);
+    for (const m of s.matchAll(/this\.(?:lire|fichier)(?:<[^>]*>)?\(\s*[`'](\/[^`']+)[`']/g)) ajouter('get', m[1], f);
   }
   const vus = new Set();
   return appels.filter((a) => !vus.has(a.methode + a.chemin) && vus.add(a.methode + a.chemin));

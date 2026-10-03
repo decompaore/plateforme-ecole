@@ -7,6 +7,9 @@ Montants en francs CFA, sans décimales. Paiement en ligne Mobile Money : voir A
 
 Rôles : **INTENDANT** et **ADMIN_ECOLE** gèrent ; **SECRETARIAT** consulte.
 
+Dans l'application (v0.22) : tuile **Scolarité et paiements** (guichet, classes et retards, journal de caisse, frais
+et bourses) : voir [FRONTEND.md](FRONTEND.md).
+
 ## 1. Paramétrer
 
 | Étape | Appel |
@@ -81,7 +84,7 @@ avance, prochaine échéance, paiements.
 - **Annuler** : `POST /api/v1/paiements/{id}/annulation` `{"motif":"Chèque impayé"}`. Le paiement ne compte plus,
   le reçu reste, marqué « REÇU ANNULÉ ». Un paiement n'est **jamais modifié ni supprimé** (garanti par la base).
 - **Journal de caisse** : `GET /api/v1/paiements?du=2026-10-01&au=2026-10-31` — paiements non annulés, totaux par
-  moyen de paiement.
+  moyen de paiement, et (v0.22) `eleves` : matricule, nom, prénoms et classe de chaque inscription du journal.
 
 ## 5. Suivi des classes et relances
 

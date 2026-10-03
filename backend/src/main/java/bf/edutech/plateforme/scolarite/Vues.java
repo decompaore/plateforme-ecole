@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import bf.edutech.plateforme.eleves.StatutBourse;
@@ -87,9 +88,13 @@ public final class Vues {
     public record TotalMoyenVue(MoyenPaiement moyen, long montant, int nombre) {
     }
 
-    /** Journal de caisse sur une période (paiements non annulés). */
+    /** Élève d'un paiement du journal, pour savoir qui a payé sans ouvrir chaque fiche. */
+    public record EleveJournalVue(String matricule, String nom, String prenoms, String classeCode) {
+    }
+
+    /** Journal de caisse sur une période (paiements non annulés) ; {@code eleves} par inscription. */
     public record JournalVue(LocalDate du, LocalDate au, long total, List<TotalMoyenVue> parMoyen,
-            List<PaiementVue> paiements) {
+            List<PaiementVue> paiements, Map<UUID, EleveJournalVue> eleves) {
     }
 
     /** Réponse de la vérification publique : ce qui figure déjà sur le reçu papier. */

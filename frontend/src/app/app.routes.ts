@@ -180,6 +180,45 @@ export const routes: Routes = [
         ],
       },
       {
+        // Scolarité et paiements : en ligne (l'encaissement exige le serveur), chargée à la demande
+        path: 'scolarite',
+        canActivate: [role('INTENDANT', 'ADMIN_ECOLE', 'SECRETARIAT')],
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            title: 'Guichet',
+            loadComponent: () => import('./scolarite/pages/guichet.page').then((m) => m.GuichetPage),
+          },
+          {
+            path: 'eleves/:eleveId',
+            title: 'Scolarité de l’élève',
+            loadComponent: () => import('./scolarite/pages/fiche-scolarite.page').then((m) => m.FicheScolaritePage),
+          },
+          {
+            path: 'inscriptions/:inscription',
+            title: 'Scolarité de l’élève',
+            loadComponent: () => import('./scolarite/pages/fiche-scolarite.page').then((m) => m.FicheScolaritePage),
+          },
+          {
+            path: 'classes',
+            title: 'Paiements par classe',
+            loadComponent: () => import('./scolarite/pages/classes-sco.page').then((m) => m.ClassesScoPage),
+          },
+          {
+            path: 'journal',
+            canActivate: [role('INTENDANT', 'ADMIN_ECOLE')],
+            title: 'Journal de caisse',
+            loadComponent: () => import('./scolarite/pages/journal.page').then((m) => m.JournalPage),
+          },
+          {
+            path: 'frais',
+            title: 'Frais et bourses',
+            loadComponent: () => import('./scolarite/pages/frais.page').then((m) => m.FraisPage),
+          },
+        ],
+      },
+      {
         // Vie scolaire : en ligne, chargée à la demande
         path: 'vie-scolaire',
         canActivate: [role('SURVEILLANT', 'CENSEUR', 'ADMIN_ECOLE', 'SECRETARIAT')],
