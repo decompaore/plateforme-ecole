@@ -267,3 +267,81 @@ export interface SuiviEvaluationVue {
   notesSaisies: number;
   notesAttendues: number;
 }
+
+// Statistiques d'une année (v0.21)
+
+export interface Compte {
+  garcons: number;
+  filles: number;
+}
+
+export type Decision = 'ADMIS' | 'REDOUBLE' | 'EXCLU' | 'ORIENTE' | 'CERTIFIE' | 'NON_CERTIFIE' | 'EN_ATTENTE_EXAMEN';
+
+export const LIBELLE_DECISION: Record<Decision, string> = {
+  ADMIS: 'Admis',
+  REDOUBLE: 'Redoublent',
+  EXCLU: 'Exclus',
+  ORIENTE: 'Orientés',
+  CERTIFIE: 'Certifiés',
+  NON_CERTIFIE: 'Non certifiés',
+  EN_ATTENTE_EXAMEN: "En attente de l'examen",
+};
+
+export interface EffectifNiveauVue {
+  niveau: string;
+  classes: number;
+  effectif: Compte;
+  redoublants: Compte;
+}
+
+export interface AgeVue {
+  niveau: string;
+  age: number;
+  effectif: Compte;
+}
+
+export interface BourseFiliereVue {
+  filiere: string;
+  boursiers: Compte;
+  semiBoursiers: Compte;
+  nonBoursiers: Compte;
+}
+
+export interface PersonnelStatVue {
+  titulaires: Compte;
+  vacataires: Compte;
+  sexeNonRenseigne: number;
+  administratif: Partial<Record<Role, number>>;
+}
+
+export interface RecouvrementClasseVue {
+  classe: string;
+  duFamilles: number;
+  payeFamilles: number;
+  tauxFamilles: number | null;
+  duOrganismes: number;
+  payeOrganismes: number;
+  tauxOrganismes: number | null;
+}
+
+export interface ResultatNiveauVue {
+  niveau: string;
+  decides: Compte;
+  parDecision: Partial<Record<Decision, Compte>>;
+  tauxAdmission: number | null;
+}
+
+export interface RapportStatistiques {
+  etablissement: string;
+  annee: AnneeVue;
+  produitLe: string;
+  effectifTotal: Compte;
+  classes: number;
+  effectifs: EffectifNiveauVue[];
+  ages: AgeVue[];
+  bourses: BourseFiliereVue[];
+  personnel: PersonnelStatVue;
+  recouvrement: RecouvrementClasseVue[];
+  recouvrementTotal: RecouvrementClasseVue;
+  resultats: ResultatNiveauVue[];
+}

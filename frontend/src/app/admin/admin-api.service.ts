@@ -25,6 +25,7 @@ import {
   ResultatAjoutMembre,
   ResultatCreationEtablissement,
   ResultatEngagement,
+  RapportStatistiques,
   SuiviEvaluationVue,
   Sexe,
   StatutBourse,
@@ -269,5 +270,13 @@ export class AdminApi {
   /** `ordre` : 1er, 2e… trimestre ou semestre ; absent : toute l'année. */
   suiviEvaluations(anneeId: string, ordre?: number): Promise<SuiviEvaluationVue[]> {
     return this.get(`/annees/${anneeId}/suivi-evaluations`, ordre ? { ordre } : undefined);
+  }
+
+  statistiques(anneeId: string): Promise<RapportStatistiques> {
+    return this.get(`/annees/${anneeId}/statistiques`);
+  }
+
+  classeurStatistiques(anneeId: string): Promise<Blob> {
+    return firstValueFrom(this.http.get(`${API}/annees/${anneeId}/statistiques/excel`, { responseType: 'blob' }));
   }
 }

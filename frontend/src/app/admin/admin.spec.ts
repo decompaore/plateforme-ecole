@@ -8,6 +8,7 @@ import { ClassePage } from './pages/classe.page';
 import { ElevesPage } from './pages/eleves.page';
 import { PersonnelPage } from './pages/personnel.page';
 import { PlateformePage } from './pages/plateforme.page';
+import { pivotAges, StatistiquesPage } from './pages/statistiques.page';
 import { SuiviEvaluationsPage, taux } from './pages/suivi-evaluations.page';
 
 const ADMIN = { id: 'etab-1', code: 'LTK', nom: 'Lycée technique', roles: ['ADMIN_ECOLE' as const] };
@@ -333,6 +334,65 @@ describe('Espace d’administration', () => {
     http.expectOne((r) => r.url === '/api/v1/annees/a1/suivi-evaluations' && r.params.get('ordre') === '1').flush([]);
     await attendre();
     expect(taux(0, 0)).toBeNull();
+  });
+
+  it('statistiques : chiffres clés, âges par sexe, recouvrement, résultats à venir et classeur Excel', async () => {
+    await session(http);
+    const f = TestBed.createComponent(StatistiquesPage);
+    f.detectChanges();
+    await attendre();
+    const c = (garcons: number, filles: number) => ({ garcons, filles });
+    const recouvrement = (classe: string, du: number, paye: number, taux: number | null) => ({
+      classe, duFamilles: du, payeFamilles: paye, tauxFamilles: taux, duOrganismes: 0, payeOrganismes: 0, tauxOrganismes: null,
+    });
+    http.expectOne('/api/v1/annees/a1/statistiques').flush({
+      etablissement: 'Lycée technique', annee: ANNEE, produitLe: '2026-10-03T09:00:00Z',
+      effectifTotal: c(70, 50), classes: 3,
+      effectifs: [
+        { niveau: '2nde', classes: 2, effectif: c(45, 35), redoublants: c(3, 1) },
+        { niveau: '1re', classes: 1, effectif: c(25, 15), redoublants: c(0, 0) },
+      ],
+      ages: [
+        { niveau: '2nde', age: 15, effectif: c(20, 20) },
+        { niveau: '2nde', age: 16, effectif: c(25, 15) },
+        { niveau: '1re', age: 17, effectif: c(25, 15) },
+      ],
+      bourses: [{ filiere: 'F3', boursiers: c(5, 7), semiBoursiers: c(0, 0), nonBoursiers: c(65, 43) }],
+      personnel: { titulaires: c(10, 4), vacataires: c(5, 1), sexeNonRenseigne: 1, administratif: { CENSEUR: 1, INTENDANT: 2 } },
+      recouvrement: [recouvrement('2nde F3 A', 2_000_000, 1_500_000, 75), recouvrement('1re F3', 1_000_000, 300_000, 30)],
+      recouvrementTotal: recouvrement('TOTAL', 3_000_000, 1_800_000, 60),
+      resultats: [],
+    });
+    await attendre();
+    const t = texte(f);
+    const tuiles = [...(f.nativeElement as HTMLElement).querySelectorAll('.chiffres strong')].map((x) => x.textContent?.trim());
+    expect(tuiles).toEqual(['120', '3', '20', '60 %']);
+    expect(t).toContain('70 G, 50 F');
+    expect(t).toContain('Intendance');
+    expect(t).toContain('1 enseignant(s) sans sexe renseigné');
+    expect(t).toContain('12 (5 G, 7 F)');
+    expect(t).toMatch(/1.500.000 FCFA/);
+    expect(t).toContain("Les résultats apparaissent une fois les décisions de fin d'année");
+    // Taux familles sous 50 % en rouge
+    const rouges = [...(f.nativeElement as HTMLElement).querySelectorAll('#recouvrement .rouge')].map((x) => x.textContent?.trim());
+    expect(rouges).toEqual(['30 %']);
+
+    // Âges : total, puis filles seulement
+    const cellules = () => [...(f.nativeElement as HTMLElement).querySelectorAll('table.ages tbody tr:first-child td')].map((x) => x.textContent?.trim());
+    expect(cellules()).toEqual(['2nde', '40', '40', '', '80']);
+    [...(f.nativeElement as HTMLElement).querySelectorAll('button')].find((b) => b.textContent?.trim() === 'Filles')!.click();
+    expect((f.detectChanges(), cellules())).toEqual(['2nde', '20', '15', '', '35']);
+    expect(pivotAges([]).colonnes).toEqual([]);
+
+    // Classeur Excel
+    const creer = vi.fn(() => 'blob:stat');
+    URL.createObjectURL = creer;
+    URL.revokeObjectURL = vi.fn();
+    [...(f.nativeElement as HTMLElement).querySelectorAll('button')].find((b) => b.textContent?.includes('Excel'))!.click();
+    await attendre();
+    http.expectOne('/api/v1/annees/a1/statistiques/excel').flush(new Blob(['xlsx']));
+    await attendre();
+    expect(creer).toHaveBeenCalled();
   });
 
   it('affiche le message du serveur quand une règle est refusée', async () => {

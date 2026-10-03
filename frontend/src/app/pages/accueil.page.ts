@@ -26,7 +26,7 @@ const TUILES: Tuile[] = [
   { titre: 'Saisie des notes', texte: 'Marche aussi sans réseau', lien: '/notes', roles: ['ENSEIGNANT'] },
   { titre: 'Vie scolaire', texte: 'Absences du jour, incidents, convocations', lien: '/vie-scolaire', roles: ['SURVEILLANT', 'CENSEUR', 'ADMIN_ECOLE', 'SECRETARIAT'] },
   { titre: 'Scolarité et paiements', texte: 'Bientôt disponible', roles: ['INTENDANT', 'ADMIN_ECOLE'] },
-  { titre: 'Statistiques', texte: 'Bientôt disponible', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'INTENDANT'] },
+  { titre: 'Statistiques', texte: 'Effectifs, bourses, recouvrement, résultats', lien: '/admin/statistiques', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'INTENDANT'] },
   { titre: 'Suivi de mes enfants', texte: 'Absences, bulletins, scolarité', lien: '/parent', roles: ['PARENT'] },
 ];
 
