@@ -104,28 +104,42 @@ export const routes: Routes = [
       {
         // Administration de l'établissement : en ligne uniquement, chargée à la demande
         path: 'admin',
-        canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')],
+        canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'INTENDANT')],
         children: [
-          { path: '', pathMatch: 'full', redirectTo: 'classes' },
+          {
+            path: '',
+            pathMatch: 'full',
+            // L'intendance n'a que les statistiques dans l'administration
+            redirectTo: () => (inject(SessionService).aLeRole('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT') ? 'classes' : 'statistiques'),
+          },
           {
             path: 'classes',
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')],
             title: 'Classes',
             loadComponent: () => import('./admin/pages/classes.page').then((m) => m.ClassesPage),
           },
           {
             path: 'classes/:id',
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')],
             title: 'Classe',
             loadComponent: () => import('./admin/pages/classe.page').then((m) => m.ClassePage),
           },
           {
             path: 'eleves',
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')],
             title: 'Élèves',
             loadComponent: () => import('./admin/pages/eleves.page').then((m) => m.ElevesPage),
           },
           {
             path: 'evaluations',
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')],
             title: 'Suivi des évaluations',
             loadComponent: () => import('./admin/pages/suivi-evaluations.page').then((m) => m.SuiviEvaluationsPage),
+          },
+          {
+            path: 'statistiques',
+            title: 'Statistiques',
+            loadComponent: () => import('./admin/pages/statistiques.page').then((m) => m.StatistiquesPage),
           },
           {
             path: 'personnel',

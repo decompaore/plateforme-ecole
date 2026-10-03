@@ -1,4 +1,4 @@
-# Application web (v0.20)
+# Application web (v0.21)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -199,6 +199,7 @@ utilisables sur ordinateur comme sur téléphone (les tableaux défilent horizon
 | Fiche d'une classe | idem | Programme : matières, coefficients, groupes, heures, **enseignant de chaque matière** ; liste des élèves |
 | Élèves (`/admin/eleves`) | ADMIN_ECOLE, SECRETARIAT (CENSEUR en lecture) | Nouvel élève avec son parent et son inscription, recherche, dossier, **import Excel** de la rentrée |
 | Évaluations (`/admin/evaluations`) | ADMIN_ECOLE, CENSEUR, SECRETARIAT | **Suivi des évaluations** (v0.20) : par enseignant ou par classe, sur l'année ou une période, nombre d'évaluations par type (devoirs, interrogations, compositions, TP/ateliers), date de la dernière, % de notes saisies (en rouge sous 90 %), matières sans évaluation surlignées, recherche |
+| Statistiques (`/admin/statistiques`) | ADMIN_ECOLE, CENSEUR, SECRETARIAT, INTENDANT | (v0.21) Chiffres clés de l'année (élèves G/F, classes, enseignants, taux de recouvrement), effectifs par niveau avec la répartition garçons / filles, âges (total, garçons ou filles), bourses par filière, personnel, recouvrement par classe (familles et organismes, en rouge sous 50 %), résultats de fin d'année ; **téléchargement du classeur Excel**. L'intendance n'a que cet onglet dans l'administration |
 | Personnel (`/admin/personnel`) | ADMIN_ECOLE | Engager un enseignant (titulaire ou vacataire), **terminer un engagement** (mutation, démission, retraite, fin de contrat) ou annuler une fin programmée, annuler une invitation ; ajouter censeur, secrétariat, intendance, surveillance ; retirer un rôle |
 
 Mise en place d'un établissement, dans l'ordre :
@@ -317,7 +318,7 @@ frontend/src/app/
 
 ## Tests
 
-66 tests (Vitest) :
+67 tests (Vitest) :
 
 | Fichier | Ce qui est vérifié |
 |---|---|
@@ -328,7 +329,7 @@ frontend/src/app/
 | `notes.service.spec.ts` | Création avec identifiant de l'appareil sans doublon, seuls les élèves modifiés envoyés, saisies regroupées, création refusée puis corrigée ou abandonnée avec ses notes, note refusée puis corrigée, saisie pendant un envoi, notes avant leur évaluation (horloge), conflit technique non bloquant, envoi par 200, lecture des notes saisies au clavier |
 | `notes-saisie.page.spec.ts` | Feuille hors connexion : note hors barème bloquée, absence, « Abs » retiré qui redonne la note d'origine, mise en file des seuls élèves modifiés |
 | `invitations.component.spec.ts` | Titulaire dans X invité comme vacataire dans Y : acceptation, choix d'établissement qui apparaît, passage dans Y |
-| `admin.spec.ts` | Création d'un établissement et affichage unique du mot de passe, programme d'une classe (coefficient, enseignant), nouvel élève avec parent et inscription, engagement (compte ou invitation), mutation programmée avec les matières à réaffecter puis annulée, message du serveur sur une règle refusée, suivi des évaluations (tuiles, regroupement par enseignant puis par classe, filtre de période) |
+| `admin.spec.ts` | Création d'un établissement et affichage unique du mot de passe, programme d'une classe (coefficient, enseignant), nouvel élève avec parent et inscription, engagement (compte ou invitation), mutation programmée avec les matières à réaffecter puis annulée, message du serveur sur une règle refusée, suivi des évaluations (tuiles, regroupement par enseignant puis par classe, filtre de période), statistiques (chiffres clés, âges par sexe, recouvrement sous 50 % en rouge, résultats à venir, classeur Excel) |
 | `parent.spec.ts` | Résumés (absences des 30 derniers jours, retard, reste, soldée), cartes des enfants puis même situation sans réseau, fiche d'un enfant (discipline, appel général, bulletin téléchargé, incidents), paiement Mobile Money suivi toutes les 5 secondes jusqu'à la confirmation puis situation relue, sans suivi au-delà |
 | `vie-scolaire.spec.ts` | Absences du jour (discipline de chaque créneau, appel général, bilan, filtre « à justifier », justification puis liste à jour), fiche élève (parent prioritaire en premier, heures par discipline, avertissement avec SMS, blâme absent pour un surveillant, convocation préremplie depuis l'incident), clôture d'une convocation passée, synthèse d'une classe par discipline et par élève, sur l'année puis sur un trimestre |
 | `recherche.spec.ts` | Accents, majuscules et ordre des mots, téléphone avec espaces ; feuille de notes filtrée qui garde le n° d'ordre et place le curseur sur la note ; message clair quand les trimestres manquent |
@@ -363,7 +364,8 @@ Le parcours complet a aussi été vérifié dans Chromium, à la taille d'un té
 - (v0.19) espace parent sur un téléphone de 360 px : deux enfants, absences, bulletin, scolarité, paiement Orange
   Money simulé jusqu'au reçu ;
 - (v0.20) suivi des évaluations sur ordinateur : regroupement par enseignant, matières sans évaluation, taux de
-  notes saisies.
+  notes saisies ;
+- (v0.21) statistiques sur ordinateur et sur un téléphone de 390 px.
 
 ## Session sur réseau faible (v0.18)
 

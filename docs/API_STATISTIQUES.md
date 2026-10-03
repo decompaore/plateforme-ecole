@@ -10,6 +10,8 @@ données déjà saisies, sans ressaisie, et le module n'a aucune table propre.
 
 Rôles : ADMIN_ECOLE, CENSEUR, SECRETARIAT, INTENDANT.
 
+Dans l'application (v0.21) : **Administration → Statistiques** affiche ces tableaux et télécharge le classeur.
+
 ## Contenu
 
 | Feuille | Contenu |
