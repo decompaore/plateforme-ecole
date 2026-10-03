@@ -58,6 +58,34 @@ Il crée par l'API un lycée technique complet :
 À la fin, il affiche les téléphones et le mot de passe (`Demo2026`) de l'enseignant, de l'administrateur et du
 parent.
 
+**Test grandeur nature du MVP** (v0.24.1) : une seule commande efface la base locale et la remplit avec trois
+établissements complets, par l'API (comme l'application) :
+
+```bash
+scripts/demo/mvp-grandeur-nature.sh                # demande de taper EFFACER ; démarre l'API avec mvn
+scripts/demo/mvp-grandeur-nature.sh --api-eclipse  # vous lancez l'API depuis Eclipse quand il le demande
+scripts/demo/mvp-grandeur-nature.sh --arreter-api  # arrête l'API lancée par le script
+SEMAINES=6 ELEVES=30 scripts/demo/mvp-grandeur-nature.sh --oui
+```
+
+- seule la base `plateforme` du conteneur `plateforme-postgres` est effacée (pas `plateforme_test`), et seulement
+  sur un Docker local, API arrêtée ;
+- Lycée technique Les Bâtisseurs (profil technique : 2nde F3, 1re F4, Tle G2), Centre de formation professionnelle
+  L'Atelier du Faso (modules : CAP1 ELB, CAP1 MAUTO, BEP1 HAB), Lycée privé Horizon (général : 2nde A4, 1re C,
+  Tle D, sans chef des travaux) ; 60 élèves par classe, fratries, un parent dans deux établissements ;
+- personnel complet, un enseignant par matière (titulaires, vacataires, un enseignant partagé par invitation),
+  emploi du temps sans conflit ;
+- depuis la rentrée (4 semaines par défaut) : appels, fiches de progression (visées, à revoir, à viser, brouillon,
+  non commencée), cahier de textes rattaché aux séquences (un enseignant en retard par établissement), notes ou
+  compétences, relevés du Module 1 publiés ;
+- scolarité : frais (tranches, filières, cantine facultative), bourses et prises en charge, exonérations,
+  encaissements, une annulation, virements d'organismes, Mobile Money (simulateur), relances ;
+- vie scolaire : justificatifs, retards, avertissements, blâme, exclusion, convocations ; espaces parents.
+
+Le bilan s'affiche à la fin (avec les éventuels avertissements regroupés). Les comptes (tous avec le mot de passe
+`Demo2026`) et ce qu'il faut essayer avec chacun sont écrits dans `scripts/demo/comptes-demo.md` (non versionné).
+Le super administrateur passe à `SuperAdmin-Dev-2026`.
+
 **Quelques semaines d'activité** (v0.19.1) : `scripts/demo/activite-enseignant.mjs` fait « vivre » l'enseignant de
 démonstration, par l'API, comme s'il travaillait depuis la rentrée :
 
