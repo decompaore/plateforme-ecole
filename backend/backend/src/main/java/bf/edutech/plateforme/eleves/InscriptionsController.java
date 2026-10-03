@@ -33,8 +33,12 @@ public class InscriptionsController {
     public record DemandeInscription(
             @NotNull UUID eleveId,
             @NotNull UUID classeId,
-            boolean redoublant,
+            Boolean redoublant,
             StatutBourse statutBourse) {
+
+        public DemandeInscription {
+            redoublant = Boolean.TRUE.equals(redoublant); // facultatif : non redoublant
+        }
     }
 
     public record DemandeChangementClasse(@NotNull UUID classeId) {
@@ -51,8 +55,13 @@ public class InscriptionsController {
 
     public record DemandeReinscription(
             @NotEmpty @Size(max = 500) List<@NotNull UUID> inscriptions,
-            boolean redoublant,
-            boolean conserverStatutBourse) {
+            Boolean redoublant,
+            Boolean conserverStatutBourse) {
+
+        public DemandeReinscription {
+            redoublant = Boolean.TRUE.equals(redoublant);
+            conserverStatutBourse = Boolean.TRUE.equals(conserverStatutBourse);
+        }
     }
 
     private final InscriptionsService service;

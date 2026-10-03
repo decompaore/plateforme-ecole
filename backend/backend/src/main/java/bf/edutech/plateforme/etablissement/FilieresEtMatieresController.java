@@ -53,7 +53,11 @@ public class FilieresEtMatieresController {
     public record DemandeModificationMatiere(
             @NotBlank @Size(max = 120) String libelle,
             @NotNull TypeMatiere type,
-            boolean actif) {
+            Boolean actif) {
+
+        public DemandeModificationMatiere {
+            actif = actif == null || actif; // facultatif : la matière reste active
+        }
     }
 
     private final FilieresService filieres;

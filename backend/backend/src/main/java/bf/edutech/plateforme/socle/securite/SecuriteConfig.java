@@ -11,6 +11,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -96,6 +97,7 @@ public class SecuriteConfig {
     SecurityFilterChain chaineDocumentation(HttpSecurity http) throws Exception {
         http
             .securityMatcher("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**")
+            .csrf(csrf -> csrf.disable())
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .headers(h -> h
                 .contentSecurityPolicy(csp -> csp.policyDirectives(
@@ -124,6 +126,11 @@ public class SecuriteConfig {
                 .requestMatchers("/api/v1/auth/connexion", "/api/v1/auth/rafraichir", "/api/v1/auth/deconnexion")
                     .permitAll()
                 .requestMatchers("/actuator/health/**", "/actuator/info", "/actuator/prometheus").permitAll()
+                // Vérification d'un bulletin ou d'un reçu papier par un tiers (code imprimé sur le document)
+                .requestMatchers(HttpMethod.GET, "/api/v1/verification/bulletins/*").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/verification/recus/*").permitAll()
+                // Notifications des agrégateurs Mobile Money : signature vérifiée par le service
+                .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/mobile-money/*").permitAll()
                 .requestMatchers("/api/v1/auth/etablissement")
                     .hasAnyAuthority("TYPE_" + TYPE_SELECTION, "TYPE_" + TYPE_ACCES)
                 .requestMatchers("/api/v1/plateforme/**").hasAuthority("ROLE_SUPER_ADMIN")

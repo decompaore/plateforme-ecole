@@ -1,0 +1,119 @@
+<div class="page">
+  <a [routerLink]="['/notes', classeId(), matiereId()]" class="bouton discret retour">‹ Évaluations</a>
+
+  @if (evaluation(); as ev) {
+    <h1>{{ ev.libelle }}</h1>
+    <p class="doux">
+      {{ affectation()?.classeCode }} · {{ affectation()?.matiereLibelle }} · {{ types[ev.type] }} du
+      {{ dateLongue(ev.date) }} · noté sur <strong>{{ ev.bareme }}</strong>@if (ev.poids != 1) { · poids {{ ev.poids }} }
+    </p>
+  } @else {
+    <h1>Notes</h1>
+  }
+
+  @if (erreur()) {
+    <div class="alerte erreur" role="alert">{{ erreur() }}</div>
+  }
+  @if (chargement()) {
+    <p class="doux">Chargement…</p>
+  }
+  @if (operation(); as op) {
+    @if (op.etat === 'REFUSE') {
+      <div class="alerte erreur" role="alert">
+        Envoi refusé : {{ op.message }}
+        @if (op.type === 'NOTES') { Corrigez puis enregistrez de nouveau. }
+      </div>
+      @if (op.type === 'CREATION') {
+        <form class="carte correction" (submit)="$event.preventDefault(); corrigerCreation()">
+          <p>Corrigez l'évaluation puis renvoyez-la. Les notes déjà tapées sont conservées.</p>
+          <div class="trois">
+            <label>Date <input type="date" name="cDate" [value]="cDate()" (input)="cDate.set($any($event.target).value)" /></label>
+            <label>Sur <input inputmode="decimal" name="cBareme" [value]="cBareme()" (input)="cBareme.set($any($event.target).value)" /></label>
+            <label>Poids <input inputmode="decimal" name="cPoids" [value]="cPoids()" (input)="cPoids.set($any($event.target).value)" /></label>
+          </div>
+          <div class="actions-ligne">
+            <button type="submit" class="bouton petit">Renvoyer</button>
+            <a routerLink="/envois" class="bouton discret petit">Abandonner…</a>
+          </div>
+        </form>
+      }
+    } @else {
+      <div class="alerte attention" role="status">
+        @if (op.type === 'CREATION') {
+          Évaluation créée sur le téléphone : elle sera envoyée avec ses notes dès qu'il y aura du réseau.
+        } @else {
+          Notes en attente d'envoi.
+        }
+      </div>
+    }
+  }
+  @if (!complete() && !chargement()) {
+    <div class="alerte attention">
+      Feuille jamais ouverte avec du réseau : les notes déjà saisies ailleurs n'apparaissent pas ici. Elles ne seront pas
+      effacées : seules les notes que vous tapez maintenant seront envoyées.
+    </div>
+  }
+  @if (message(); as m) {
+    <div class="alerte succes" role="status">{{ m }}</div>
+  }
+
+  @if (evaluation() && eleves().length > 0) {
+    <p class="doux consigne">Tapez la note puis Entrée pour passer à l'élève suivant. <strong>Abs</strong> : l'élève n'a pas composé.</p>
+    @if (eleves().length > 15) {
+      <app-recherche
+        libelle="Rechercher un élève (nom, matricule, n°)"
+        [(valeur)]="filtre"
+        [total]="eleves().length"
+        [trouves]="elevesAffiches().length"
+        (valider)="allerAuPremier()"
+      />
+    }
+    <ul class="liste carte eleves">
+      @for (e of elevesAffiches(); track e.inscriptionId; let i = $index) {
+        @let s = saisies()[e.inscriptionId];
+        <li class="eleve" [class.faute]="erreurs().has(e.inscriptionId)" [class.absent]="s.absent">
+          <span class="rang">{{ e.rang }}</span>
+          <label class="nom" [for]="'n-' + e.inscriptionId"><strong>{{ e.nom }}</strong> {{ e.prenoms }}</label>
+          <input
+            #champ
+            class="note"
+            type="text"
+            inputmode="decimal"
+            autocomplete="off"
+            [id]="'n-' + e.inscriptionId"
+            [value]="s.texte"
+            [disabled]="s.absent"
+          [attr.enterkeyhint]="i + 1 < elevesAffiches().length ? 'next' : 'done'"
+            [placeholder]="s.absent ? 'abs.' : '—'"
+            [attr.aria-invalid]="erreurs().has(e.inscriptionId)"
+            (input)="saisir(e.inscriptionId, $any($event.target).value)"
+            (keydown.enter)="suivant(i, $event)"
+          />
+          <button
+            type="button"
+            class="abs"
+            [attr.aria-pressed]="s.absent"
+            [attr.aria-label]="'Absent : ' + e.nom + ' ' + e.prenoms"
+            (click)="basculerAbsent(e.inscriptionId)"
+          >
+            Abs
+          </button>
+        </li>
+      } @empty {
+        <li class="doux vide">Aucun élève ne correspond à « {{ filtre().trim() }} ».</li>
+      }
+    </ul>
+
+    <div class="pied">
+      <div class="comptes">
+        <span class="pastille present">{{ statistiques().notees }} / {{ eleves().length }} notés</span>
+        @if (statistiques().absents > 0) { <span class="pastille">{{ statistiques().absents }} abs.</span> }
+        @if (statistiques().moyenne !== null) { <span class="doux">moy. {{ statistiques().moyenne!.toFixed(2).replace('.', ',') }}</span> }
+        @if (erreurs().size > 0) { <span class="pastille absent">{{ erreurs().size }} note(s) invalide(s)</span> }
+      </div>
+      <button type="button" class="bouton" [disabled]="modifiees().length === 0 || erreurs().size > 0" (click)="enregistrer()">
+        Enregistrer@if (modifiees().length > 0) { ({{ modifiees().length }}) }
+      </button>
+    </div>
+  }
+</div>
