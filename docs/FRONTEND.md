@@ -1,4 +1,4 @@
-# Application web (v0.21)
+# Application web (v0.22)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -15,8 +15,10 @@ Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 - l'**espace parent** (v0.19) : résumé par enfant, absences avec leur discipline, bulletins, vie scolaire,
   scolarité et paiement Mobile Money, lisible aussi sans réseau ;
 - des **zones de recherche** (v0.17) sur les listes longues, qui marchent aussi sans réseau côté enseignant ;
-- un **accueil par rôle** : les écrans encore à venir (scolarité côté intendance, statistiques) sont
-  annoncés « bientôt disponibles ». En attendant, ces fonctions s'utilisent par l'API (Swagger).
+- les **statistiques** de l'année (v0.21) et leur classeur Excel ;
+- la **scolarité et les paiements** côté intendance (v0.22) : guichet, reçus, annulations, retards et relances,
+  journal de caisse, frais de l'année, bourses et exonérations ;
+- un **accueil par rôle** : chaque personne ne voit que les tuiles de ses rôles.
 
 ## Démarrer en local
 
@@ -214,6 +216,24 @@ Comptes créés (administrateur d'un établissement, enseignant, personnel) : le
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
 
+## Scolarité et paiements (v0.22)
+
+En ligne uniquement : un encaissement exige le serveur (reçu numéroté, SMS au parent).
+
+| Écran | Rôles | Ce qu'on y fait |
+|---|---|---|
+| Guichet (`/scolarite`) | INTENDANT, ADMIN_ECOLE, SECRETARIAT | Retrouver l'élève par son nom ou son matricule |
+| Fiche de l'élève (`/scolarite/eleves/:id`) | idem (SECRETARIAT en lecture) | Reste à payer, retard, payé, prochaine échéance, part de l'organisme ; **encaisser** (famille ou organisme, montant proposé en un clic : le retard ou tout le reste, espèces, Orange / Moov / Telecel Money, virement, chèque, référence obligatoire hors espèces, déposant, date) puis **imprimer le reçu PDF** ; échéancier tranche par tranche ; paiements avec leur reçu et **annulation avec motif** ; prise en charge d'un boursier (organisme, taux, décision), exonérations, frais facultatifs (souscrire, résilier) |
+| Classes et retards (`/scolarite/classes`) | INTENDANT, ADMIN_ECOLE, SECRETARIAT | Taux de recouvrement d'une classe, élèves en retard (le plus gros retard d'abord), **liste Excel des retards**, **relance SMS** de la classe ou de tout l'établissement (INTENDANT, ADMIN_ECOLE) |
+| Journal de caisse (`/scolarite/journal`) | INTENDANT, ADMIN_ECOLE | Paiements d'un jour ou d'une période avec l'élève et sa classe, total par moyen de paiement pour la clôture de caisse, reçu de chaque paiement |
+| Frais et bourses (`/scolarite/frais`) | INTENDANT, ADMIN_ECOLE (SECRETARIAT en lecture) | Frais de l'année : montant, à qui ils s'appliquent (tout l'établissement, filières, niveaux, classes), obligatoire ou facultatif, couvert ou non par la bourse, **tranches** (réparties à parts égales en un clic, somme contrôlée) ; organismes financeurs ; paramètres (taux par défaut, délai entre deux relances : ADMIN_ECOLE) |
+
+- **Pas de double encaissement** : chaque saisie porte une clé unique (`cleIdempotence`) ; un double clic ou un
+  renvoi après une coupure renvoie le même paiement et le même reçu.
+- Un paiement n'est **jamais modifié ni supprimé** : annulé, il ne compte plus et son reçu porte « REÇU ANNULÉ ».
+- L'écran contrôle avant l'envoi ce que le serveur refuserait : montant entier, pas plus que le reste du payeur,
+  référence hors espèces, date pas dans le futur ; tranches dans l'ordre et de somme égale au montant.
+
 ## Espace parent (v0.19)
 
 Pour le parent (rôle PARENT), dont l'espace a été ouvert par le secrétariat. Pensé pour un petit téléphone et un
@@ -318,7 +338,7 @@ frontend/src/app/
 
 ## Tests
 
-67 tests (Vitest) :
+73 tests (Vitest) :
 
 | Fichier | Ce qui est vérifié |
 |---|---|
@@ -331,6 +351,7 @@ frontend/src/app/
 | `invitations.component.spec.ts` | Titulaire dans X invité comme vacataire dans Y : acceptation, choix d'établissement qui apparaît, passage dans Y |
 | `admin.spec.ts` | Création d'un établissement et affichage unique du mot de passe, programme d'une classe (coefficient, enseignant), nouvel élève avec parent et inscription, engagement (compte ou invitation), mutation programmée avec les matières à réaffecter puis annulée, message du serveur sur une règle refusée, suivi des évaluations (tuiles, regroupement par enseignant puis par classe, filtre de période), statistiques (chiffres clés, âges par sexe, recouvrement sous 50 % en rouge, résultats à venir, classeur Excel) |
 | `parent.spec.ts` | Résumés (absences des 30 derniers jours, retard, reste, soldée), cartes des enfants puis même situation sans réseau, fiche d'un enfant (discipline, appel général, bulletin téléchargé, incidents), paiement Mobile Money suivi toutes les 5 secondes jusqu'à la confirmation puis situation relue, sans suivi au-delà |
+| `scolarite.spec.ts` | Contrôles avant l'envoi (montant, reste, référence, date, tranches, répartition), guichet d'une semi-boursière : retard proposé, référence Orange Money exigée, encaissement avec clé d'idempotence puis reçu, annulation avec motif ; secrétariat en lecture seule ouvert depuis une inscription ; journal de caisse (totaux par moyen, élève et classe, plus récent d'abord) ; retards d'une classe et relance SMS ; nouveau frais en trois tranches |
 | `vie-scolaire.spec.ts` | Absences du jour (discipline de chaque créneau, appel général, bilan, filtre « à justifier », justification puis liste à jour), fiche élève (parent prioritaire en premier, heures par discipline, avertissement avec SMS, blâme absent pour un surveillant, convocation préremplie depuis l'incident), clôture d'une convocation passée, synthèse d'une classe par discipline et par élève, sur l'année puis sur un trimestre |
 | `recherche.spec.ts` | Accents, majuscules et ordre des mots, téléphone avec espaces ; feuille de notes filtrée qui garde le n° d'ordre et place le curseur sur la note ; message clair quand les trimestres manquent |
 | `fin-engagement.component.spec.ts` | Bandeau de mutation : envois en attente comptés et envoyés tout de suite, rien à 60 jours, affichage sans réseau le jour même, annonce effacée quand la fin est annulée, calcul des jours |
@@ -365,7 +386,9 @@ Le parcours complet a aussi été vérifié dans Chromium, à la taille d'un té
   Money simulé jusqu'au reçu ;
 - (v0.20) suivi des évaluations sur ordinateur : regroupement par enseignant, matières sans évaluation, taux de
   notes saisies ;
-- (v0.21) statistiques sur ordinateur et sur un téléphone de 390 px.
+- (v0.21) statistiques sur ordinateur et sur un téléphone de 390 px ;
+- (v0.22) guichet : recherche de l'élève, encaissement du retard, reçu proposé ; retards et relance d'une classe ;
+  journal de caisse ; nouveau frais en tranches ; fiche de l'élève sur un téléphone de 390 px.
 
 ## Session sur réseau faible (v0.18)
 
