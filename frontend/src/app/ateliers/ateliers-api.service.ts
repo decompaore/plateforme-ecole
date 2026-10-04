@@ -171,7 +171,7 @@ export class AteliersApi {
   }
 
   ouvrirInventaire(atelierId: string, libelle: string | null): Promise<InventaireVue> {
-https://github.com/decompaore/plateforme-ecole/pull/39/conflict?name=frontend%252Fsrc%252Fapp%252Fpages%252Faccueil.page.ts&ancestor_oid=300cb471d99fce45b5b5b4feb3fcb871bd56d263&base_oid=3d156f31ed7533584398921cf8f7f46385b97201&head_oid=174a7def6182222c16f6b5053e842c6b6d0334fe    return this.post(`/ateliers/${atelierId}/inventaires`, { libelle });
+    return this.post(`/ateliers/${atelierId}/inventaires`, { libelle });
   }
 
   inventaire(id: string): Promise<InventaireVue> {
