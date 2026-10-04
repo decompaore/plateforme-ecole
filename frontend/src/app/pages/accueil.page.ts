@@ -22,6 +22,7 @@ const TUILES: Tuile[] = [
   { titre: 'Classes', texte: 'Programmes, coefficients, enseignants', lien: '/admin/classes', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT'] },
   { titre: 'Élèves', texte: 'Inscriptions, import Excel', lien: '/admin/eleves', roles: ['ADMIN_ECOLE', 'SECRETARIAT', 'CENSEUR'] },
   { titre: 'Personnel', texte: 'Enseignants et administration', lien: '/admin/personnel', roles: ['ADMIN_ECOLE'] },
+  { titre: 'Comptes et mots de passe', texte: 'Mot de passe oublié, compte bloqué, renouvellement', lien: '/admin/comptes', roles: ['ADMIN_ECOLE'] },
   { titre: 'Année scolaire', texte: 'Périodes, ouverture, filières', lien: '/admin/annee', roles: ['ADMIN_ECOLE', 'CENSEUR'] },
   { titre: 'Cahier de textes', texte: 'Après chaque cours, même sans réseau', lien: '/cahier', roles: ['ENSEIGNANT'] },
   { titre: 'Mes progressions', texte: 'Séquences de l’année, visa', lien: '/progression', roles: ['ENSEIGNANT'] },

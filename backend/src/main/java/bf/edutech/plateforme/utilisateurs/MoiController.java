@@ -41,7 +41,8 @@ public class MoiController {
         List<String> roles = jwt.getClaimAsStringList(SecuriteConfig.CLAIM_ROLES);
         return new ProfilConnecte(u.getId(), u.getNom(), u.getPrenoms(), u.getTelephone(), u.isSuperAdmin(),
                 tenant != null ? UUID.fromString(tenant) : null, jwt.getClaimAsString(TenantFilter.CLAIM_TENANT_CODE),
-                roles != null ? roles : List.of(), u.isDoitChangerMotDePasse());
+                roles != null ? roles : List.of(), u.isDoitChangerMotDePasse(),
+                u.getMotifChangement());
     }
 
     /** Établissements accessibles (pour le sélecteur d'établissement de l'interface). */

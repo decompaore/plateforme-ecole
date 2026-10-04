@@ -27,7 +27,11 @@ export interface ReponseConnexion {
   etablissements: EtablissementAccessible[];
   superAdmin: boolean;
   doitChangerMotDePasse: boolean;
+  /** PROVISOIRE (création, réinitialisation) ou RENOUVELLEMENT (nouvelle période) ; absent sinon. */
+  motifChangementMotDePasse?: MotifChangementMotDePasse | null;
 }
+
+export type MotifChangementMotDePasse = 'PROVISOIRE' | 'RENOUVELLEMENT';
 
 export interface ProfilConnecte {
   id: string;
@@ -39,6 +43,7 @@ export interface ProfilConnecte {
   etablissementCode: string | null;
   roles: Role[];
   doitChangerMotDePasse: boolean;
+  motifChangementMotDePasse?: MotifChangementMotDePasse | null;
 }
 
 /** Erreur au format Problem Details renvoyée par le serveur. */
