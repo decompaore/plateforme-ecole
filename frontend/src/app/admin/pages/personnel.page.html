@@ -120,27 +120,8 @@
                 } @else if (e.statut === 'INVITE') {
                   <button type="button" class="bouton discret petit" [disabled]="action.enCours()" (click)="annulerInvitation(e)">Annuler l'invitation</button>
                 }
-                @if (e.statut === 'ACTIF' && compteDe(e.telephone); as u) {
-                  <button type="button" class="bouton discret petit" [disabled]="action.enCours()"
-                    (click)="demanderReinitialisation(e.engagementId, u, e.prenoms + ' ' + e.nom, e.telephone!)">Réinitialiser le mot de passe</button>
-                }
               </td>
             </tr>
-            @if (aReinitialiser()?.cle === e.engagementId) {
-              <tr class="confirmation-mdp">
-                <td colspan="6">
-                  <p>
-                    Réinitialiser le mot de passe de <strong>{{ aReinitialiser()!.nom }}</strong> ? Un mot de passe provisoire
-                    remplace l'actuel (valable aussi dans ses autres établissements) et ses sessions ouvertes sont fermées.
-                    Vérifiez d'abord que c'est bien la personne qui le demande.
-                  </p>
-                  <div class="actions-ligne">
-                    <button type="button" class="bouton danger petit" [disabled]="action.enCours()" (click)="reinitialiser()">Confirmer la réinitialisation</button>
-                    <button type="button" class="bouton discret petit" (click)="aReinitialiser.set(null)">Annuler</button>
-                  </div>
-                </td>
-              </tr>
-            }
           } @empty {
             <tr><td colspan="6" class="doux">{{ enseignants().length ? 'Aucun enseignant ne correspond.' : 'Aucun enseignant.' }}</td></tr>
           }
@@ -257,29 +238,10 @@
               <td>{{ libelleRole[m.role] }}@if (!m.actif) { (retiré) }</td>
               <td class="nombre">
                 @if (m.actif) {
-                  @if (m.utilisateurId !== moi()) {
-                    <button type="button" class="bouton discret petit" [disabled]="action.enCours()"
-                      (click)="demanderReinitialisation(m.id, m.utilisateurId, m.prenoms + ' ' + m.nom, m.telephone)">Réinitialiser le mot de passe</button>
-                  }
                   <button type="button" class="bouton danger petit" (click)="desactiver(m)">Retirer</button>
                 }
               </td>
             </tr>
-            @if (aReinitialiser()?.cle === m.id) {
-              <tr class="confirmation-mdp">
-                <td colspan="4">
-                  <p>
-                    Réinitialiser le mot de passe de <strong>{{ aReinitialiser()!.nom }}</strong> ? Un mot de passe provisoire
-                    remplace l'actuel (valable aussi dans ses autres établissements) et ses sessions ouvertes sont fermées.
-                    Vérifiez d'abord que c'est bien la personne qui le demande.
-                  </p>
-                  <div class="actions-ligne">
-                    <button type="button" class="bouton danger petit" [disabled]="action.enCours()" (click)="reinitialiser()">Confirmer la réinitialisation</button>
-                    <button type="button" class="bouton discret petit" (click)="aReinitialiser.set(null)">Annuler</button>
-                  </div>
-                </td>
-              </tr>
-            }
           } @empty {
             <tr><td colspan="4" class="doux">{{ administration().length ? 'Personne ne correspond.' : 'Personne.' }}</td></tr>
           }
