@@ -225,6 +225,60 @@ export const routes: Routes = [
         ],
       },
       {
+        // Ateliers : catalogue des prix, responsables, équipements, matière d'œuvre, inventaires,
+        // besoins, commandes, réception et répartition (en ligne)
+        path: 'ateliers',
+        canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'INTENDANT', 'ENSEIGNANT')],
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            title: 'Ateliers',
+            loadComponent: () => import('./ateliers/pages/ateliers.page').then((m) => m.AteliersPage),
+          },
+          {
+            path: 'catalogue',
+            title: 'Catalogue des prix',
+            loadComponent: () => import('./ateliers/pages/catalogue.page').then((m) => m.CataloguePage),
+          },
+          {
+            path: 'inventaires/:inventaireId',
+            title: 'Inventaire',
+            loadComponent: () => import('./ateliers/pages/inventaire.page').then((m) => m.InventairePage),
+          },
+          {
+            path: 'besoins',
+            title: 'Besoins et commandes',
+            loadComponent: () => import('./ateliers/pages/campagnes.page').then((m) => m.CampagnesPage),
+          },
+          {
+            path: 'besoins/:campagneId',
+            title: 'Campagne de besoins',
+            loadComponent: () => import('./ateliers/pages/campagne.page').then((m) => m.CampagnePage),
+          },
+          {
+            path: 'besoins-ateliers/:besoinId',
+            title: 'Besoins de l’atelier',
+            loadComponent: () => import('./ateliers/pages/besoin.page').then((m) => m.BesoinPage),
+          },
+          {
+            path: 'commandes/:commandeId',
+            title: 'Commande',
+            loadComponent: () => import('./ateliers/pages/commande.page').then((m) => m.CommandePage),
+          },
+          {
+            path: 'livraisons/:livraisonId',
+            title: 'Livraison',
+            loadComponent: () => import('./ateliers/pages/livraison.page').then((m) => m.LivraisonPage),
+          },
+          {
+            path: ':atelierId',
+            title: 'Atelier',
+            loadComponent: () => import('./ateliers/pages/atelier.page').then((m) => m.AtelierPage),
+          },
+        ],
+      },
+      {
         // Scolarité et paiements : en ligne (l'encaissement exige le serveur), chargée à la demande
         path: 'scolarite',
         canActivate: [role('INTENDANT', 'ADMIN_ECOLE', 'SECRETARIAT')],

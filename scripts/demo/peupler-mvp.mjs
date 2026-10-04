@@ -20,7 +20,9 @@
  *   - la scolarité : frais, bourses et prises en charge, exonérations, cantine, encaissements au guichet,
  *     une annulation, un virement d'organisme, des paiements Mobile Money (simulateur), des relances ;
  *   - la vie scolaire : justificatifs, retards, avertissements, blâme, exclusion, convocations ;
- *   - l'espace parent ouvert pour une dizaine de familles par établissement.
+ *   - l'espace parent ouvert pour une dizaine de familles par établissement ;
+ *   - (v0.25) les ateliers du lycée technique et du centre : catalogue des prix, responsables (un mandat bientôt
+ *     échu, un atelier sans responsable), dotation et sorties de matière d'œuvre, équipements, pannes, inventaires.
  *
  * DÉVELOPPEMENT UNIQUEMENT : mots de passe connus, numéros fictifs. Normalement lancé par
  * scripts/demo/mvp-grandeur-nature.sh, qui efface d'abord la base locale et démarre l'API.
@@ -195,6 +197,14 @@ const ECOLES = [
     vacataires: ['ANG', 'ORG'],
     retardataire: 'FR',
     exclusion: true,
+    ateliers: [
+      { code: 'ELEC', nom: 'Atelier d’électricité', emplacement: 'Bâtiment B', postes: 24, filiere: 'F3', responsable: 'ELEC', signaleur: 'TP-ELEC',
+        inventaire: 'clos', matieres: ['FIL-2.5', 'GAINE-20', 'DISJ-16', 'INTER-SA'], equipements: [['PERC-COL', 1], ['MULTI', 3], ['BANC-CAB', 2]] },
+      { code: 'BAT', nom: 'Atelier de maçonnerie', emplacement: 'Cour arrière', postes: 30, filiere: 'F4', responsable: 'TP-BAT', signaleur: 'RDM',
+        matieres: ['CIMENT', 'SABLE', 'FER-10', 'PARPAING'], equipements: [['BETONNIERE', 1], ['NIVEAU-LASER', 1], ['BROUETTE', 2]] },
+      { code: 'INFO', nom: 'Salle informatique de gestion', emplacement: 'Bâtiment A, étage', postes: 20, filiere: 'G2', responsable: null,
+        matieres: ['RAME-A4', 'CARTOUCHE'], equipements: [['ORDI', 4], ['IMPRIMANTE', 1]] },
+    ],
     filieres: [
       { code: 'F3', libelle: 'Électrotechnique', cycle: 'Second cycle', diplome: 'BAC F3', classe: '2nde F3', niveau: '2nde', age: 16, filles: 0.2,
         matieres: 'MATH:4:4 FR:2:4 ANG:1:2 PC:3:4 ELEC:5:6 DESSIN-EL:3:2 TP-ELEC:4:4' },
@@ -223,6 +233,14 @@ const ECOLES = [
     vacataires: ['ENTR', 'HSE'],
     retardataire: 'ENTR',
     exclusion: false,
+    ateliers: [
+      { code: 'ELB', nom: 'Atelier d’électricité du bâtiment', emplacement: 'Hangar 1', postes: 20, filiere: 'ELB', responsable: 'INST-ELB', signaleur: 'SCHEMA',
+        matieres: ['FIL-2.5', 'GAINE-20', 'DISJ-16', 'INTER-SA'], equipements: [['MULTI', 4], ['BANC-CAB', 2]] },
+      { code: 'AUTO', nom: 'Garage école', emplacement: 'Hangar 2', postes: 12, filiere: 'MAUTO', responsable: 'MOTEUR', signaleur: 'ELEC-AUTO',
+        inventaire: 'en-cours', matieres: ['HUILE', 'FILTRE-HUILE', 'BOUGIE'], equipements: [['PONT', 1], ['VALISE-DIAG', 1], ['CLE-DYNA', 2]] },
+      { code: 'COUT', nom: 'Atelier de couture', emplacement: 'Bâtiment C', postes: 25, filiere: 'HAB', responsable: 'PATRON', signaleur: 'ASSEMB',
+        mandatAncien: true, matieres: ['TISSU', 'FIL-COUDRE', 'FERMETURE'], equipements: [['MACHINE-COUDRE', 4], ['SURJETEUSE', 1], ['TABLE-COUPE', 1]] },
+    ],
     filieres: [
       { code: 'ELB', libelle: 'Électricité du bâtiment', cycle: 'CAP', diplome: 'CAP Électricité', classe: 'CAP1 ELB', niveau: 'CAP 1', age: 16, filles: 0.1,
         matieres: 'COM:1:2:60 MATH-APP:1:2:60 HSE:1:2:40 ENTR:1:2:40 INST-ELB:3:8:240 SCHEMA:2:4:120' },
@@ -270,6 +288,40 @@ const ECOLES = [
     ],
   },
 ];
+
+/** Catalogue des prix : [code, désignation, nature, unité, prix, spécifications, normes, quantité dotée, seuil]. */
+const ARTICLES = {
+  'FIL-2.5': ['Fil rigide 2,5 mm²', 'MATIERE_OEUVRE', 'rouleau', 15000, 'Cuivre, isolant PVC, rouleau de 100 m', 'NF C 32-201', 8, 4],
+  'GAINE-20': ['Gaine ICTA Ø 20', 'MATIERE_OEUVRE', 'rouleau', 9500, 'Rouleau de 50 m', null, 6, 2],
+  'DISJ-16': ['Disjoncteur 16 A', 'MATIERE_OEUVRE', 'pièce', 4500, 'Courbe C, 230 V', 'NF EN 60898', 20, 10],
+  'INTER-SA': ['Interrupteur simple allumage', 'MATIERE_OEUVRE', 'pièce', 750, 'Encastrable, 10 A', null, 40, 15],
+  CIMENT: ['Ciment CPJ 45', 'MATIERE_OEUVRE', 'sac de 50 kg', 5500, 'Classe de résistance 42,5', 'NF EN 197-1', 30, 10],
+  SABLE: ['Sable de rivière lavé', 'MATIERE_OEUVRE', 'm³', 15000, 'Granulométrie 0/4', null, 4, 1],
+  'FER-10': ['Fer à béton HA 10', 'MATIERE_OEUVRE', 'barre de 12 m', 4500, 'Haute adhérence, FeE 500', 'NF A 35-080', 25, 10],
+  PARPAING: ['Parpaing creux de 15', 'MATIERE_OEUVRE', 'pièce', 350, '15 × 20 × 40 cm', null, 300, 100],
+  'RAME-A4': ['Rame de papier A4', 'MATIERE_OEUVRE', 'rame', 3500, '80 g/m², 500 feuilles', null, 20, 5],
+  CARTOUCHE: ['Cartouche d’encre noire', 'MATIERE_OEUVRE', 'pièce', 25000, 'Compatible avec l’imprimante de la salle', null, 3, 1],
+  HUILE: ['Huile moteur 15W40', 'MATIERE_OEUVRE', 'litre', 3000, 'Moteurs essence et diesel', 'API CI-4', 40, 15],
+  'FILTRE-HUILE': ['Filtre à huile', 'MATIERE_OEUVRE', 'pièce', 4500, 'Véhicules légers courants', null, 12, 4],
+  BOUGIE: ['Bougie d’allumage', 'MATIERE_OEUVRE', 'pièce', 2500, 'Culot 14 mm', null, 16, 8],
+  TISSU: ['Tissu pagne coton', 'MATIERE_OEUVRE', 'mètre', 2500, '100 % coton, largeur 1,15 m', null, 80, 30],
+  'FIL-COUDRE': ['Fil à coudre polyester', 'MATIERE_OEUVRE', 'bobine', 500, 'Bobine de 500 m', null, 60, 20],
+  FERMETURE: ['Fermeture à glissière 20 cm', 'MATIERE_OEUVRE', 'pièce', 250, 'Nylon, coloris assortis', null, 100, 30],
+  'PERC-COL': ['Perceuse à colonne', 'EQUIPEMENT', 'pièce', 450000, 'Puissance 750 W, course 80 mm', 'NF EN 61029'],
+  MULTI: ['Multimètre numérique', 'EQUIPEMENT', 'pièce', 25000, 'Tension, intensité, résistance, continuité', 'CAT III 600 V'],
+  'BANC-CAB': ['Banc de câblage', 'EQUIPEMENT', 'pièce', 300000, 'Panneau 1,2 × 1 m avec alimentation protégée', null],
+  BETONNIERE: ['Bétonnière 350 L', 'EQUIPEMENT', 'pièce', 750000, 'Moteur thermique', null],
+  'NIVEAU-LASER': ['Niveau laser rotatif', 'EQUIPEMENT', 'pièce', 120000, 'Portée 300 m', null],
+  BROUETTE: ['Brouette renforcée', 'EQUIPEMENT', 'pièce', 35000, 'Cuve 90 L', null],
+  ORDI: ['Ordinateur de bureau', 'EQUIPEMENT', 'pièce', 350000, '8 Go de mémoire, disque SSD 256 Go', null],
+  IMPRIMANTE: ['Imprimante laser', 'EQUIPEMENT', 'pièce', 150000, 'Noir et blanc, réseau', null],
+  PONT: ['Pont élévateur 2 colonnes', 'EQUIPEMENT', 'pièce', 2500000, 'Capacité 3,5 t', 'NF EN 1493'],
+  'VALISE-DIAG': ['Valise de diagnostic', 'EQUIPEMENT', 'pièce', 600000, 'Prise OBD, logiciel multimarque', null],
+  'CLE-DYNA': ['Clé dynamométrique', 'EQUIPEMENT', 'pièce', 85000, '40 à 200 N·m', null],
+  'MACHINE-COUDRE': ['Machine à coudre', 'EQUIPEMENT', 'pièce', 180000, 'Piqueuse plate électrique', null],
+  SURJETEUSE: ['Surjeteuse 4 fils', 'EQUIPEMENT', 'pièce', 350000, null, null],
+  'TABLE-COUPE': ['Table de coupe', 'EQUIPEMENT', 'pièce', 120000, '2 × 1 m', null],
+};
 
 const PERSONNEL = [
   { role: 'CENSEUR', sexe: 'M', libelle: 'Censeur' },
@@ -625,7 +677,7 @@ async function peuplerEcole(def, sa) {
     seances: [],
     absences: new Map(),
     retards: [],
-    stats: { appels: 0, absences: 0, retards: 0, seancesCahier: 0, fiches: {}, paiements: 0, encaisse: 0, mm: 0, notes: 0, competences: 0 },
+    stats: { appels: 0, absences: 0, retards: 0, seancesCahier: 0, fiches: {}, paiements: 0, encaisse: 0, mm: 0, notes: 0, competences: 0, ateliers: 0, equipements: 0, mouvementsStock: 0, lignesBesoin: 0, commandes: 0, livraisons: 0 },
   };
   GLOBAL.ecoles.push(e);
   titre(`${e.nom} (${e.code})`);
@@ -639,6 +691,7 @@ async function peuplerEcole(def, sa) {
   await inscrireEleves(e);
   await encaisser(e);
   await progressions(e);
+  await ateliers(e);
   await appelsEtCahier(e);
   await evaluer(e);
   await vieScolaire(e);
@@ -741,9 +794,9 @@ async function recruterPersonnel(e) {
     e.personnel[p.role] = qui;
     const roles = {
       CENSEUR: e.chefTravaux ? 'vise les progressions des matières générales, bulletins' : 'vise toutes les progressions, bulletins',
-      CHEF_TRAVAUX: 'vise les progressions techniques et pratiques',
+      CHEF_TRAVAUX: 'vise les progressions techniques et pratiques ; ateliers, besoins à arbitrer (campagne des examens), état pour la DR, exports Excel et PDF',
       SECRETARIAT: 'dossiers des élèves',
-      INTENDANT: 'guichet, journal de caisse, relances',
+      INTENDANT: e.definition.ateliers?.length ? 'guichet, journal de caisse, relances ; catalogue des prix, commandes des ateliers' : 'guichet, journal de caisse, relances',
       SURVEILLANT: 'absences du jour, justificatifs, convocations',
     };
     noterCompte(e, p.libelle, qui, qui.telephone, roles[p.role]);
@@ -1187,6 +1240,228 @@ async function progressions(e) {
   ok(`${stats.VISEE} visées, ${stats.A_REVOIR} à revoir, ${stats.SOUMISE} en attente de visa, ${stats.BROUILLON} en brouillon, ${stats.aucune} non commencée(s)`);
 }
 
+// ---------------------------------------------------------------- ateliers (v0.25)
+
+function ajouterMois(isoDate, n) {
+  const d = jourDe(isoDate);
+  d.setMonth(d.getMonth() + n);
+  return iso(d);
+}
+
+/**
+ * Ateliers du lycée technique et du centre de formation : catalogue des prix (par l'intendant),
+ * ateliers et responsables (par le chef des travaux), dotation et consommation de matière d'œuvre,
+ * équipements, pannes signalées par les enseignants, inventaires (un clos, un en cours).
+ */
+async function ateliers(e) {
+  if (!e.definition.ateliers?.length) return;
+  const chef = e.personnel.CHEF_TRAVAUX?.session ?? e.sAdmin;
+  const intendant = e.personnel.INTENDANT.session;
+
+  etape('Catalogue des prix');
+  const codes = [...new Set(e.definition.ateliers.flatMap((a) => [...a.matieres, ...a.equipements.map(([c]) => c)]))];
+  e.articles = {};
+  await parallele(codes, async (code) => {
+    const [designation, nature, unite, prix, specifications, normes] = ARTICLES[code];
+    const a = await tenter('Catalogue', () => api('POST', '/catalogue', { code, designation, nature, unite, prixReference: prix, specifications, normes }, intendant));
+    if (a) e.articles[code] = a;
+  });
+  ok(`${Object.keys(e.articles).length} articles avec spécifications et prix`);
+
+  etape('Ateliers et responsables');
+  const designes = [];
+  for (const def of e.definition.ateliers) {
+    const atelier = await tenter('Ateliers', () =>
+      api('POST', '/ateliers', { code: def.code, nom: def.nom, emplacement: def.emplacement, postes: def.postes, filieres: [e.filiereIds[def.filiere]] }, chef));
+    if (!atelier) continue;
+    def.id = atelier.id;
+    e.stats.ateliers++;
+    const prof = def.responsable ? e.enseignants[def.responsable] : null;
+    if (prof) {
+      // Un mandat ancien arrive bientôt à échéance : le chef des travaux le voit dans ses alertes
+      const debut = def.mandatAncien ? ajouterJours(ajouterMois(AUJOURDHUI, -24), 30) : RENTREE;
+      const r = await tenter('Responsable d’atelier', () => api('POST', `/ateliers/${atelier.id}/responsable`, { engagementId: prof.engagementId, debut }, chef));
+      if (r) {
+        def.responsableSession = prof.session;
+        designes.push(`${def.code} : ${prof.prenoms} ${prof.nom}`);
+        if (prof.ligneCompte) prof.ligneCompte.remarque += ` — responsable de l’atelier ${def.code}`;
+      }
+    }
+  }
+  ok(designes.join(', ') + (e.definition.ateliers.some((a) => !a.responsable) ? ' ; un atelier reste sans responsable' : ''));
+
+  etape('Matière d’œuvre et équipements');
+  for (const def of e.definition.ateliers.filter((a) => a.id)) {
+    const tenue = def.responsableSession ?? chef;
+    const t = tirage(`atelier|${e.n}|${def.code}`);
+    for (const code of def.matieres) {
+      const art = e.articles[code];
+      if (!art) continue;
+      const [, , , , , , dotation, seuil] = ARTICLES[code];
+      await tenter('Stock', async () => {
+        await api('POST', `/ateliers/${def.id}/mouvements`, { articleId: art.id, type: 'ENTREE', quantite: dotation, date: ajouterJours(RENTREE, 2), motif: 'Dotation de rentrée' }, tenue);
+        e.stats.mouvementsStock++;
+        // Deux sorties pour les travaux pratiques ; la première matière passe sous le seuil
+        const sorties = code === def.matieres[0] ? [Math.ceil(dotation * 0.4), Math.ceil(dotation * 0.35)] : [Math.ceil(dotation * (0.1 + t() * 0.2))];
+        for (const [k, q] of sorties.entries()) {
+          await api('POST', `/ateliers/${def.id}/mouvements`, {
+            articleId: art.id, type: 'SORTIE', quantite: q, date: [jourOuvre(ajouterJours(RENTREE, 7 + 7 * k), -1), AUJOURDHUI].sort()[0],
+            motif: `TP ${e.classes.find((c) => c.filiere.code === def.filiere)?.code ?? ''}`.trim(),
+          }, tenue);
+          e.stats.mouvementsStock++;
+        }
+        await api('PUT', `/ateliers/${def.id}/stock/${art.id}/seuil`, { seuil }, tenue);
+      });
+    }
+    def.equipementIds = [];
+    for (const [code, nombre] of def.equipements) {
+      const art = e.articles[code];
+      for (let i = 0; i < nombre; i++) {
+        const eq = await tenter('Équipements', () => api('POST', `/ateliers/${def.id}/equipements`, {
+          articleId: art?.id ?? null,
+          designation: art ? null : ARTICLES[code][0],
+          marque: choisir(t, ['Bosch', 'Makita', 'Fluke', 'Legrand', 'Singer', 'HP', 'Facom', 'Altrad']),
+          dateAcquisition: ajouterJours(AUJOURDHUI, -Math.floor(200 + t() * 1500)),
+          valeur: ARTICLES[code][3],
+        }, tenue));
+        if (eq) {
+          def.equipementIds.push(eq.id);
+          e.stats.equipements++;
+        }
+      }
+    }
+    // Panne signalée par un autre enseignant technique de la filière ; réparée dans le premier atelier
+    const signaleur = def.signaleur ? e.enseignants[def.signaleur] : null;
+    if (signaleur && def.equipementIds.length) {
+      const panne = await tenter('Pannes', () => api('POST', `/equipements/${def.equipementIds.at(-1)}/pannes`,
+        { description: choisir(t, ['Ne démarre plus', 'Bruit anormal pendant le fonctionnement', 'Câble d’alimentation abîmé', 'Affichage défectueux']) }, signaleur.session));
+      if (panne && def === e.definition.ateliers[0] && def.equipementIds.length > 1) {
+        const ancienne = await tenter('Pannes', () => api('POST', `/equipements/${def.equipementIds[0]}/pannes`, { description: 'Mandrin bloqué' }, signaleur.session));
+        if (ancienne) {
+          await tenter('Pannes', () => api('POST', `/pannes/${ancienne.id}/cloture`, { statut: 'REPAREE', intervention: 'Mandrin nettoyé et graissé', cout: 5000 }, tenue));
+        }
+      }
+    }
+  }
+  ok(`${e.stats.equipements} équipements, ${e.stats.mouvementsStock} mouvements de stock`);
+
+  await besoinsEtCommandes(e, chef, intendant);
+
+  etape('Inventaires');
+  const faits = [];
+  for (const def of e.definition.ateliers.filter((a) => a.id && a.inventaire && a.responsableSession)) {
+    const s = def.responsableSession;
+    await tenter('Inventaires', async () => {
+      const inv = await api('POST', `/ateliers/${def.id}/inventaires`, {}, s);
+      const matieres = inv.matieres.map((l, i) => ({ articleId: l.articleId, quantiteConstatee: i === 0 ? Math.max(0, l.quantiteTheorique - 1) : l.quantiteTheorique }));
+      const equipements = inv.equipements.map((l) => ({ equipementId: l.equipementId, etatConstate: l.etatTheorique, observation: null }));
+      if (def.inventaire === 'clos') {
+        await api('PUT', `/inventaires/${inv.id}/lignes`, { matieres, equipements, observations: 'Inventaire fait avec les enseignants de la filière.' }, s);
+        await api('POST', `/inventaires/${inv.id}/cloture`, undefined, s);
+        faits.push(`${def.code} : ${inv.libelle} clos (un écart corrigé)`);
+      } else {
+        await api('PUT', `/inventaires/${inv.id}/lignes`, { matieres: matieres.slice(0, 1), equipements: [], observations: null }, s);
+        faits.push(`${def.code} : ${inv.libelle} en cours de saisie`);
+      }
+    });
+  }
+  ok(faits.join(' ; ') || 'aucun');
+}
+
+/**
+ * Circuit des besoins : campagne de l'année en cours complète (besoins proposés par les enseignants
+ * techniques, transmis par le responsable, arbitrés et validés par le chef des travaux, transmis à
+ * la DR, commandés, réceptionnés avec une non-conformité, répartis entre les ateliers) ; campagne
+ * des examens ouverte, avec un atelier qui attend l'arbitrage du chef des travaux.
+ */
+async function besoinsEtCommandes(e, chef, intendant) {
+  etape('Besoins, commandes, réception et répartition');
+  const tenus = e.definition.ateliers.filter((a) => a.id && a.responsableSession);
+  if (!tenus.length) {
+    ok('aucun atelier avec responsable');
+    return;
+  }
+  const annee = await tenter('Campagne de besoins', () =>
+    api('POST', '/campagnes-besoins', { type: 'ANNEE_EN_COURS', dateLimite: [ajouterJours(RENTREE, 20), AUJOURDHUI].sort()[1],
+      observations: 'Besoins en matière d’œuvre et en équipements pour les TP de l’année. Utilisez les articles du catalogue.' }, chef));
+  if (!annee) return;
+
+  // Expression des besoins dans chaque atelier, puis transmission par le responsable
+  const proposer = async (campagneId, def, coefficient) => {
+    const besoin = (await api('GET', `/ateliers/${def.id}/besoins`, undefined, def.responsableSession)).find((b) => b.campagneId === campagneId);
+    const signaleur = def.signaleur ? e.enseignants[def.signaleur]?.session : null;
+    const lignes = [
+      ...def.matieres.slice(0, 3).map((code, i) => ({ code, quantite: Math.ceil(ARTICLES[code][6] * coefficient * (1 - i * 0.2)),
+        justification: `TP ${e.classes.find((c) => c.filiere.code === def.filiere)?.code ?? def.filiere} — ${i === 0 ? 'consommation de l’année' : 'renouvellement'}`,
+        session: i === 0 && signaleur ? signaleur : def.responsableSession })),
+      ...def.equipements.slice(0, 1).map(([code]) => ({ code, quantite: 2, justification: 'Postes supplémentaires pour les effectifs', session: def.responsableSession })),
+    ];
+    for (const l of lignes) {
+      const art = e.articles[l.code];
+      if (!art) continue;
+      await api('PUT', `/besoins-ateliers/${besoin.id}/lignes/${art.id}`, { quantite: l.quantite, justification: l.justification }, l.session);
+      e.stats.lignesBesoin++;
+    }
+    await api('POST', `/besoins-ateliers/${besoin.id}/transmission`, undefined, def.responsableSession);
+    return besoin.id;
+  };
+  const valides = [];
+  for (const def of tenus) {
+    const id = await tenter('Besoins des ateliers', () => proposer(annee.id, def, 1));
+    if (!id) continue;
+    // Arbitrage : la première matière est réduite d'un cinquième (budget), le reste est retenu tel quel
+    await tenter('Arbitrage', async () => {
+      const b = await api('GET', `/besoins-ateliers/${id}`, undefined, chef);
+      const premiere = b.lignes.find((l) => l.nature === 'MATIERE_OEUVRE');
+      if (premiere) {
+        await api('PUT', `/besoins-ateliers/${id}/arbitrage`, { lignes: [{ articleId: premiere.articleId, quantiteRetenue: Math.ceil(premiere.quantiteDemandee * 0.8) }] }, chef);
+      }
+      await api('POST', `/besoins-ateliers/${id}/validation`, undefined, chef);
+      valides.push(def.code);
+    });
+  }
+  const transmise = await tenter('Transmission à la DR', () => api('POST', `/campagnes-besoins/${annee.id}/transmission`, undefined, chef));
+  if (!transmise) return;
+
+  // Commande passée par la direction régionale, enregistrée par l'intendant
+  const commande = await tenter('Commande', () => api('POST', `/campagnes-besoins/${annee.id}/commandes`, {
+    reference: `DR-${e.definition.code.toUpperCase()}-${AUJOURDHUI.slice(0, 4)}-01`,
+    fournisseur: 'Quincaillerie générale du Faso',
+    passeePar: 'DIRECTION_REGIONALE',
+    dateCommande: [ajouterJours(RENTREE, 25), AUJOURDHUI].sort()[0],
+    observations: 'Bon de commande de la direction régionale (budget de l’État).',
+    lignes: transmise.totaux.map((t) => ({ articleId: t.articleId, quantite: t.quantite, prixUnitaire: t.prixUnitaire })),
+  }, intendant));
+  if (!commande) return;
+  e.stats.commandes++;
+
+  // Réception par le chef des travaux : une partie du premier article n'est pas conforme aux normes
+  const livraison = await tenter('Réception', () => api('POST', `/commandes/${commande.id}/livraisons`, {
+    dateReception: AUJOURDHUI,
+    bonLivraison: `BL-${e.n}${String(commande.lignes.length).padStart(3, '0')}`,
+    observations: 'Livraison vérifiée avec les chefs d’atelier.',
+    lignes: commande.lignes.map((l, i) => i === 0 && l.quantite >= 2
+      ? { articleId: l.articleId, quantiteRecue: l.quantite, quantiteConforme: l.quantite - 1, motifNonConformite: 'Un lot ne respecte pas la norme du catalogue : retourné au fournisseur' }
+      : { articleId: l.articleId, quantiteRecue: l.quantite, quantiteConforme: null, motifNonConformite: null }),
+  }, chef));
+  if (!livraison) return;
+  e.stats.livraisons++;
+
+  // Répartition entre les ateliers selon les parts proposées (au prorata des besoins retenus)
+  await tenter('Répartition', async () => {
+    const lignes = livraison.lignes.flatMap((l) => l.repartition.filter((p) => p.proposee > 0).map((p) => ({ articleId: l.articleId, atelierId: p.atelierId, quantite: p.proposee })));
+    await api('PUT', `/livraisons/${livraison.id}/repartition`, { lignes }, chef);
+    await api('POST', `/livraisons/${livraison.id}/repartition/validation`, undefined, chef);
+  });
+
+  // Campagne des examens : le premier atelier a transmis, le chef des travaux doit arbitrer
+  const examens = await tenter('Campagne des examens', () =>
+    api('POST', '/campagnes-besoins', { type: 'EXAMENS', dateLimite: ajouterJours(AUJOURDHUI, 30),
+      observations: 'Matière d’œuvre des épreuves pratiques du BAC et du CAP.' }, chef));
+  if (examens) await tenter('Besoins des examens', () => proposer(examens.id, tenus[0], 0.5));
+  ok(`campagne ${annee.libelle} : ${valides.length} atelier(s) validé(s) (${valides.join(', ')}), transmise à la DR, commande ${commande.reference} reçue (un lot non conforme) et répartie ; campagne des examens en attente d’arbitrage`);
+}
+
 async function appelsEtCahier(e) {
   etape('Appels de chaque séance');
   const parProf = new Map();
@@ -1549,6 +1824,7 @@ function bilanFinal(debutChrono) {
     console.log(`  ${e.nom}`);
     console.log(`    ${e.eleves.length} élèves · ${Object.keys(e.enseignants).length} enseignants · ${e.stats.appels} appels · ${e.stats.absences} absences`);
     console.log(`    progressions : ${f.VISEE} visées, ${f.A_REVOIR} à revoir, ${f.SOUMISE} à viser, ${f.BROUILLON} brouillon, ${f.aucune} non commencée(s) · cahier : ${e.stats.seancesCahier} séances`);
+    if (e.stats.ateliers) console.log(`    ${e.stats.ateliers} ateliers · ${e.stats.equipements} équipements · ${e.stats.mouvementsStock} mouvements de matière d’œuvre · ${e.stats.lignesBesoin} lignes de besoins · ${e.stats.commandes} commande(s) reçue(s) et répartie(s)`);
     console.log(`    ${e.profil === 'PROFESSIONNEL' ? `${e.stats.competences} niveaux de compétences` : `${e.stats.notes} notes`} · ${e.stats.paiements} paiements au guichet + ${e.stats.mm} Mobile Money · ${fcfa(e.stats.encaisse)} encaissés`);
   }
 
