@@ -1,4 +1,6 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
+
+import { SessionService } from '../../core/session.service';
 import { FormsModule } from '@angular/forms';
 
 import { dateCourte, dateLocale, dateLongue, lendemain } from '../../core/outils';
@@ -48,10 +50,22 @@ const ROLES_PERSONNEL: Role[] = ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SECR
     .actions-cellule {
       white-space: nowrap;
     }
+    td.nombre button + button {
+      margin-left: 0.35rem;
+    }
+    .confirmation-mdp td {
+      background: var(--surface);
+      white-space: normal;
+      text-align: left;
+      p {
+        margin: 0 0 0.5rem;
+      }
+    }
   `,
 })
 export class PersonnelPage implements OnInit {
   private readonly api = inject(AdminApi);
+  private readonly session = inject(SessionService);
 
   protected readonly libelleRole = LIBELLE_ROLE;
   protected readonly libelleStatut = LIBELLE_STATUT_ENGAGEMENT;
@@ -65,6 +79,20 @@ export class PersonnelPage implements OnInit {
   protected readonly membres = signal<MembreVue[]>([]);
   protected readonly secret = signal<{ titre: string; telephone: string; motDePasse: string } | null>(null);
   protected readonly message = signal<string | null>(null);
+  /** Compte de l'administrateur connecté : il change son mot de passe lui-même. */
+  protected readonly moi = computed(() => this.session.profil()?.utilisateurId ?? null);
+  /** Réinitialisation en attente de confirmation (ligne concernée, compte, nom). */
+  protected readonly aReinitialiser = signal<{ cle: string; utilisateurId: string; nom: string; telephone: string } | null>(null);
+  /** Compte de chaque enseignant, retrouvé par son téléphone parmi les membres (rôle Enseignant). */
+  private readonly comptesEnseignants = computed(() => {
+    const m = new Map<string, string>();
+    for (const x of this.membres()) {
+      if (x.role === 'ENSEIGNANT' && x.actif) {
+        m.set(x.telephone, x.utilisateurId);
+      }
+    }
+    return m;
+  });
 
   /** Recherche commune aux deux tableaux : nom, prénoms, téléphone, spécialité ou rôle. */
   protected readonly filtre = signal('');
@@ -268,6 +296,33 @@ export class PersonnelPage implements OnInit {
     }
     this.formMembre.set(false);
     await this.recharger();
+  }
+
+  protected compteDe(telephone: string | null): string | null {
+    return telephone ? (this.comptesEnseignants().get(telephone) ?? null) : null;
+  }
+
+  protected demanderReinitialisation(cle: string, utilisateurId: string, nom: string, telephone: string): void {
+    this.message.set(null);
+    this.aReinitialiser.set({ cle, utilisateurId, nom, telephone });
+  }
+
+  /** Mot de passe oublié : nouveau mot de passe provisoire, affiché une seule fois. */
+  protected async reinitialiser(): Promise<void> {
+    const cible = this.aReinitialiser();
+    if (!cible) {
+      return;
+    }
+    const r = await this.action.executer(() => this.api.reinitialiserCompte(cible.utilisateurId));
+    this.aReinitialiser.set(null);
+    if (r) {
+      this.secret.set({
+        titre: `Mot de passe de ${cible.nom} réinitialisé.` + (r.autresEtablissements ? ` Il vaut aussi dans ${r.autresEtablissements} autre(s) établissement(s).` : ''),
+        telephone: r.telephone,
+        motDePasse: r.motDePasseTemporaire,
+      });
+      window.scrollTo?.({ top: 0, behavior: 'smooth' });
+    }
   }
 
   protected async desactiver(m: MembreVue): Promise<void> {

@@ -12,10 +12,17 @@ import { SessionService } from '../core/session.service';
     <div class="page">
       <h1>Changer mon mot de passe</h1>
       @if (session.profil()?.doitChangerMotDePasse) {
-        <div class="alerte attention">
-          Votre mot de passe est provisoire (nouveau compte, ou mot de passe réinitialisé par l'administration).
-          Saisissez-le comme mot de passe actuel, puis choisissez-en un nouveau pour continuer.
-        </div>
+        @if (session.profil()?.motifChangementMotDePasse === 'RENOUVELLEMENT') {
+          <div class="alerte attention">
+            Une nouvelle période (trimestre ou semestre) a commencé : pour la sécurité des comptes, le personnel choisit
+            un nouveau mot de passe à chaque période. Saisissez votre mot de passe actuel, puis un nouveau, différent.
+          </div>
+        } @else {
+          <div class="alerte attention">
+            Votre mot de passe est provisoire (nouveau compte, ou mot de passe réinitialisé par l'administration).
+            Saisissez-le comme mot de passe actuel, puis choisissez-en un nouveau pour continuer.
+          </div>
+        }
       }
       <form class="carte" (ngSubmit)="valider()">
         @if (erreur()) {

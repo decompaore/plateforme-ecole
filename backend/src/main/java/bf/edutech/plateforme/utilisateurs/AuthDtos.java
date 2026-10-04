@@ -41,12 +41,14 @@ public final class AuthDtos {
             EtablissementAccessible etablissementActif,
             List<EtablissementAccessible> etablissements,
             boolean superAdmin,
-            boolean doitChangerMotDePasse) {
+            boolean doitChangerMotDePasse,
+            /** PROVISOIRE ou RENOUVELLEMENT (nouvelle période) ; null si aucun changement n'est demandé. */
+            String motifChangementMotDePasse) {
 
         static ReponseConnexion depuis(AuthService.ResultatConnexion r) {
             return new ReponseConnexion(r.jetonAcces(), r.jetonSelection(), r.expireDansSecondes(),
                     r.jetonSelection() != null, r.etablissementActif(), r.etablissements(), r.superAdmin(),
-                    r.doitChangerMotDePasse());
+                    r.doitChangerMotDePasse(), r.motifChangementMotDePasse());
         }
     }
 
@@ -59,6 +61,7 @@ public final class AuthDtos {
             UUID etablissementId,
             String etablissementCode,
             List<String> roles,
-            boolean doitChangerMotDePasse) {
+            boolean doitChangerMotDePasse,
+            String motifChangementMotDePasse) {
     }
 }

@@ -21,6 +21,24 @@ Toutes les réponses d'erreur suivent le format *Problem Details* (RFC 9457) : `
 
 Tant que le mot de passe temporaire n'est pas changé, toute autre requête reçoit `403` avec le code `MOT_DE_PASSE_A_CHANGER`.
 
+La connexion, `/auth/rafraichir` et `GET /moi` indiquent `motifChangementMotDePasse` : `PROVISOIRE` (nouveau compte ou
+réinitialisation par l'administration) ou `RENOUVELLEMENT` (nouvelle période, ci-dessous) ; absent si aucun
+changement n'est demandé.
+
+### Renouvellement périodique du mot de passe du personnel (v0.28)
+
+- Concerne tout compte ayant, dans l'établissement de la session, au moins un rôle du personnel (tous sauf `PARENT` et
+  `ELEVE`) ; jamais le super administrateur.
+- À l'ouverture ou au renouvellement d'une session, si le dernier mot de passe choisi par la personne
+  (`mot_de_passe_change_le`) date d'avant le **début de la période en cours** de l'année active de l'établissement,
+  un nouveau mot de passe est exigé (`doitChangerMotDePasse=true`, motif `RENOUVELLEMENT`, entrée
+  `MOT_DE_PASSE_A_RENOUVELER` au journal d'audit). Le nouveau doit être différent de l'actuel.
+- Début de la période en cours : fonction SQL `debut_periode_en_cours(tenant, jour)` (migration V20), la plus récente
+  des périodes commencées de l'année active, tous profils confondus (trimestres ou semestres ; dans un établissement
+  mixte, la plus récente compte). Sans année active ni période commencée : pas de renouvellement.
+- Les mots de passe provisoires ne comptent pas : seule la date d'un mot de passe choisi par la personne est retenue.
+  Au déploiement de la v0.28, les mots de passe définitifs existants comptent comme changés le jour de la migration.
+
 ## Établissement actif
 
 | Méthode et chemin | Accès | Description |
@@ -29,7 +47,7 @@ Tant que le mot de passe temporaire n'est pas changé, toute autre requête reç
 | `POST /api/v1/membres` | ADMIN_ECOLE | Ajoute un membre (téléphone, nom, prénoms, rôle). Réutilise le compte si le téléphone existe déjà |
 | `POST /api/v1/membres/{id}/desactivation` | ADMIN_ECOLE | Désactive une appartenance (le dernier administrateur ne peut pas l'être) |
 | `GET /api/v1/audit?page=0&taille=50` | ADMIN_ECOLE | Journal d'audit de l'établissement |
-| `GET /api/v1/comptes` | ADMIN_ECOLE | (v0.27) Comptes de l'établissement, un par personne : rôles actifs et retirés, dernière connexion, `verrouilleJusqua` (compte bloqué après 5 essais manqués), `motDePasseProvisoire`, `moi` |
+| `GET /api/v1/comptes` | ADMIN_ECOLE | (v0.27) Comptes de l'établissement, un par personne : rôles actifs et retirés, dernière connexion, `verrouilleJusqua` (compte bloqué après 5 essais manqués), `motDePasseProvisoire` (nouveau mot de passe attendu), `moi` ; (v0.28) `motDePasseChangeLe`, `motifChangement` |
 | `POST /api/v1/comptes/{utilisateurId}/reinitialisation` | ADMIN_ECOLE | (v0.27) Mot de passe oublié : nouveau mot de passe provisoire renvoyé **une seule fois** (`motDePasseTemporaire`), `autresEtablissements` |
 | `POST /api/v1/comptes/{utilisateurId}/deverrouillage` | ADMIN_ECOLE | (v0.27) Lève le blocage sans changer le mot de passe |
 

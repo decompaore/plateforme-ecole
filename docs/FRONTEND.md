@@ -1,4 +1,4 @@
-# Application web (v0.27)
+# Application web (v0.28)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -248,7 +248,14 @@ Comptes créés (administrateur d'un établissement, enseignant, personnel) : le
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
 
-## Comptes et mots de passe (v0.27)
+## Comptes et mots de passe (v0.27, v0.28)
+
+- (v0.28) **Personnel** : bouton « Réinitialiser le mot de passe » sur chaque ligne (enseignants actifs et
+  administration, sauf son propre compte), avec confirmation dans la ligne puis mot de passe provisoire affiché une
+  fois. Tuile « Comptes et mots de passe » sur l'accueil de l'administrateur.
+- (v0.28) **Renouvellement à chaque période** : à la première connexion d'un trimestre ou d'un semestre, la page
+  « Mot de passe » explique qu'une nouvelle période a commencé et demande un nouveau mot de passe. La page Comptes
+  affiche la date du dernier mot de passe choisi et « Mot de passe à renouveler (nouvelle période) ».
 
 - **Comptes** (`/admin/comptes`, administrateur de l'établissement) : un compte par personne (personnel, enseignants,
   parents), avec ses rôles, sa dernière connexion (« Jamais connecté »), le blocage après trop d'essais (« Verrouillé
@@ -484,7 +491,7 @@ frontend/src/app/
 | `recherche.spec.ts` | Accents, majuscules et ordre des mots, téléphone avec espaces ; feuille de notes filtrée qui garde le n° d'ordre et place le curseur sur la note ; message clair quand les trimestres manquent |
 | `ateliers.spec.ts` | Contrôles (quantités à deux décimales, code d'atelier, unité d'un article), alertes en phrases ; liste du chef des travaux (chiffres, sans responsable, matières sous le seuil, paramètres) ; désignation du responsable parmi les candidats ; panne signalée par un enseignant de l'atelier ; inventaire saisi (écart affiché, « Tous conformes ») puis clos |
 | `besoins.spec.ts` | Contrôles (ligne de besoin, réception, répartition, nom du fichier exporté) ; boutons d'export (Excel téléchargé avec le nom du serveur, erreur du PDF affichée) ; article proposé puis transmis par le responsable ; arbitrage et validation par le chef des travaux ; commande préremplie avec le reste à commander ; répartition d'une livraison (excédent signalé, validation) |
-| `comptes.spec.ts` | Heure de fin du blocage ; comptes de l'administrateur (chiffres, jamais connecté, verrouillé, son propre compte sans réinitialisation), déverrouillage, réinitialisation confirmée puis mot de passe provisoire affiché une fois avec l'avertissement « autre établissement », comptes retirés sans action ; réinitialisation d'un administrateur par le super administrateur |
+| `comptes.spec.ts` | (v0.28) réinitialisation depuis une ligne de Personnel (jamais son propre compte), message de renouvellement de période sur la page « Mot de passe » ; heure de fin du blocage ; comptes de l'administrateur (chiffres, jamais connecté, verrouillé, son propre compte sans réinitialisation), déverrouillage, réinitialisation confirmée puis mot de passe provisoire affiché une fois avec l'avertissement « autre établissement », comptes retirés sans action ; réinitialisation d'un administrateur par le super administrateur |
 | `fin-engagement.component.spec.ts` | Bandeau de mutation : envois en attente comptés et envoyés tout de suite, rien à 60 jours, affichage sans réseau le jour même, annonce effacée quand la fin est annulée, calcul des jours |
 
 La CI (`.github/workflows/ci.yml`, job *Frontend*) exécute les tests et la construction de production à chaque pull
