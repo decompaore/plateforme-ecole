@@ -1,4 +1,4 @@
-# Application web (v0.24)
+# Application web (v0.25)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -248,6 +248,27 @@ Comptes créés (administrateur d'un établissement, enseignant, personnel) : le
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
 
+## Ateliers (v0.25)
+
+Espace `/ateliers` (en ligne), pour le chef des travaux, l'administration, le censeur (s'il n'y a pas de chef des
+travaux), l'intendant (lecture et catalogue) et les enseignants techniques (leurs ateliers) :
+
+- **Ateliers** : chaque atelier avec ses filières, son responsable et la fin de son mandat, et ce qui demande
+  attention (sans responsable, mandat à renouveler, équipements en panne, matières sous le seuil, inventaire à
+  faire). La direction crée les ateliers et règle la durée des mandats et la fréquence des inventaires.
+- **Fiche d'un atelier**, en quatre rubriques :
+  - *Responsable* : désignation parmi les enseignants techniques de la filière, fin du mandat, anciens responsables ;
+  - *Équipements* : ajout (numéro d'inventaire attribué automatiquement si vide), panne signalée par tout enseignant
+    de l'atelier, clôture (réparé ou irréparable), réforme ;
+  - *Matière d'œuvre* : stock, entrées et sorties, seuils d'alerte, valeur au prix du catalogue, derniers mouvements ;
+  - *Inventaires* : ouverture, liste des inventaires et de leurs écarts.
+- **Inventaire** : quantité constatée de chaque matière (bouton « Reprendre les quantités théoriques »), état
+  constaté de chaque équipement, enregistrement en plusieurs fois, clôture qui corrige le stock.
+- **Catalogue des prix** : matière d'œuvre et équipements, spécifications, normes, prix de référence daté, photo.
+
+En ligne. Règles et API : [API_ATELIERS.md](API_ATELIERS.md). Le test grandeur nature crée des ateliers au lycée
+technique et au centre de formation (responsables, stock, équipements, pannes, un inventaire clos, un en cours).
+
 ## Cahier de textes sans réseau (v0.24)
 
 Comme l'appel et les notes, la saisie se fait d'abord sur le téléphone, puis part dès que le réseau revient.
@@ -404,7 +425,7 @@ frontend/src/app/
 
 ## Tests
 
-81 tests (Vitest) :
+86 tests (Vitest) :
 
 | Fichier | Ce qui est vérifié |
 |---|---|
@@ -422,6 +443,7 @@ frontend/src/app/
 | `scolarite.spec.ts` | Contrôles avant l'envoi (montant, reste, référence, date, tranches, répartition), guichet d'une semi-boursière : retard proposé, référence Orange Money exigée, encaissement avec clé d'idempotence puis reçu, annulation avec motif ; secrétariat en lecture seule ouvert depuis une inscription ; journal de caisse (totaux par moyen, élève et classe, plus récent d'abord) ; retards d'une classe et relance SMS ; nouveau frais en trois tranches |
 | `vie-scolaire.spec.ts` | Absences du jour (discipline de chaque créneau, appel général, bilan, filtre « à justifier », justification puis liste à jour), fiche élève (parent prioritaire en premier, heures par discipline, avertissement avec SMS, blâme absent pour un surveillant, convocation préremplie depuis l'incident), clôture d'une convocation passée, synthèse d'une classe par discipline et par élève, sur l'année puis sur un trimestre |
 | `recherche.spec.ts` | Accents, majuscules et ordre des mots, téléphone avec espaces ; feuille de notes filtrée qui garde le n° d'ordre et place le curseur sur la note ; message clair quand les trimestres manquent |
+| `ateliers.spec.ts` | Contrôles (quantités à deux décimales, code d'atelier, unité d'un article), alertes en phrases ; liste du chef des travaux (chiffres, sans responsable, matières sous le seuil, paramètres) ; désignation du responsable parmi les candidats ; panne signalée par un enseignant de l'atelier ; inventaire saisi (écart affiché, « Tous conformes ») puis clos |
 | `fin-engagement.component.spec.ts` | Bandeau de mutation : envois en attente comptés et envoyés tout de suite, rien à 60 jours, affichage sans réseau le jour même, annonce effacée quand la fin est annulée, calcul des jours |
 
 La CI (`.github/workflows/ci.yml`, job *Frontend*) exécute les tests et la construction de production à chaque pull
@@ -449,6 +471,8 @@ Le parcours complet a aussi été vérifié dans Chromium, à la taille d'un té
 - (v0.17) recherche d'un établissement par le super administrateur, à la taille d'un téléphone ;
 - (v0.18) vie scolaire d'un surveillant : absences du jour sur téléphone, justification, fiche de l'élève sur
   ordinateur, formulaire d'incident, agenda des convocations ;
+- (v0.25) ateliers : liste du chef des travaux avec les alertes, désignation d'un responsable, équipements et
+  pannes, stock et sortie de matière d'œuvre, inventaire saisi sur téléphone, catalogue des prix ;
 - (v0.18.1) disciplines : liste du jour sur téléphone, heures par discipline dans la fiche, synthèse d'une classe ;
 - (v0.19) espace parent sur un téléphone de 360 px : deux enfants, absences, bulletin, scolarité, paiement Orange
   Money simulé jusqu'au reçu ;
