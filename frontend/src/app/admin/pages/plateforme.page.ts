@@ -6,7 +6,7 @@ import { filtrer } from '../../core/recherche';
 import { RechercheComponent } from '../../partage/recherche.component';
 import { Action } from '../action';
 import { AdminApi } from '../admin-api.service';
-import { EtablissementVue, StatutTenant } from '../modeles-admin';
+import { CompteVue, EtablissementVue, ResultatReinitialisation, StatutTenant } from '../modeles-admin';
 import { MotDePasseTemporaireComponent } from '../mot-de-passe-temporaire.component';
 
 const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU: 'Suspendu', RESILIE: 'Résilié' };
@@ -25,6 +25,14 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
           [telephone]="c.telephone"
           [motDePasse]="c.motDePasse"
           (fermer)="cree.set(null)"
+        />
+      }
+      @if (reinitialise(); as r) {
+        <app-mot-de-passe-temporaire
+          [titre]="'Mot de passe de l’administrateur ' + r.nom + ' ' + r.prenoms + ' réinitialisé.'"
+          [telephone]="r.telephone"
+          [motDePasse]="r.motDePasseTemporaire"
+          (fermer)="reinitialise.set(null)"
         />
       }
       @if (liste.erreur()) {
@@ -107,7 +115,8 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
                       {{ libelleStatut[e.statut] }}
                     </span>
                   </td>
-                  <td class="nombre">
+                  <td class="nombre actions-etab">
+                    <button type="button" class="bouton secondaire petit" [attr.aria-expanded]="ouvert() === e.id" (click)="basculerAdmins(e)">Administrateurs</button>
                     @if (e.statut === 'ACTIF') {
                       <button type="button" class="bouton danger petit" (click)="statut(e, 'SUSPENDU')">Suspendre</button>
                     } @else if (e.statut === 'SUSPENDU') {
@@ -115,6 +124,42 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
                     }
                   </td>
                 </tr>
+                @if (ouvert() === e.id) {
+                  <tr class="admins">
+                    <td colspan="5">
+                      @if (admins.erreur()) { <div class="alerte erreur" role="alert">{{ admins.erreur() }}</div> }
+                      @if (administrateurs() === null) {
+                        <span class="doux">Chargement…</span>
+                      } @else {
+                        <p class="doux">
+                          Si l'administrateur de l'établissement a oublié son mot de passe, réinitialisez-le après avoir vérifié
+                          son identité : un mot de passe provisoire s'affiche une seule fois, à lui transmettre.
+                        </p>
+                        <ul class="liste">
+                          @for (a of administrateurs(); track a.utilisateurId) {
+                            <li>
+                              <span>
+                                <strong>{{ a.nom }} {{ a.prenoms }}</strong> · {{ a.telephone }}
+                                @if (a.verrouilleJusqua) { <span class="pastille absent">verrouillé</span> }
+                                @if (a.motDePasseProvisoire) { <span class="pastille">mot de passe provisoire</span> }
+                              </span>
+                              @if (confirmation() === a.utilisateurId) {
+                                <span class="actions-ligne">
+                                  <button type="button" class="bouton danger petit" [disabled]="admins.enCours()" (click)="reinitialiser(e, a)">Confirmer la réinitialisation</button>
+                                  <button type="button" class="bouton discret petit" (click)="confirmation.set(null)">Annuler</button>
+                                </span>
+                              } @else {
+                                <button type="button" class="bouton petit" (click)="confirmation.set(a.utilisateurId)">Réinitialiser le mot de passe</button>
+                              }
+                            </li>
+                          } @empty {
+                            <li class="doux">Aucun administrateur actif.</li>
+                          }
+                        </ul>
+                      }
+                    </td>
+                  </tr>
+                }
               } @empty {
                 <tr><td colspan="5" class="doux">{{ etablissements().length ? 'Aucun établissement ne correspond.' : 'Aucun établissement.' }}</td></tr>
               }
@@ -143,6 +188,22 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
       padding-bottom: 1rem;
       margin-bottom: 1rem;
     }
+    .actions-etab {
+      white-space: nowrap;
+      button + button {
+        margin-left: 0.35rem;
+      }
+    }
+    .admins td {
+      background: var(--surface);
+    }
+    .admins li {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+    }
     h3 {
       font-size: 1rem;
       margin: 0.5rem 0 0.75rem;
@@ -166,6 +227,11 @@ export class PlateformePage implements OnInit {
   protected readonly formulaire = signal(false);
   protected readonly cree = signal<{ nom: string; telephone: string; motDePasse: string } | null>(null);
   protected readonly liste = new Action();
+  protected readonly admins = new Action();
+  protected readonly ouvert = signal<string | null>(null);
+  protected readonly administrateurs = signal<CompteVue[] | null>(null);
+  protected readonly confirmation = signal<string | null>(null);
+  protected readonly reinitialise = signal<ResultatReinitialisation | null>(null);
   protected readonly creation = new Action();
 
   protected readonly code = signal('');
@@ -176,6 +242,29 @@ export class PlateformePage implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.recharger();
+  }
+
+  protected async basculerAdmins(e: EtablissementVue): Promise<void> {
+    this.confirmation.set(null);
+    if (this.ouvert() === e.id) {
+      this.ouvert.set(null);
+      return;
+    }
+    this.ouvert.set(e.id);
+    this.administrateurs.set(null);
+    const l = await this.admins.executer(() => this.api.administrateursEtablissement(e.id));
+    if (this.ouvert() === e.id) {
+      this.administrateurs.set(l ?? []);
+    }
+  }
+
+  protected async reinitialiser(e: EtablissementVue, a: CompteVue): Promise<void> {
+    const r = await this.admins.executer(() => this.api.reinitialiserAdministrateur(e.id, a.utilisateurId));
+    this.confirmation.set(null);
+    if (r) {
+      this.reinitialise.set(r);
+      this.administrateurs.update((l) => (l ?? []).map((x) => (x.utilisateurId === a.utilisateurId ? { ...x, verrouilleJusqua: null, motDePasseProvisoire: true } : x)));
+    }
   }
 
   private async recharger(): Promise<void> {

@@ -29,6 +29,35 @@ export interface MembreVue {
   actif: boolean;
 }
 
+/** Compte d'une personne ayant (ou ayant eu) un rôle dans l'établissement (v0.27). */
+export interface CompteVue {
+  utilisateurId: string;
+  nom: string;
+  prenoms: string;
+  telephone: string;
+  roles: Role[];
+  rolesRetires: Role[];
+  actif: boolean;
+  derniereConnexion: string | null;
+  /** Fin du verrouillage après trop d'essais manqués ; null si le compte n'est pas verrouillé. */
+  verrouilleJusqua: string | null;
+  /** Mot de passe provisoire pas encore changé. */
+  motDePasseProvisoire: boolean;
+  /** Compte de l'administrateur connecté. */
+  moi: boolean;
+}
+
+/** Résultat d'une réinitialisation : le mot de passe provisoire n'est renvoyé qu'une fois. */
+export interface ResultatReinitialisation {
+  utilisateurId: string;
+  nom: string;
+  prenoms: string;
+  telephone: string;
+  motDePasseTemporaire: string;
+  /** Autres établissements où la personne a un rôle : la réinitialisation vaut aussi pour eux. */
+  autresEtablissements: number;
+}
+
 export interface ResultatCreationEtablissement {
   etablissement: EtablissementVue;
   administrateur: MembreVue;

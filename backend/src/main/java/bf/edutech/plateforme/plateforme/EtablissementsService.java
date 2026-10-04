@@ -16,6 +16,9 @@ import bf.edutech.plateforme.socle.audit.AuditService;
 import bf.edutech.plateforme.socle.erreurs.RegleMetierException;
 import bf.edutech.plateforme.socle.erreurs.RessourceIntrouvableException;
 import bf.edutech.plateforme.socle.tenant.TenantContext;
+import bf.edutech.plateforme.utilisateurs.ComptesService;
+import bf.edutech.plateforme.utilisateurs.ComptesService.CompteVue;
+import bf.edutech.plateforme.utilisateurs.ComptesService.ResultatReinitialisation;
 import bf.edutech.plateforme.utilisateurs.MembreVue;
 import bf.edutech.plateforme.utilisateurs.MembresService;
 import bf.edutech.plateforme.utilisateurs.Role;
@@ -39,13 +42,15 @@ public class EtablissementsService {
 
     private final TenantRepository tenants;
     private final MembresService membres;
+    private final ComptesService comptes;
     private final AuditService audit;
     private final TransactionTemplate transaction;
 
-    EtablissementsService(TenantRepository tenants, MembresService membres, AuditService audit,
+    EtablissementsService(TenantRepository tenants, MembresService membres, ComptesService comptes, AuditService audit,
             PlatformTransactionManager gestionnaireTransactions) {
         this.tenants = tenants;
         this.membres = membres;
+        this.comptes = comptes;
         this.audit = audit;
         this.transaction = new TransactionTemplate(gestionnaireTransactions);
     }
@@ -80,6 +85,24 @@ public class EtablissementsService {
             return new ResultatCreation(EtablissementVue.depuis(tenant), admin.membre(),
                     admin.motDePasseTemporaire());
         }));
+    }
+
+    /** Administrateurs d'un établissement (pour les dépanner en cas d'oubli du mot de passe). */
+    public List<CompteVue> administrateurs(UUID id) {
+        exister(id);
+        return TenantContext.executerPour(id, comptes::administrateurs);
+    }
+
+    /** Réinitialise le mot de passe d'un administrateur d'établissement ; renvoie le mot de passe provisoire. */
+    public ResultatReinitialisation reinitialiserAdministrateur(UUID id, UUID utilisateurId) {
+        exister(id);
+        return TenantContext.executerPour(id, () -> comptes.reinitialiserAdministrateur(utilisateurId));
+    }
+
+    private void exister(UUID id) {
+        if (!tenants.existsById(id)) {
+            throw new RessourceIntrouvableException("Établissement introuvable");
+        }
     }
 
     @Transactional

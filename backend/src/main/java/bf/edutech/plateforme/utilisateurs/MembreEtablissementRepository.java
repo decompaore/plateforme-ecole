@@ -17,6 +17,8 @@ public interface MembreEtablissementRepository extends JpaRepository<MembreEtabl
 
     long countByRoleAndActifTrue(Role role);
 
+    List<MembreEtablissement> findByUtilisateurIdAndActifTrue(UUID utilisateurId);
+
     @Query("""
             select new bf.edutech.plateforme.utilisateurs.MembreVue(
                 m.id, u.id, u.nom, u.prenoms, u.telephone, m.role, m.actif)

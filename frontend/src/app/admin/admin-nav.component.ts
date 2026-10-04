@@ -19,6 +19,7 @@ export const ONGLETS: Onglet[] = [
   { lien: '/admin/evaluations', titre: 'Évaluations', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT'] },
   { lien: '/admin/statistiques', titre: 'Statistiques', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'INTENDANT'] },
   { lien: '/admin/personnel', titre: 'Personnel', roles: ['ADMIN_ECOLE'] },
+  { lien: '/admin/comptes', titre: 'Comptes', roles: ['ADMIN_ECOLE'] },
   { lien: '/admin/referentiel', titre: 'Filières et matières', roles: ['ADMIN_ECOLE', 'CENSEUR'] },
   { lien: '/admin/annee', titre: 'Année scolaire', roles: ['ADMIN_ECOLE', 'CENSEUR'] },
 ];

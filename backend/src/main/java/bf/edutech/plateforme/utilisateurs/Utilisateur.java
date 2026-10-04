@@ -85,6 +85,26 @@ public class Utilisateur extends EntiteUuid {
         derniereConnexion = maintenant;
     }
 
+    /**
+     * Réinitialisation par l'administration : mot de passe provisoire à changer à la prochaine
+     * connexion ; le compte est déverrouillé.
+     */
+    public void reinitialiserMotDePasse(String nouveauHache) {
+        this.motDePasseHache = nouveauHache;
+        this.doitChangerMotDePasse = true;
+        deverrouiller();
+    }
+
+    /** Lève le verrouillage dû aux échecs de connexion. */
+    public void deverrouiller() {
+        this.echecsConnexion = 0;
+        this.verrouilleJusqua = null;
+    }
+
+    public Instant getVerrouilleJusqua() {
+        return verrouilleJusqua;
+    }
+
     public void changerMotDePasse(String nouveauHache, boolean temporaire) {
         this.motDePasseHache = nouveauHache;
         this.doitChangerMotDePasse = temporaire;

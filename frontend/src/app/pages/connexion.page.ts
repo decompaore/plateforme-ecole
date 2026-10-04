@@ -52,10 +52,41 @@ import { SessionService } from '../core/session.service';
           {{ envoi() ? 'Connexion…' : 'Se connecter' }}
         </button>
       </form>
-      <p class="doux centre">Mot de passe oublié ? Demandez-en un nouveau à l'administration de l'établissement.</p>
+      <details class="oubli">
+        <summary>Mot de passe oublié ?</summary>
+        <p>
+          Adressez-vous à l'administration de votre établissement (en personne ou par téléphone). Après avoir vérifié
+          votre identité, elle vous remet un <strong>mot de passe provisoire</strong>.
+        </p>
+        <p>
+          Connectez-vous avec votre numéro et ce mot de passe provisoire : l'application vous demandera aussitôt d'en
+          choisir un nouveau. Vous recevez aussi un SMS qui confirme la réinitialisation.
+        </p>
+        <p class="doux">
+          Après plusieurs essais manqués, le compte est bloqué quelques minutes ; l'administration peut le débloquer.
+        </p>
+      </details>
     </div>
   `,
   styles: `
+    .oubli {
+      margin: 1rem auto 0;
+      max-width: 32rem;
+      font-size: 0.92rem;
+      summary {
+        cursor: pointer;
+        text-align: center;
+        color: var(--primaire);
+        font-weight: 600;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      p {
+        margin: 0.5rem 0;
+      }
+    }
     .entete {
       text-align: center;
       margin: 2rem 0 1.5rem;

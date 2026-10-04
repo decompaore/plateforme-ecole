@@ -1,4 +1,4 @@
-# Application web (v0.26)
+# Application web (v0.27)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -248,6 +248,21 @@ Comptes créés (administrateur d'un établissement, enseignant, personnel) : le
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
 
+## Comptes et mots de passe (v0.27)
+
+- **Comptes** (`/admin/comptes`, administrateur de l'établissement) : un compte par personne (personnel, enseignants,
+  parents), avec ses rôles, sa dernière connexion (« Jamais connecté »), le blocage après trop d'essais (« Verrouillé
+  jusqu'à 14h35 ») et le mot de passe provisoire pas encore changé ; filtres Actifs, Verrouillés, Mot de passe
+  provisoire, Retirés ; recherche par nom ou téléphone.
+- **Réinitialiser le mot de passe** : confirmation (sessions fermées, valable aussi dans les autres établissements de la
+  personne, vérifier d'abord son identité), puis mot de passe provisoire affiché une seule fois avec « Copier ».
+  **Déverrouiller** lève le blocage sans changer le mot de passe. Son propre compte renvoie vers « Changer mon mot
+  de passe ».
+- **Plateforme** (super administrateur) : bouton « Administrateurs » sur chaque établissement, pour réinitialiser le
+  mot de passe d'un administrateur qui l'a oublié.
+- **Connexion** : « Mot de passe oublié ? » explique la démarche (s'adresser à l'administration, se connecter avec le
+  mot de passe provisoire puis en choisir un nouveau).
+
 ## Ateliers (v0.25)
 
 Espace `/ateliers` (en ligne), pour le chef des travaux, l'administration, le censeur (s'il n'y a pas de chef des
@@ -469,6 +484,7 @@ frontend/src/app/
 | `recherche.spec.ts` | Accents, majuscules et ordre des mots, téléphone avec espaces ; feuille de notes filtrée qui garde le n° d'ordre et place le curseur sur la note ; message clair quand les trimestres manquent |
 | `ateliers.spec.ts` | Contrôles (quantités à deux décimales, code d'atelier, unité d'un article), alertes en phrases ; liste du chef des travaux (chiffres, sans responsable, matières sous le seuil, paramètres) ; désignation du responsable parmi les candidats ; panne signalée par un enseignant de l'atelier ; inventaire saisi (écart affiché, « Tous conformes ») puis clos |
 | `besoins.spec.ts` | Contrôles (ligne de besoin, réception, répartition, nom du fichier exporté) ; boutons d'export (Excel téléchargé avec le nom du serveur, erreur du PDF affichée) ; article proposé puis transmis par le responsable ; arbitrage et validation par le chef des travaux ; commande préremplie avec le reste à commander ; répartition d'une livraison (excédent signalé, validation) |
+| `comptes.spec.ts` | Heure de fin du blocage ; comptes de l'administrateur (chiffres, jamais connecté, verrouillé, son propre compte sans réinitialisation), déverrouillage, réinitialisation confirmée puis mot de passe provisoire affiché une fois avec l'avertissement « autre établissement », comptes retirés sans action ; réinitialisation d'un administrateur par le super administrateur |
 | `fin-engagement.component.spec.ts` | Bandeau de mutation : envois en attente comptés et envoyés tout de suite, rien à 60 jours, affichage sans réseau le jour même, annonce effacée quand la fin est annulée, calcul des jours |
 
 La CI (`.github/workflows/ci.yml`, job *Frontend*) exécute les tests et la construction de production à chaque pull
@@ -498,6 +514,8 @@ Le parcours complet a aussi été vérifié dans Chromium, à la taille d'un té
   ordinateur, formulaire d'incident, agenda des convocations ;
 - (v0.25) ateliers : liste du chef des travaux avec les alertes, désignation d'un responsable, équipements et
   pannes, stock et sortie de matière d'œuvre, inventaire saisi sur téléphone, catalogue des prix ;
+- (v0.27) comptes : liste sur ordinateur et téléphone, confirmation puis mot de passe provisoire, aide « Mot de passe
+  oublié ? » sur la page de connexion, réinitialisation d'un administrateur par le super administrateur ;
 - (v0.26) besoins et commandes : campagnes, état par filière et téléchargement du PDF, formulaire de commande,
   réception, répartition (excédent signalé puis validation), arbitrage et validation d'une fiche de besoins ; boutons
   d'export et rubrique *Besoins* sur téléphone ;
