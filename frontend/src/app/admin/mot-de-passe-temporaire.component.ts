@@ -15,7 +15,7 @@ import { Component, input, output, signal } from '@angular/core';
         <button type="button" class="bouton discret petit" (click)="copier()">{{ copie() ? 'Copié' : 'Copier' }}</button>
       </p>
       <p class="doux">
-        Notez-le et transmettez-le à la personne : il ne sera plus affiché. Elle le changera à sa première connexion.
+        Notez-le et transmettez-le à la personne : il ne sera plus affiché. Elle le changera à sa prochaine connexion.
       </p>
       <button type="button" class="bouton secondaire petit" (click)="fermer.emit()">J'ai noté le mot de passe</button>
     </div>

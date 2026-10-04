@@ -29,6 +29,21 @@ Tant que le mot de passe temporaire n'est pas changé, toute autre requête reç
 | `POST /api/v1/membres` | ADMIN_ECOLE | Ajoute un membre (téléphone, nom, prénoms, rôle). Réutilise le compte si le téléphone existe déjà |
 | `POST /api/v1/membres/{id}/desactivation` | ADMIN_ECOLE | Désactive une appartenance (le dernier administrateur ne peut pas l'être) |
 | `GET /api/v1/audit?page=0&taille=50` | ADMIN_ECOLE | Journal d'audit de l'établissement |
+| `GET /api/v1/comptes` | ADMIN_ECOLE | (v0.27) Comptes de l'établissement, un par personne : rôles actifs et retirés, dernière connexion, `verrouilleJusqua` (compte bloqué après 5 essais manqués), `motDePasseProvisoire`, `moi` |
+| `POST /api/v1/comptes/{utilisateurId}/reinitialisation` | ADMIN_ECOLE | (v0.27) Mot de passe oublié : nouveau mot de passe provisoire renvoyé **une seule fois** (`motDePasseTemporaire`), `autresEtablissements` |
+| `POST /api/v1/comptes/{utilisateurId}/deverrouillage` | ADMIN_ECOLE | (v0.27) Lève le blocage sans changer le mot de passe |
+
+### Réinitialisation d'un mot de passe oublié (v0.27)
+
+- Le compte doit avoir un **rôle actif** dans l'établissement (`404` sinon) ; l'administrateur ne réinitialise pas son
+  propre compte (`409 MON_PROPRE_COMPTE` : il utilise `POST /moi/mot-de-passe`) ; un compte de la plateforme n'est
+  jamais concerné.
+- Effets : nouveau mot de passe provisoire (10 caractères sans ambiguïté), `doit_changer_mot_de_passe` remis à vrai
+  (la personne doit le changer avant tout, `403 MOT_DE_PASSE_A_CHANGER`), compte déverrouillé, **toutes ses sessions
+  fermées** (jetons de rafraîchissement révoqués), entrée `MOT_DE_PASSE_REINITIALISE` au journal d'audit, SMS
+  d'information à la personne (sans le mot de passe).
+- Une personne n'a qu'un compte sur la plateforme : le nouveau mot de passe vaut pour tous les établissements où elle a
+  un rôle (`autresEtablissements` les compte).
 
 ## Plateforme
 
@@ -37,6 +52,8 @@ Tant que le mot de passe temporaire n'est pas changé, toute autre requête reç
 | `GET /api/v1/plateforme/etablissements` | SUPER_ADMIN | Liste des établissements |
 | `POST /api/v1/plateforme/etablissements` | SUPER_ADMIN | Crée un établissement et son premier administrateur (mot de passe temporaire renvoyé une seule fois) |
 | `PATCH /api/v1/plateforme/etablissements/{id}/statut` | SUPER_ADMIN | `ACTIF`, `SUSPENDU` ou `RESILIE` |
+| `GET /api/v1/plateforme/etablissements/{id}/administrateurs` | SUPER_ADMIN | (v0.27) Administrateurs actifs de l'établissement |
+| `POST /api/v1/plateforme/etablissements/{id}/administrateurs/{utilisateurId}/reinitialisation` | SUPER_ADMIN | (v0.27) Mot de passe oublié par l'administrateur d'un établissement ; mêmes effets que ci-dessus. Seuls les administrateurs (`404` sinon) |
 
 ## Parcours : enseignant dans deux établissements
 

@@ -7,6 +7,7 @@ import { API } from '../core/session.service';
 import {
   AnneeVue,
   ClasseVue,
+  CompteVue,
   DossierEleveVue,
   EleveVue,
   EnseignantVue,
@@ -25,6 +26,7 @@ import {
   ResultatAjoutMembre,
   ResultatCreationEtablissement,
   ResultatEngagement,
+  ResultatReinitialisation,
   RapportStatistiques,
   SuiviEvaluationVue,
   Sexe,
@@ -91,6 +93,28 @@ export class AdminApi {
 
   desactiverMembre(id: string): Promise<void> {
     return this.post(`/membres/${id}/desactivation`);
+  }
+
+  // ---------------- Comptes (v0.27)
+
+  comptes(): Promise<CompteVue[]> {
+    return this.get('/comptes');
+  }
+
+  reinitialiserCompte(utilisateurId: string): Promise<ResultatReinitialisation> {
+    return this.post(`/comptes/${utilisateurId}/reinitialisation`);
+  }
+
+  deverrouillerCompte(utilisateurId: string): Promise<CompteVue> {
+    return this.post(`/comptes/${utilisateurId}/deverrouillage`);
+  }
+
+  administrateursEtablissement(etablissementId: string): Promise<CompteVue[]> {
+    return this.get(`/plateforme/etablissements/${etablissementId}/administrateurs`);
+  }
+
+  reinitialiserAdministrateur(etablissementId: string, utilisateurId: string): Promise<ResultatReinitialisation> {
+    return this.post(`/plateforme/etablissements/${etablissementId}/administrateurs/${utilisateurId}/reinitialisation`);
   }
 
   // ---------- Profils, années, périodes
