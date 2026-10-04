@@ -45,6 +45,10 @@ export interface CompteVue {
   motDePasseProvisoire: boolean;
   /** Compte de l'administrateur connecté. */
   moi: boolean;
+  /** Dernier mot de passe choisi par la personne (v0.28). */
+  motDePasseChangeLe?: string | null;
+  /** Pourquoi un nouveau mot de passe est demandé : provisoire ou nouvelle période. */
+  motifChangement?: 'PROVISOIRE' | 'RENOUVELLEMENT' | null;
 }
 
 /** Résultat d'une réinitialisation : le mot de passe provisoire n'est renvoyé qu'une fois. */

@@ -38,10 +38,13 @@ public class ComptesService {
     private static final ZoneId FUSEAU = ZoneId.of("Africa/Ouagadougou");
     private static final DateTimeFormatter DATE_HEURE = DateTimeFormatter.ofPattern("dd/MM/yyyy 'à' HH'h'mm");
 
-    /** Compte d'une personne ayant (ou ayant eu) un rôle dans l'établissement. */
+    /**
+     * Compte d'une personne ayant (ou ayant eu) un rôle dans l'établissement ; {@code motifChangement} :
+     * PROVISOIRE ou RENOUVELLEMENT (nouvelle période) quand un nouveau mot de passe est demandé.
+     */
     public record CompteVue(UUID utilisateurId, String nom, String prenoms, String telephone, List<Role> roles,
             List<Role> rolesRetires, boolean actif, Instant derniereConnexion, Instant verrouilleJusqua,
-            boolean motDePasseProvisoire, boolean moi) {
+            boolean motDePasseProvisoire, boolean moi, Instant motDePasseChangeLe, String motifChangement) {
     }
 
     /** Résultat d'une réinitialisation : le mot de passe provisoire n'est renvoyé qu'ici. */
@@ -88,7 +91,7 @@ public class ComptesService {
                     .filter(r -> !actifs.contains(r)).distinct().sorted().toList();
             return new CompteVue(u.getId(), u.getNom(), u.getPrenoms(), u.getTelephone(), actifs, retires,
                     !actifs.isEmpty(), u.getDerniereConnexion(), u.estVerrouille(maintenant) ? u.getVerrouilleJusqua() : null,
-                    u.isDoitChangerMotDePasse(), u.getId().equals(moi));
+                    u.isDoitChangerMotDePasse(), u.getId().equals(moi), u.getMotDePasseChangeLe(), u.getMotifChangement());
         }).sorted(Comparator.comparing((CompteVue c) -> !c.actif()).thenComparing(CompteVue::nom)
                 .thenComparing(CompteVue::prenoms)).toList();
     }
@@ -123,7 +126,7 @@ public class ComptesService {
             Utilisateur u = comptes.get(m.utilisateurId());
             return new CompteVue(u.getId(), u.getNom(), u.getPrenoms(), u.getTelephone(), List.of(Role.ADMIN_ECOLE),
                     List.of(), true, u.getDerniereConnexion(), u.estVerrouille(maintenant) ? u.getVerrouilleJusqua() : null,
-                    u.isDoitChangerMotDePasse(), false);
+                    u.isDoitChangerMotDePasse(), false, u.getMotDePasseChangeLe(), u.getMotifChangement());
         }).toList();
     }
 

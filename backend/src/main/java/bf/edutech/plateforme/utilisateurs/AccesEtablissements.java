@@ -53,6 +53,15 @@ class AccesEtablissements {
         return Boolean.TRUE.equals(existe);
     }
 
+    /**
+     * Début de la période en cours de l'année active de l'établissement (fonction SQL
+     * SECURITY DEFINER, appelée avant l'ouverture de la session) ; vide sans année active.
+     */
+    Optional<java.time.LocalDate> debutPeriodeEnCours(UUID tenantId, java.time.LocalDate jour) {
+        return Optional.ofNullable(jdbc.queryForObject("select debut_periode_en_cours(?, ?)", java.time.LocalDate.class,
+                tenantId, jour));
+    }
+
     Optional<EtablissementAccessible> trouver(UUID utilisateurId, UUID tenantId) {
         return pour(utilisateurId).stream().filter(e -> e.id().equals(tenantId)).findFirst();
     }

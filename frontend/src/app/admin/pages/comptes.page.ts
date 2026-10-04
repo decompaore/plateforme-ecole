@@ -57,12 +57,16 @@ export function heureVerrou(iso: string): string {
           à lui remettre en main propre ou par téléphone. Elle le changera à sa prochaine connexion. Ses sessions ouvertes
           sont fermées et elle reçoit un SMS qui l'informe de la réinitialisation.
         </p>
+        <p class="doux intro">
+          Le personnel choisit aussi un nouveau mot de passe au début de chaque période (trimestre ou semestre) : l'application
+          le demande à la première connexion de la période.
+        </p>
 
         @if (charge()) {
           <div class="bascule" role="group" aria-label="Comptes affichés">
             <button type="button" [class.actif]="filtre() === 'tous'" (click)="filtre.set('tous')">Actifs ({{ nombres().actifs }})</button>
             <button type="button" [class.actif]="filtre() === 'verrouilles'" (click)="filtre.set('verrouilles')">Verrouillés ({{ nombres().verrouilles }})</button>
-            <button type="button" [class.actif]="filtre() === 'provisoires'" (click)="filtre.set('provisoires')">Mot de passe provisoire ({{ nombres().provisoires }})</button>
+            <button type="button" [class.actif]="filtre() === 'provisoires'" (click)="filtre.set('provisoires')">Nouveau mot de passe attendu ({{ nombres().provisoires }})</button>
             <button type="button" [class.actif]="filtre() === 'retires'" (click)="filtre.set('retires')">Retirés ({{ nombres().retires }})</button>
           </div>
 
@@ -82,8 +86,11 @@ export function heureVerrou(iso: string): string {
                   </span>
                   <span class="etat doux">
                     @if (c.verrouilleJusqua) { <span class="pastille absent">Verrouillé jusqu'à {{ heureVerrou(c.verrouilleJusqua) }}</span> }
-                    @if (c.motDePasseProvisoire) { <span class="pastille">Mot de passe provisoire</span> }
+                    @if (c.motDePasseProvisoire) {
+                      <span class="pastille">{{ c.motifChangement === 'RENOUVELLEMENT' ? 'Mot de passe à renouveler (nouvelle période)' : 'Mot de passe provisoire' }}</span>
+                    }
                     {{ c.derniereConnexion ? 'Dernière connexion le ' + dateHeureCourte(c.derniereConnexion) : 'Jamais connecté' }}
+                    @if (c.motDePasseChangeLe) { · mot de passe choisi le {{ dateHeureCourte(c.motDePasseChangeLe) }} }
                   </span>
                 </div>
                 <div class="actions">

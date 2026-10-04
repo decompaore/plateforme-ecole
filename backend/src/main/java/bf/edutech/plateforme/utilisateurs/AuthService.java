@@ -32,8 +32,13 @@ public class AuthService {
     /** Résultat interne ; le jeton de rafraîchissement est transmis au contrôleur pour le cookie. */
     public record ResultatConnexion(String jetonAcces, String jetonSelection, String jetonRafraichissement,
             long expireDansSecondes, EtablissementAccessible etablissementActif,
-            List<EtablissementAccessible> etablissements, boolean superAdmin, boolean doitChangerMotDePasse) {
+            List<EtablissementAccessible> etablissements, boolean superAdmin, boolean doitChangerMotDePasse,
+            String motifChangementMotDePasse) {
     }
+
+    private static final java.time.ZoneId FUSEAU = java.time.ZoneId.of("Africa/Ouagadougou");
+    /** Rôles qui ne sont pas du personnel : pas de renouvellement périodique du mot de passe. */
+    private static final java.util.Set<String> HORS_PERSONNEL = java.util.Set.of("PARENT", "ELEVE");
 
     private final UtilisateurRepository utilisateurs;
     private final JetonRafraichissementRepository jetonsRafraichissement;
@@ -118,7 +123,7 @@ public class AuthService {
                 Map.of("etablissements", etablissements.size()));
         return new ResultatConnexion(null, jetons.jetonSelection(utilisateur), null,
                 securite.dureeJetonSelection().toSeconds(), null, etablissements, false,
-                utilisateur.isDoitChangerMotDePasse());
+                utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement());
     }
 
     /**
@@ -190,12 +195,13 @@ public class AuthService {
             etablissement = acces.trouver(utilisateur.getId(), jeton.getTenantId())
                     .orElseThrow(() -> new AuthentificationException("L'accès à cet établissement a été retiré"));
         }
+        exigerRenouvellementSiNouvellePeriode(utilisateur, etablissement);
         ServiceJetons.JetonEmis nouveau = jetons.emettreJetonRafraichissement(utilisateur.getId(),
                 jeton.getTenantId(), jeton.getFamille());
         jeton.remplacer(nouveau.id(), maintenant);
         return new ResultatConnexion(jetons.jetonAcces(utilisateur, etablissement), null, nouveau.valeur(),
                 jetons.dureeAccesEnSecondes(), etablissement, List.of(), utilisateur.isSuperAdmin(),
-                utilisateur.isDoitChangerMotDePasse());
+                utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement());
     }
 
     @Transactional
@@ -230,13 +236,35 @@ public class AuthService {
         return acces.pour(utilisateurId);
     }
 
+    /**
+     * Renouvellement périodique : un membre du personnel dont le mot de passe date d'avant le début
+     * de la période en cours (trimestre ou semestre de l'année active) doit en choisir un nouveau
+     * avant tout le reste. Les parents et les élèves ne sont pas concernés.
+     */
+    private void exigerRenouvellementSiNouvellePeriode(Utilisateur utilisateur, EtablissementAccessible etablissement) {
+        if (etablissement == null || utilisateur.isSuperAdmin() || utilisateur.isDoitChangerMotDePasse()
+                || etablissement.roles().stream().allMatch(HORS_PERSONNEL::contains)) {
+            return;
+        }
+        java.time.LocalDate aujourdhui = java.time.LocalDate.ofInstant(horloge.instant(), FUSEAU);
+        acces.debutPeriodeEnCours(etablissement.id(), aujourdhui)
+                .filter(debut -> utilisateur.motDePasseChoisiAvant(debut.atStartOfDay(FUSEAU).toInstant()))
+                .ifPresent(debut -> {
+                    utilisateur.exigerRenouvellement();
+                    utilisateurs.save(utilisateur);
+                    audit.enregistrerPour(utilisateur.getId(), "MOT_DE_PASSE_A_RENOUVELER", null,
+                            Map.of("debutPeriode", debut.toString()));
+                });
+    }
+
     private ResultatConnexion sessionComplete(Utilisateur utilisateur, EtablissementAccessible etablissement,
             List<EtablissementAccessible> etablissements) {
+        exigerRenouvellementSiNouvellePeriode(utilisateur, etablissement);
         String rafraichissement = jetons.nouveauJetonRafraichissement(utilisateur.getId(),
                 etablissement != null ? etablissement.id() : null, null);
         return new ResultatConnexion(jetons.jetonAcces(utilisateur, etablissement), null, rafraichissement,
                 jetons.dureeAccesEnSecondes(), etablissement, etablissements, utilisateur.isSuperAdmin(),
-                utilisateur.isDoitChangerMotDePasse());
+                utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement());
     }
 
     /** Audit rattaché à l'établissement (la Row-Level Security l'exige pour l'écriture). */
