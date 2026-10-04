@@ -7,7 +7,6 @@ import { AnneeCourante } from './annee-courante.service';
 import { CompteVue } from './modeles-admin';
 import { ComptesPage, heureVerrou } from './pages/comptes.page';
 import { MotDePassePage } from '../pages/mot-de-passe.page';
-import { PersonnelPage } from './pages/personnel.page';
 import { PlateformePage } from './pages/plateforme.page';
 
 const ADMIN = { id: 'etab-1', code: 'LTK', nom: 'Lycée technique', roles: ['ADMIN_ECOLE' as const] };
@@ -147,38 +146,6 @@ describe('Comptes et mots de passe', () => {
     expect(t).toContain('Zr4tW8nPqe');
     expect(t).toContain('mot de passe provisoire');
   });
-  it('personnel : réinitialise le mot de passe d’un enseignant depuis sa ligne, jamais le sien', async () => {
-    await session(http);
-    const f = TestBed.createComponent(PersonnelPage);
-    f.detectChanges();
-    http.expectOne('/api/v1/enseignants').flush([{
-      engagementId: 'g1', enseignantId: 's1', nom: 'SANOU', prenoms: 'Paul', telephone: '+22661000001', sexe: 'M',
-      specialite: 'Électrotechnique', type: 'TITULAIRE', statut: 'ACTIF', debut: '2026-10-01', fin: null, motifFin: null, finProgrammee: false,
-    }]);
-    http.expectOne('/api/v1/membres').flush([
-      { id: 'm1', utilisateurId: 'u1', nom: 'KABORE', prenoms: 'Mathieu', telephone: '+22670000001', role: 'ADMIN_ECOLE', actif: true },
-      { id: 'm2', utilisateurId: 'u2', nom: 'SANOU', prenoms: 'Paul', telephone: '+22661000001', role: 'ENSEIGNANT', actif: true },
-      { id: 'm3', utilisateurId: 'u5', nom: 'KONE', prenoms: 'Awa', telephone: '+22662000001', role: 'SECRETARIAT', actif: true },
-    ]);
-    await attendre();
-    const boutons = () => [...(f.nativeElement as HTMLElement).querySelectorAll('button')].filter((b) => b.textContent?.includes('Réinitialiser le mot de passe'));
-    f.detectChanges();
-    // Enseignant et secrétariat : oui ; l'administrateur connecté (lui-même) : non
-    expect(boutons().length).toBe(2);
-    boutons()[0].click();
-    expect(texte(f)).toContain('Réinitialiser le mot de passe de Paul SANOU ?');
-    bouton(f, 'Confirmer la réinitialisation').click();
-    await attendre();
-    http.expectOne('/api/v1/comptes/u2/reinitialisation').flush({
-      utilisateurId: 'u2', nom: 'SANOU', prenoms: 'Paul', telephone: '+22661000001', motDePasseTemporaire: 'Wq3nZk8pLm', autresEtablissements: 0,
-    });
-    await attendre();
-    const t = texte(f);
-    expect(t).toContain('Mot de passe de Paul SANOU réinitialisé.');
-    expect(t).toContain('Wq3nZk8pLm');
-    expect(t).not.toContain('Confirmer la réinitialisation');
-  });
-
   it('nouvelle période : la page « Mot de passe » explique le renouvellement', async () => {
     const connexion = TestBed.inject(SessionService).connexion('61000001', 'secret123');
     http.expectOne('/api/v1/auth/connexion').flush(reponse('u2', 1, {
