@@ -4,7 +4,7 @@ import { firstValueFrom, Observable, timeout } from 'rxjs';
 
 import { STOCKAGE } from '../hors-ligne/stockage';
 import { estErreurReseau } from './erreurs';
-import { EtablissementAccessible, ProfilConnecte, ReponseConnexion, Role } from './modeles';
+import { EtablissementAccessible, MotifChangementMotDePasse, ProfilConnecte, ReponseConnexion, Role } from './modeles';
 
 export const API = '/api/v1';
 
@@ -22,6 +22,8 @@ export interface ProfilLocal {
   superAdmin: boolean;
   etablissement: EtablissementAccessible | null;
   doitChangerMotDePasse: boolean;
+  /** Pourquoi un nouveau mot de passe est demandé (message de la page « Mot de passe »). */
+  motifChangementMotDePasse?: MotifChangementMotDePasse | null;
   /** Établissements accessibles à ce compte : le choix d'établissement n'a de sens qu'à partir de deux. */
   nombreEtablissements?: number;
 }
@@ -225,6 +227,7 @@ export class SessionService {
       superAdmin: reponse.superAdmin,
       etablissement: reponse.etablissementActif,
       doitChangerMotDePasse: reponse.doitChangerMotDePasse,
+      motifChangementMotDePasse: reponse.motifChangementMotDePasse ?? null,
       // La connexion fournit la liste ; le renouvellement non (liste vide) : on garde ce qu'on sait
       nombreEtablissements: reponse.etablissements?.length
         ? reponse.etablissements.length
