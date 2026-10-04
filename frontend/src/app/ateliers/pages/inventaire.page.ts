@@ -5,6 +5,7 @@ import { RouterLink } from '@angular/router';
 import { Action } from '../../admin/action';
 import { dateHeureCourte } from '../../core/outils';
 import { AteliersNavComponent } from '../ateliers-nav.component';
+import { ExportBoutonsComponent } from '../export-boutons.component';
 import { AteliersApi } from '../ateliers-api.service';
 import { CLASSE_ETAT, EtatEquipement, InventaireVue, LIBELLE_ETAT, lireQuantite, quantite } from '../modeles-ateliers';
 
@@ -24,7 +25,7 @@ interface SaisieEquipement {
  */
 @Component({
   selector: 'app-inventaire',
-  imports: [FormsModule, RouterLink, AteliersNavComponent],
+  imports: [FormsModule, RouterLink, AteliersNavComponent, ExportBoutonsComponent],
   template: `
     <div class="page large">
       <h1>Inventaire</h1>
@@ -45,6 +46,10 @@ interface SaisieEquipement {
             Ouvert le {{ dateHeureCourte(inv.ouvertLe) }}@if (inv.ouvertPar) { par {{ inv.ouvertPar }} }
             @if (inv.closLe) { · clos le {{ dateHeureCourte(inv.closLe) }}@if (inv.closPar) { par {{ inv.closPar }} } }
           </p>
+          <div class="barre-export">
+            <span class="doux">Fiche d'inventaire {{ inv.statut === 'CLOS' ? '(écarts constatés)' : '(à compléter sur place)' }} :</span>
+            <app-export [chemin]="'/inventaires/' + inv.id" [nom]="'inventaire-' + inv.atelierCode" libelle="la fiche d'inventaire" />
+          </div>
           @if (inv.modifiable) {
             <p class="doux">
               Comptez ce qui est réellement dans l'atelier. Enregistrez en plusieurs fois si besoin ;

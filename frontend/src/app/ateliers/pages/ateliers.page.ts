@@ -8,6 +8,7 @@ import { FiliereVue } from '../../admin/modeles-admin';
 import { dateCourte } from '../../core/outils';
 import { SessionService } from '../../core/session.service';
 import { AteliersNavComponent } from '../ateliers-nav.component';
+import { ExportBoutonsComponent } from '../export-boutons.component';
 import { AteliersApi } from '../ateliers-api.service';
 import {
   alertesEnTexte,
@@ -46,7 +47,7 @@ export function erreurAtelier(d: { code: string; nom: string; postes: string; fi
  */
 @Component({
   selector: 'app-ateliers',
-  imports: [FormsModule, RouterLink, AteliersNavComponent],
+  imports: [FormsModule, RouterLink, AteliersNavComponent, ExportBoutonsComponent],
   template: `
     <div class="page large">
       <h1>Ateliers</h1>
@@ -65,6 +66,14 @@ export function erreurAtelier(d: { code: string; nom: string; postes: string; fi
             <div [class.alerte-valeur]="bilan().pannes > 0"><strong>{{ bilan().pannes }}</strong><span>équipement(s) en panne</span></div>
             <div [class.alerte-valeur]="bilan().seuil > 0"><strong>{{ bilan().seuil }}</strong><span>matière(s) sous le seuil</span></div>
           </div>
+          @if (ateliers().length) {
+            <div class="barre-export">
+              <span class="doux">Tableau de bord des ateliers :</span>
+              <app-export chemin="/ateliers" nom="ateliers" libelle="le tableau de bord des ateliers" />
+              <span class="doux">Stock par filière :</span>
+              <app-export chemin="/ateliers/stock-par-filiere" nom="stock-par-filiere" libelle="le stock par filière" />
+            </div>
+          }
         }
 
         @for (a of ateliers(); track a.id) {

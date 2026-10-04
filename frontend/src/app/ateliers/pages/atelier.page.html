@@ -67,6 +67,7 @@
       <button type="button" role="tab" [class.actif]="onglet() === 'equipements'" [attr.aria-selected]="onglet() === 'equipements'" (click)="choisirOnglet('equipements')">Équipements ({{ a.equipements }})</button>
       <button type="button" role="tab" [class.actif]="onglet() === 'matiere'" [attr.aria-selected]="onglet() === 'matiere'" (click)="choisirOnglet('matiere')">Matière d’œuvre ({{ a.articles }})</button>
       <button type="button" role="tab" [class.actif]="onglet() === 'inventaires'" [attr.aria-selected]="onglet() === 'inventaires'" (click)="choisirOnglet('inventaires')">Inventaires</button>
+      <button type="button" role="tab" [class.actif]="onglet() === 'besoins'" [attr.aria-selected]="onglet() === 'besoins'" (click)="choisirOnglet('besoins')">Besoins</button>
     </div>
 
     <!-- Responsable -->
@@ -176,6 +177,7 @@
             @if (tenir() && !ajoutEquipement()) {
               <button type="button" class="bouton petit" (click)="ouvrirAjoutEquipement()">Ajouter</button>
             }
+            <app-export [chemin]="'/ateliers/' + a.id + '/equipements'" [nom]="'equipements-' + a.code" libelle="la liste des équipements" />
           </span>
         </div>
 
@@ -289,12 +291,13 @@
       <section class="carte">
         <div class="entete-section">
           <h2>Stock de matière d’œuvre</h2>
-          @if (tenir() && !mvOuvert() && !a.alertes.inventaireEnCours) {
-            <span class="actions-ligne">
+          <span class="actions-ligne">
+            @if (tenir() && !mvOuvert() && !a.alertes.inventaireEnCours) {
               <button type="button" class="bouton petit" (click)="ouvrirMouvement('ENTREE')">Entrée</button>
               <button type="button" class="bouton secondaire petit" (click)="ouvrirMouvement('SORTIE')">Sortie</button>
-            </span>
-          }
+            }
+            <app-export [chemin]="'/ateliers/' + a.id + '/stock'" [nom]="'stock-' + a.code" libelle="le stock et les mouvements" />
+          </span>
         </div>
         @if (a.alertes.inventaireEnCours) {
           <p class="alerte attention">Un inventaire est en cours : le stock est figé jusqu'à sa clôture.</p>
@@ -429,6 +432,37 @@
               </li>
             } @empty {
               <li class="doux">Aucun inventaire.</li>
+            }
+          </ul>
+        }
+      </section>
+    }
+
+    <!-- Besoins -->
+    @if (onglet() === 'besoins') {
+      <section class="carte">
+        <h2>Besoins en matière d’œuvre et en équipements</h2>
+        <p class="doux">
+          Le chef des travaux ouvre deux campagnes par an (année en cours, examens de fin d'études). Les enseignants
+          techniques de l'atelier proposent les articles du catalogue ; le responsable transmet au chef des travaux.
+        </p>
+        @if (besoins() === null) {
+          <p class="doux">Chargement…</p>
+        } @else {
+          <ul class="liste">
+            @for (b of besoins(); track b.id) {
+              <li>
+                <a class="ligne-lien" [routerLink]="['/ateliers/besoins-ateliers', b.id]">
+                  <span>
+                    <strong>{{ b.campagne }}</strong>
+                    <br />
+                    <span class="doux">{{ libelleTypeCampagne[b.type] }} · {{ b.lignes }} article(s)@if (b.montant) { · {{ fcfa(b.montant) }} }@if (b.dateLimite && b.statutCampagne === 'OUVERTE') { · à remettre avant le {{ dateCourte(b.dateLimite) }} }@if (b.statutCampagne !== 'OUVERTE') { · campagne {{ b.statutCampagne === 'TRANSMISE' ? 'transmise' : 'close' }} }</span>
+                  </span>
+                  <span class="pastille {{ classeStatutBesoin[b.statut] }}">{{ libelleStatutBesoin[b.statut] }}</span>
+                </a>
+              </li>
+            } @empty {
+              <li class="doux">Aucune campagne de besoins pour le moment.</li>
             }
           </ul>
         }

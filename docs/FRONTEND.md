@@ -1,4 +1,4 @@
-# Application web (v0.25)
+# Application web (v0.26)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -269,6 +269,30 @@ travaux), l'intendant (lecture et catalogue) et les enseignants techniques (leur
 En ligne. Règles et API : [API_ATELIERS.md](API_ATELIERS.md). Le test grandeur nature crée des ateliers au lycée
 technique et au centre de formation (responsables, stock, équipements, pannes, un inventaire clos, un en cours).
 
+### Besoins, commandes et exports (v0.26)
+
+Onglet **Besoins et commandes** (`/ateliers/besoins`, direction des ateliers et intendant) et rubrique *Besoins* de
+chaque atelier :
+
+- **Campagnes** : deux par an (année en cours, examens de fin d'études), ouvertes par le chef des travaux avec une
+  date limite et des consignes ; avancement (ateliers ayant transmis, validés, montant retenu, commandes).
+- **Fiche de besoins d'un atelier** (`/ateliers/besoins-ateliers/:id`) : les enseignants techniques ajoutent les
+  articles du catalogue (spécifications et normes affichées, quantité entière pour un équipement, justification) ;
+  le responsable transmet ; le chef des travaux saisit les quantités retenues, renvoie avec un commentaire ou valide.
+- **Campagne** (`/ateliers/besoins/:id`) : besoins de chaque atelier, état consolidé par filière, transmission à la
+  direction régionale, puis commandes (formulaire prérempli avec ce qui reste à commander et les prix du catalogue).
+- **Commande** (`/ateliers/commandes/:id`) : reçu, conforme et reste par article ; réception d'une livraison
+  (quantité reçue, dont conforme, motif de non-conformité) ; annulation tant que rien n'est livré.
+- **Livraison** (`/ateliers/livraisons/:id`) : procès-verbal de réception et grille de répartition article × atelier,
+  préremplie avec la part proposée (besoin retenu affiché sous chaque case), total contrôlé, validation qui met à
+  jour le stock et les équipements des ateliers.
+
+**Boutons Excel et PDF** (composant `app-export`) sur toutes les pages du chef des travaux et du chef d'atelier :
+tableau de bord des ateliers et stock par filière, catalogue des prix, équipements et stock d'un atelier, fiche
+d'inventaire, fiche de besoins, état des besoins pour la DR, bon de commande, procès-verbaux de réception et de
+répartition. Le fichier est édité par le serveur et enregistré sous le nom qu'il propose ; une erreur du serveur
+s'affiche à côté des boutons.
+
 ## Cahier de textes sans réseau (v0.24)
 
 Comme l'appel et les notes, la saisie se fait d'abord sur le téléphone, puis part dès que le réseau revient.
@@ -444,6 +468,7 @@ frontend/src/app/
 | `vie-scolaire.spec.ts` | Absences du jour (discipline de chaque créneau, appel général, bilan, filtre « à justifier », justification puis liste à jour), fiche élève (parent prioritaire en premier, heures par discipline, avertissement avec SMS, blâme absent pour un surveillant, convocation préremplie depuis l'incident), clôture d'une convocation passée, synthèse d'une classe par discipline et par élève, sur l'année puis sur un trimestre |
 | `recherche.spec.ts` | Accents, majuscules et ordre des mots, téléphone avec espaces ; feuille de notes filtrée qui garde le n° d'ordre et place le curseur sur la note ; message clair quand les trimestres manquent |
 | `ateliers.spec.ts` | Contrôles (quantités à deux décimales, code d'atelier, unité d'un article), alertes en phrases ; liste du chef des travaux (chiffres, sans responsable, matières sous le seuil, paramètres) ; désignation du responsable parmi les candidats ; panne signalée par un enseignant de l'atelier ; inventaire saisi (écart affiché, « Tous conformes ») puis clos |
+| `besoins.spec.ts` | Contrôles (ligne de besoin, réception, répartition, nom du fichier exporté) ; boutons d'export (Excel téléchargé avec le nom du serveur, erreur du PDF affichée) ; article proposé puis transmis par le responsable ; arbitrage et validation par le chef des travaux ; commande préremplie avec le reste à commander ; répartition d'une livraison (excédent signalé, validation) |
 | `fin-engagement.component.spec.ts` | Bandeau de mutation : envois en attente comptés et envoyés tout de suite, rien à 60 jours, affichage sans réseau le jour même, annonce effacée quand la fin est annulée, calcul des jours |
 
 La CI (`.github/workflows/ci.yml`, job *Frontend*) exécute les tests et la construction de production à chaque pull
@@ -473,6 +498,9 @@ Le parcours complet a aussi été vérifié dans Chromium, à la taille d'un té
   ordinateur, formulaire d'incident, agenda des convocations ;
 - (v0.25) ateliers : liste du chef des travaux avec les alertes, désignation d'un responsable, équipements et
   pannes, stock et sortie de matière d'œuvre, inventaire saisi sur téléphone, catalogue des prix ;
+- (v0.26) besoins et commandes : campagnes, état par filière et téléchargement du PDF, formulaire de commande,
+  réception, répartition (excédent signalé puis validation), arbitrage et validation d'une fiche de besoins ; boutons
+  d'export et rubrique *Besoins* sur téléphone ;
 - (v0.18.1) disciplines : liste du jour sur téléphone, heures par discipline dans la fiche, synthèse d'une classe ;
 - (v0.19) espace parent sur un téléphone de 360 px : deux enfants, absences, bulletin, scolarité, paiement Orange
   Money simulé jusqu'au reçu ;

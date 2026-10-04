@@ -22,6 +22,18 @@ import {
   StatutPanne,
   TypeMouvement,
 } from './modeles-ateliers';
+import {
+  BesoinAtelierResumeVue,
+  BesoinVue,
+  CampagneResumeVue,
+  CampagneVue,
+  CommandeVue,
+  DemandeCampagne,
+  DemandeCommande,
+  DemandeLivraison,
+  LivraisonVue,
+  SaisieRepartition,
+} from './modeles-besoins';
 
 /** Appels de l'API des ateliers (en ligne). */
 @Injectable({ providedIn: 'root' })
@@ -172,5 +184,95 @@ export class AteliersApi {
 
   cloreInventaire(id: string): Promise<InventaireVue> {
     return this.post(`/inventaires/${id}/cloture`, null);
+  }
+
+  // ---------------- Campagnes de besoins
+
+  campagnes(): Promise<CampagneResumeVue[]> {
+    return this.get('/campagnes-besoins');
+  }
+
+  ouvrirCampagne(d: DemandeCampagne): Promise<CampagneVue> {
+    return this.post('/campagnes-besoins', d);
+  }
+
+  campagne(id: string): Promise<CampagneVue> {
+    return this.get(`/campagnes-besoins/${id}`);
+  }
+
+  modifierCampagne(id: string, d: DemandeCampagne): Promise<CampagneVue> {
+    return this.put(`/campagnes-besoins/${id}`, d);
+  }
+
+  transmettreCampagne(id: string): Promise<CampagneVue> {
+    return this.post(`/campagnes-besoins/${id}/transmission`, null);
+  }
+
+  cloreCampagne(id: string): Promise<CampagneVue> {
+    return this.post(`/campagnes-besoins/${id}/cloture`, null);
+  }
+
+  // ---------------- Besoins d'un atelier
+
+  besoinsDeLAtelier(atelierId: string): Promise<BesoinAtelierResumeVue[]> {
+    return this.get(`/ateliers/${atelierId}/besoins`);
+  }
+
+  besoin(id: string): Promise<BesoinVue> {
+    return this.get(`/besoins-ateliers/${id}`);
+  }
+
+  proposerLigne(besoinId: string, articleId: string, quantite: number, justification: string | null): Promise<BesoinVue> {
+    return this.put(`/besoins-ateliers/${besoinId}/lignes/${articleId}`, { quantite, justification });
+  }
+
+  retirerLigne(besoinId: string, articleId: string): Promise<BesoinVue> {
+    return firstValueFrom(this.http.delete<BesoinVue>(`${API}/besoins-ateliers/${besoinId}/lignes/${articleId}`));
+  }
+
+  transmettreBesoin(id: string): Promise<BesoinVue> {
+    return this.post(`/besoins-ateliers/${id}/transmission`, null);
+  }
+
+  renvoyerBesoin(id: string, commentaire: string): Promise<BesoinVue> {
+    return this.post(`/besoins-ateliers/${id}/renvoi`, { commentaire });
+  }
+
+  arbitrer(id: string, lignes: { articleId: string; quantiteRetenue: number | null }[]): Promise<BesoinVue> {
+    return this.put(`/besoins-ateliers/${id}/arbitrage`, { lignes });
+  }
+
+  validerBesoin(id: string): Promise<BesoinVue> {
+    return this.post(`/besoins-ateliers/${id}/validation`, null);
+  }
+
+  // ---------------- Commandes, réception, répartition
+
+  creerCommande(campagneId: string, d: DemandeCommande): Promise<CommandeVue> {
+    return this.post(`/campagnes-besoins/${campagneId}/commandes`, d);
+  }
+
+  commande(id: string): Promise<CommandeVue> {
+    return this.get(`/commandes/${id}`);
+  }
+
+  annulerCommande(id: string, motif: string): Promise<CommandeVue> {
+    return this.post(`/commandes/${id}/annulation`, { motif });
+  }
+
+  recevoir(commandeId: string, d: DemandeLivraison): Promise<LivraisonVue> {
+    return this.post(`/commandes/${commandeId}/livraisons`, d);
+  }
+
+  livraison(id: string): Promise<LivraisonVue> {
+    return this.get(`/livraisons/${id}`);
+  }
+
+  enregistrerRepartition(id: string, lignes: SaisieRepartition[]): Promise<LivraisonVue> {
+    return this.put(`/livraisons/${id}/repartition`, { lignes });
+  }
+
+  validerRepartition(id: string): Promise<LivraisonVue> {
+    return this.post(`/livraisons/${id}/repartition/validation`, null);
   }
 }

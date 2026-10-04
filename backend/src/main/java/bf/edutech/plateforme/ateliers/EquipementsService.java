@@ -157,6 +157,20 @@ public class EquipementsService {
 
     // ------------------------------------------------------------------
 
+    /** Équipements créés par la répartition d'une livraison (numéros attribués automatiquement). */
+    List<Equipement> creerDepuisLivraison(Atelier atelier, Article article, int nombre, LocalDate date, Long valeur,
+            String observation) {
+        List<Equipement> crees = new java.util.ArrayList<>();
+        for (int i = 0; i < nombre; i++) {
+            Equipement e = new Equipement(atelier.getId());
+            e.definir(article.getId(), article.getDesignation(), numeroAutomatique(atelier), null, null, date, valeur,
+                    observation);
+            equipements.saveAndFlush(e);
+            crees.add(e);
+        }
+        return crees;
+    }
+
     Equipement charger(UUID id) {
         return equipements.findById(id).orElseThrow(() -> new RessourceIntrouvableException("Équipement introuvable"));
     }

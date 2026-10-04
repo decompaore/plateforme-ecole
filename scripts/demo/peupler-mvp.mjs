@@ -677,7 +677,7 @@ async function peuplerEcole(def, sa) {
     seances: [],
     absences: new Map(),
     retards: [],
-    stats: { appels: 0, absences: 0, retards: 0, seancesCahier: 0, fiches: {}, paiements: 0, encaisse: 0, mm: 0, notes: 0, competences: 0, ateliers: 0, equipements: 0, mouvementsStock: 0 },
+    stats: { appels: 0, absences: 0, retards: 0, seancesCahier: 0, fiches: {}, paiements: 0, encaisse: 0, mm: 0, notes: 0, competences: 0, ateliers: 0, equipements: 0, mouvementsStock: 0, lignesBesoin: 0, commandes: 0, livraisons: 0 },
   };
   GLOBAL.ecoles.push(e);
   titre(`${e.nom} (${e.code})`);
@@ -794,9 +794,9 @@ async function recruterPersonnel(e) {
     e.personnel[p.role] = qui;
     const roles = {
       CENSEUR: e.chefTravaux ? 'vise les progressions des matières générales, bulletins' : 'vise toutes les progressions, bulletins',
-      CHEF_TRAVAUX: 'vise les progressions techniques et pratiques',
+      CHEF_TRAVAUX: 'vise les progressions techniques et pratiques ; ateliers, besoins à arbitrer (campagne des examens), état pour la DR, exports Excel et PDF',
       SECRETARIAT: 'dossiers des élèves',
-      INTENDANT: 'guichet, journal de caisse, relances',
+      INTENDANT: e.definition.ateliers?.length ? 'guichet, journal de caisse, relances ; catalogue des prix, commandes des ateliers' : 'guichet, journal de caisse, relances',
       SURVEILLANT: 'absences du jour, justificatifs, convocations',
     };
     noterCompte(e, p.libelle, qui, qui.telephone, roles[p.role]);
@@ -1345,6 +1345,8 @@ async function ateliers(e) {
   }
   ok(`${e.stats.equipements} équipements, ${e.stats.mouvementsStock} mouvements de stock`);
 
+  await besoinsEtCommandes(e, chef, intendant);
+
   etape('Inventaires');
   const faits = [];
   for (const def of e.definition.ateliers.filter((a) => a.id && a.inventaire && a.responsableSession)) {
@@ -1364,6 +1366,100 @@ async function ateliers(e) {
     });
   }
   ok(faits.join(' ; ') || 'aucun');
+}
+
+/**
+ * Circuit des besoins : campagne de l'année en cours complète (besoins proposés par les enseignants
+ * techniques, transmis par le responsable, arbitrés et validés par le chef des travaux, transmis à
+ * la DR, commandés, réceptionnés avec une non-conformité, répartis entre les ateliers) ; campagne
+ * des examens ouverte, avec un atelier qui attend l'arbitrage du chef des travaux.
+ */
+async function besoinsEtCommandes(e, chef, intendant) {
+  etape('Besoins, commandes, réception et répartition');
+  const tenus = e.definition.ateliers.filter((a) => a.id && a.responsableSession);
+  if (!tenus.length) {
+    ok('aucun atelier avec responsable');
+    return;
+  }
+  const annee = await tenter('Campagne de besoins', () =>
+    api('POST', '/campagnes-besoins', { type: 'ANNEE_EN_COURS', dateLimite: [ajouterJours(RENTREE, 20), AUJOURDHUI].sort()[1],
+      observations: 'Besoins en matière d’œuvre et en équipements pour les TP de l’année. Utilisez les articles du catalogue.' }, chef));
+  if (!annee) return;
+
+  // Expression des besoins dans chaque atelier, puis transmission par le responsable
+  const proposer = async (campagneId, def, coefficient) => {
+    const besoin = (await api('GET', `/ateliers/${def.id}/besoins`, undefined, def.responsableSession)).find((b) => b.campagneId === campagneId);
+    const signaleur = def.signaleur ? e.enseignants[def.signaleur]?.session : null;
+    const lignes = [
+      ...def.matieres.slice(0, 3).map((code, i) => ({ code, quantite: Math.ceil(ARTICLES[code][6] * coefficient * (1 - i * 0.2)),
+        justification: `TP ${e.classes.find((c) => c.filiere.code === def.filiere)?.code ?? def.filiere} — ${i === 0 ? 'consommation de l’année' : 'renouvellement'}`,
+        session: i === 0 && signaleur ? signaleur : def.responsableSession })),
+      ...def.equipements.slice(0, 1).map(([code]) => ({ code, quantite: 2, justification: 'Postes supplémentaires pour les effectifs', session: def.responsableSession })),
+    ];
+    for (const l of lignes) {
+      const art = e.articles[l.code];
+      if (!art) continue;
+      await api('PUT', `/besoins-ateliers/${besoin.id}/lignes/${art.id}`, { quantite: l.quantite, justification: l.justification }, l.session);
+      e.stats.lignesBesoin++;
+    }
+    await api('POST', `/besoins-ateliers/${besoin.id}/transmission`, undefined, def.responsableSession);
+    return besoin.id;
+  };
+  const valides = [];
+  for (const def of tenus) {
+    const id = await tenter('Besoins des ateliers', () => proposer(annee.id, def, 1));
+    if (!id) continue;
+    // Arbitrage : la première matière est réduite d'un cinquième (budget), le reste est retenu tel quel
+    await tenter('Arbitrage', async () => {
+      const b = await api('GET', `/besoins-ateliers/${id}`, undefined, chef);
+      const premiere = b.lignes.find((l) => l.nature === 'MATIERE_OEUVRE');
+      if (premiere) {
+        await api('PUT', `/besoins-ateliers/${id}/arbitrage`, { lignes: [{ articleId: premiere.articleId, quantiteRetenue: Math.ceil(premiere.quantiteDemandee * 0.8) }] }, chef);
+      }
+      await api('POST', `/besoins-ateliers/${id}/validation`, undefined, chef);
+      valides.push(def.code);
+    });
+  }
+  const transmise = await tenter('Transmission à la DR', () => api('POST', `/campagnes-besoins/${annee.id}/transmission`, undefined, chef));
+  if (!transmise) return;
+
+  // Commande passée par la direction régionale, enregistrée par l'intendant
+  const commande = await tenter('Commande', () => api('POST', `/campagnes-besoins/${annee.id}/commandes`, {
+    reference: `DR-${e.definition.code.toUpperCase()}-${AUJOURDHUI.slice(0, 4)}-01`,
+    fournisseur: 'Quincaillerie générale du Faso',
+    passeePar: 'DIRECTION_REGIONALE',
+    dateCommande: [ajouterJours(RENTREE, 25), AUJOURDHUI].sort()[0],
+    observations: 'Bon de commande de la direction régionale (budget de l’État).',
+    lignes: transmise.totaux.map((t) => ({ articleId: t.articleId, quantite: t.quantite, prixUnitaire: t.prixUnitaire })),
+  }, intendant));
+  if (!commande) return;
+  e.stats.commandes++;
+
+  // Réception par le chef des travaux : une partie du premier article n'est pas conforme aux normes
+  const livraison = await tenter('Réception', () => api('POST', `/commandes/${commande.id}/livraisons`, {
+    dateReception: AUJOURDHUI,
+    bonLivraison: `BL-${e.n}${String(commande.lignes.length).padStart(3, '0')}`,
+    observations: 'Livraison vérifiée avec les chefs d’atelier.',
+    lignes: commande.lignes.map((l, i) => i === 0 && l.quantite >= 2
+      ? { articleId: l.articleId, quantiteRecue: l.quantite, quantiteConforme: l.quantite - 1, motifNonConformite: 'Un lot ne respecte pas la norme du catalogue : retourné au fournisseur' }
+      : { articleId: l.articleId, quantiteRecue: l.quantite, quantiteConforme: null, motifNonConformite: null }),
+  }, chef));
+  if (!livraison) return;
+  e.stats.livraisons++;
+
+  // Répartition entre les ateliers selon les parts proposées (au prorata des besoins retenus)
+  await tenter('Répartition', async () => {
+    const lignes = livraison.lignes.flatMap((l) => l.repartition.filter((p) => p.proposee > 0).map((p) => ({ articleId: l.articleId, atelierId: p.atelierId, quantite: p.proposee })));
+    await api('PUT', `/livraisons/${livraison.id}/repartition`, { lignes }, chef);
+    await api('POST', `/livraisons/${livraison.id}/repartition/validation`, undefined, chef);
+  });
+
+  // Campagne des examens : le premier atelier a transmis, le chef des travaux doit arbitrer
+  const examens = await tenter('Campagne des examens', () =>
+    api('POST', '/campagnes-besoins', { type: 'EXAMENS', dateLimite: ajouterJours(AUJOURDHUI, 30),
+      observations: 'Matière d’œuvre des épreuves pratiques du BAC et du CAP.' }, chef));
+  if (examens) await tenter('Besoins des examens', () => proposer(examens.id, tenus[0], 0.5));
+  ok(`campagne ${annee.libelle} : ${valides.length} atelier(s) validé(s) (${valides.join(', ')}), transmise à la DR, commande ${commande.reference} reçue (un lot non conforme) et répartie ; campagne des examens en attente d’arbitrage`);
 }
 
 async function appelsEtCahier(e) {
@@ -1728,7 +1824,7 @@ function bilanFinal(debutChrono) {
     console.log(`  ${e.nom}`);
     console.log(`    ${e.eleves.length} élèves · ${Object.keys(e.enseignants).length} enseignants · ${e.stats.appels} appels · ${e.stats.absences} absences`);
     console.log(`    progressions : ${f.VISEE} visées, ${f.A_REVOIR} à revoir, ${f.SOUMISE} à viser, ${f.BROUILLON} brouillon, ${f.aucune} non commencée(s) · cahier : ${e.stats.seancesCahier} séances`);
-    if (e.stats.ateliers) console.log(`    ${e.stats.ateliers} ateliers · ${e.stats.equipements} équipements · ${e.stats.mouvementsStock} mouvements de matière d’œuvre`);
+    if (e.stats.ateliers) console.log(`    ${e.stats.ateliers} ateliers · ${e.stats.equipements} équipements · ${e.stats.mouvementsStock} mouvements de matière d’œuvre · ${e.stats.lignesBesoin} lignes de besoins · ${e.stats.commandes} commande(s) reçue(s) et répartie(s)`);
     console.log(`    ${e.profil === 'PROFESSIONNEL' ? `${e.stats.competences} niveaux de compétences` : `${e.stats.notes} notes`} · ${e.stats.paiements} paiements au guichet + ${e.stats.mm} Mobile Money · ${fcfa(e.stats.encaisse)} encaissés`);
   }
 

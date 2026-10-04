@@ -28,6 +28,7 @@ const TUILES: Tuile[] = [
   { titre: 'Progressions', texte: 'Fiches des enseignants à viser', lien: '/progression/suivi', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX'] },
   { titre: 'Ateliers', texte: 'Responsables, équipements, pannes, matière d’œuvre, inventaires', lien: '/ateliers', roles: ['CHEF_TRAVAUX', 'ADMIN_ECOLE', 'CENSEUR', 'ENSEIGNANT'] },
   { titre: 'Catalogue des prix', texte: 'Matière d’œuvre et équipements, spécifications, prix', lien: '/ateliers/catalogue', roles: ['INTENDANT', 'CHEF_TRAVAUX'] },
+  { titre: 'Besoins et commandes', texte: 'Campagnes de besoins, état pour la DR, commandes, réception, répartition', lien: '/ateliers/besoins', roles: ['CHEF_TRAVAUX', 'INTENDANT'] },
   { titre: 'Saisie des notes', texte: 'Marche aussi sans réseau', lien: '/notes', roles: ['ENSEIGNANT'] },
   { titre: 'Vie scolaire', texte: 'Absences du jour, incidents, convocations', lien: '/vie-scolaire', roles: ['SURVEILLANT', 'CENSEUR', 'ADMIN_ECOLE', 'SECRETARIAT'] },
   { titre: 'Scolarité et paiements', texte: 'Guichet, reçus, retards, journal de caisse', lien: '/scolarite', roles: ['INTENDANT', 'ADMIN_ECOLE', 'SECRETARIAT'] },

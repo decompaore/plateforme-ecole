@@ -9,6 +9,7 @@ import { dateCourte, dateHeureCourte, dateLocale } from '../../core/outils';
 import { fcfa, lireMontant } from '../../scolarite/modeles-scolarite';
 import { AteliersNavComponent } from '../ateliers-nav.component';
 import { AteliersApi } from '../ateliers-api.service';
+import { ExportBoutonsComponent } from '../export-boutons.component';
 import {
   alertesEnTexte,
   ArticleVue,
@@ -27,9 +28,10 @@ import {
   StatutPanne,
   TypeMouvement,
 } from '../modeles-ateliers';
+import { BesoinAtelierResumeVue, CLASSE_STATUT_BESOIN, LIBELLE_STATUT_BESOIN, LIBELLE_TYPE_CAMPAGNE } from '../modeles-besoins';
 import { erreurAtelier } from './ateliers.page';
 
-type Onglet = 'responsable' | 'equipements' | 'matiere' | 'inventaires';
+type Onglet = 'responsable' | 'equipements' | 'matiere' | 'inventaires' | 'besoins';
 
 /**
  * Fiche d'un atelier : responsable et historique des mandats, équipements et pannes, stock de
@@ -38,7 +40,7 @@ type Onglet = 'responsable' | 'equipements' | 'matiere' | 'inventaires';
  */
 @Component({
   selector: 'app-atelier',
-  imports: [FormsModule, RouterLink, AteliersNavComponent],
+  imports: [FormsModule, RouterLink, AteliersNavComponent, ExportBoutonsComponent],
   templateUrl: './atelier.page.html',
   styleUrl: './atelier.page.scss',
 })
@@ -154,6 +156,12 @@ export class AtelierPage {
   // ---------------- inventaires
   protected readonly inventaires = signal<InventaireResumeVue[] | null>(null);
   protected readonly libelleInventaire = signal('');
+  // ---------------- besoins (campagnes ouvertes par le chef des travaux)
+  protected readonly besoins = signal<BesoinAtelierResumeVue[] | null>(null);
+  protected readonly libelleStatutBesoin = LIBELLE_STATUT_BESOIN;
+  protected readonly classeStatutBesoin = CLASSE_STATUT_BESOIN;
+  protected readonly libelleTypeCampagne = LIBELLE_TYPE_CAMPAGNE;
+
   protected readonly inventaireEnCours = computed(() => (this.inventaires() ?? []).find((i) => i.statut === 'EN_COURS') ?? null);
 
   constructor() {
@@ -492,6 +500,9 @@ export class AtelierPage {
     }
     if (o === 'inventaires' && (forcer || this.inventaires() === null)) {
       this.inventaires.set((await this.action.executer(() => this.api.inventaires(id))) ?? []);
+    }
+    if (o === 'besoins' && (forcer || this.besoins() === null)) {
+      this.besoins.set((await this.action.executer(() => this.api.besoinsDeLAtelier(id))) ?? []);
     }
   }
 }

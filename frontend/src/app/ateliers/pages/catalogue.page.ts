@@ -10,6 +10,7 @@ import { SessionService } from '../../core/session.service';
 import { RechercheComponent } from '../../partage/recherche.component';
 import { fcfa, lireMontant } from '../../scolarite/modeles-scolarite';
 import { AteliersNavComponent } from '../ateliers-nav.component';
+import { ExportBoutonsComponent } from '../export-boutons.component';
 import { AteliersApi } from '../ateliers-api.service';
 import { ArticleVue, LIBELLE_NATURE, NatureArticle } from '../modeles-ateliers';
 
@@ -42,7 +43,7 @@ const TYPES_PHOTO = ['image/jpeg', 'image/png', 'image/webp'];
  */
 @Component({
   selector: 'app-catalogue',
-  imports: [FormsModule, RechercheComponent, AteliersNavComponent],
+  imports: [FormsModule, RechercheComponent, AteliersNavComponent, ExportBoutonsComponent],
   template: `
     <div class="page large">
       <h1>Catalogue des prix</h1>
@@ -54,6 +55,11 @@ const TYPES_PHOTO = ['image/jpeg', 'image/png', 'image/webp'];
       @if (message()) {
         <div class="alerte succes" role="status">{{ message() }}</div>
       }
+
+      <div class="barre-export">
+        <span class="doux">Catalogue complet avec photos, spécifications, normes et prix :</span>
+        <app-export chemin="/catalogue" nom="catalogue-des-prix" libelle="le catalogue des prix" />
+      </div>
 
       <section class="carte">
         <div class="entete-section">

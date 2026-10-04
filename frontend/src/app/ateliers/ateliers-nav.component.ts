@@ -4,10 +4,12 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
 import { Role } from '../core/modeles';
 import { SessionService } from '../core/session.service';
 import { ROLES_ATELIERS } from './modeles-ateliers';
+import { ROLES_BESOINS } from './modeles-besoins';
 
 const ONGLETS: { lien: string; titre: string; exact?: boolean; roles: Role[] }[] = [
   { lien: '/ateliers', titre: 'Ateliers', exact: true, roles: ROLES_ATELIERS },
   { lien: '/ateliers/catalogue', titre: 'Catalogue des prix', roles: ROLES_ATELIERS },
+  { lien: '/ateliers/besoins', titre: 'Besoins et commandes', roles: ROLES_BESOINS },
 ];
 
 /** Onglets de l'espace des ateliers. */

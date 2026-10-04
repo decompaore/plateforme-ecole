@@ -272,6 +272,16 @@ select {
   align-items: center;
 }
 
+/* Ligne de boutons de téléchargement (Excel, PDF) au-dessus d'une liste */
+.barre-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  margin: 0.25rem 0 0.75rem;
+  font-size: 0.9rem;
+}
+
 .entete-section {
   display: flex;
   flex-wrap: wrap;

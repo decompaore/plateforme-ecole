@@ -133,6 +133,19 @@ public class StockService {
         return liste.stream().map(m -> vue(m, articles.get(m.getArticleId()), parNom)).toList();
     }
 
+    /** Entrée en stock d'une livraison répartie par le chef des travaux (droits contrôlés par l'appelant). */
+    void entreeLivraison(Atelier atelier, UUID articleId, BigDecimal quantite, LocalDate date, String motif) {
+        if (inventaires.findByAtelierIdAndStatut(atelier.getId(), StatutInventaire.EN_COURS).isPresent()) {
+            throw new RegleMetierException("INVENTAIRE_EN_COURS", "Un inventaire est en cours dans l'atelier "
+                    + atelier.getCode() + " : clôturez-le avant de répartir la livraison");
+        }
+        StockAtelier stock = stocks.findByAtelierIdAndArticleId(atelier.getId(), articleId)
+                .orElseGet(() -> stocks.save(new StockAtelier(atelier.getId(), articleId)));
+        stock.ajouter(quantite);
+        mouvements.save(new MouvementStock(atelier.getId(), articleId, TypeMouvement.ENTREE, quantite, stock.getQuantite(),
+                date, motif, null, UtilisateurConnecte.id(), horloge.instant()));
+    }
+
     void exigerHorsInventaire(UUID atelierId) {
         if (inventaires.findByAtelierIdAndStatut(atelierId, StatutInventaire.EN_COURS).isPresent()) {
             throw new RegleMetierException("INVENTAIRE_EN_COURS",

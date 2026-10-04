@@ -68,6 +68,13 @@ class AccesAteliers {
         return UtilisateurConnecte.aUnRole("INTENDANT");
     }
 
+    /** Campagnes, commandes, états : direction des ateliers et intendance. */
+    void exigerDirectionOuIntendance() {
+        if (!direction() && !intendance()) {
+            throw new AccesRefuseException("Réservé au chef des travaux, à l'administration et à l'intendance");
+        }
+    }
+
     void exigerDirection(String quoi) {
         if (!direction()) {
             throw new AccesRefuseException("Réservé au chef des travaux et à l'administration : " + quoi);
