@@ -692,6 +692,7 @@ async function peuplerEcole(def, sa) {
   await encaisser(e);
   await progressions(e);
   await ateliers(e);
+  await publierEmploiDuTemps(e);
   await appelsEtCahier(e);
   await evaluer(e);
   await vieScolaire(e);
@@ -793,8 +794,8 @@ async function recruterPersonnel(e) {
     qui.session = await compte(qui.telephone, r.motDePasseTemporaire, e.id);
     e.personnel[p.role] = qui;
     const roles = {
-      CENSEUR: e.chefTravaux ? 'vise les progressions des matières générales, bulletins' : 'vise toutes les progressions, bulletins',
-      CHEF_TRAVAUX: 'vise les progressions techniques et pratiques ; ateliers, besoins à arbitrer (campagne des examens), état pour la DR, exports Excel et PDF',
+      CENSEUR: e.chefTravaux ? 'grille horaire et emploi du temps des matières générales, publication ; vise les progressions des matières générales, bulletins' : 'grille horaire et tout l’emploi du temps, publication ; vise toutes les progressions, bulletins',
+      CHEF_TRAVAUX: 'emploi du temps des matières techniques et pratiques ; vise les progressions techniques et pratiques ; ateliers, besoins à arbitrer (campagne des examens), état pour la DR, exports Excel et PDF',
       SECRETARIAT: 'dossiers des élèves',
       INTENDANT: e.definition.ateliers?.length ? 'guichet, journal de caisse, relances ; catalogue des prix, commandes des ateliers' : 'guichet, journal de caisse, relances',
       SURVEILLANT: 'absences du jour, justificatifs, convocations',
@@ -912,6 +913,49 @@ function emploiDuTemps(e) {
     }
   }
   ok(`${places} créneaux par semaine, ${e.seances.length} séances depuis la rentrée`);
+}
+
+/**
+ * Emploi du temps dans l'application (v0.30) : le censeur fixe la grille horaire (heures de 7 h à
+ * 12 h et de 15 h à 17 h, du lundi au vendredi), place les matières générales ; le chef des travaux
+ * (le censeur s'il n'y en a pas) place les matières techniques et pratiques. Les séances reprennent
+ * celles qui servent aux appels ; la génération automatique complète les heures qui manquent, puis
+ * le censeur publie.
+ */
+async function publierEmploiDuTemps(e) {
+  etape('Emploi du temps : grille, placement, génération, publication');
+  const censeur = e.personnel.CENSEUR?.session ?? e.sAdmin;
+  const chef = e.personnel.CHEF_TRAVAUX?.session ?? censeur;
+  const semaine = [1, 2, 3, 4, 5];
+  const heures = [['07:00', '08:00'], ['08:00', '09:00'], ['10:00', '11:00'], ['11:00', '12:00'], ['15:00', '16:00'], ['16:00', '17:00']];
+  const grille = await tenter('Grille horaire', () =>
+    api('PUT', `/annees/${e.annee.id}/creneaux`, { creneaux: heures.map(([heureDebut, heureFin]) => ({ id: null, heureDebut, heureFin, jours: semaine })) }, censeur));
+  if (!grille) return;
+  const creneau = (debut) => grille.find((c) => c.heureDebut.startsWith(debut))?.id;
+  const suivante = { '07:00': '08:00', '10:00': '11:00', '15:00': '16:00' };
+  let placees = 0;
+  for (const classe of e.classes) {
+    for (const m of classe.matieres) {
+      const qui = m.type === 'GENERALE' ? censeur : chef;
+      for (const c of m.creneaux) {
+        for (const debut of [c.debut, suivante[c.debut]]) {
+          const id = uuidStable(`edt|${classe.id}|${m.id}|${c.jour}|${debut}`);
+          const ok1 = await tenter('Emploi du temps', () => api('PUT', `/seances-emploi/${id}`, {
+            anneeId: e.annee.id, classeId: classe.id, matiereId: m.id, jour: c.jour, creneauId: creneau(debut), groupe: null, atelierId: null, salle: null,
+          }, qui));
+          if (ok1) placees++;
+        }
+      }
+    }
+  }
+  const generations = [];
+  for (const [qui, nom] of [[chef, 'chef des travaux'], [censeur, 'censeur']]) {
+    const r = await tenter('Génération', () => api('POST', `/annees/${e.annee.id}/emploi-du-temps/generation`, { classes: [], domaines: [], remplacer: false }, qui));
+    if (r) generations.push(`${nom} : +${r.seancesPlacees}${r.manques.length ? `, ${r.manques.length} à finir à la main` : ''}`);
+    if (!e.personnel.CHEF_TRAVAUX) break;
+  }
+  const publie = await tenter('Publication', () => api('POST', `/annees/${e.annee.id}/emploi-du-temps/publication`, undefined, censeur));
+  ok(`${placees} séances placées à la main ; générées par ${generations.join(' ; ') || '—'} ; ${publie ? 'publié aux enseignants' : 'non publié'}`);
 }
 
 // ---------------------------------------------------------------- scolarité

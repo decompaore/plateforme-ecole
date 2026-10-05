@@ -11,6 +11,7 @@ import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Size;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,7 +27,12 @@ import bf.edutech.plateforme.eleves.Donnees.DonneesEleve;
 import bf.edutech.plateforme.eleves.Donnees.DonneesResponsable;
 import bf.edutech.plateforme.eleves.Vues.DossierEleveVue;
 import bf.edutech.plateforme.eleves.Vues.EleveVue;
+import bf.edutech.plateforme.eleves.EspaceParentService.AccesParent;
 import bf.edutech.plateforme.eleves.Vues.EspaceParentVue;
+import bf.edutech.plateforme.notifications.NotificationsService;
+import bf.edutech.plateforme.socle.export.ExportTableaux;
+import bf.edutech.plateforme.socle.export.Tableau;
+import bf.edutech.plateforme.socle.export.Tableau.Colonne;
 import bf.edutech.plateforme.socle.persistance.PageResultat;
 import bf.edutech.plateforme.socle.referentiel.Sexe;
 
@@ -78,10 +84,12 @@ public class ElevesController {
 
     private final ElevesService service;
     private final EspaceParentService espaceParent;
+    private final NotificationsService notifications;
 
-    ElevesController(ElevesService service, EspaceParentService espaceParent) {
+    ElevesController(ElevesService service, EspaceParentService espaceParent, NotificationsService notifications) {
         this.service = service;
         this.espaceParent = espaceParent;
+        this.notifications = notifications;
     }
 
     /** Recherche par matricule, nom ou prénoms, page par page (20 élèves par défaut, 100 au plus). */
@@ -142,5 +150,35 @@ public class ElevesController {
     @PreAuthorize(Roles.GESTION)
     public EspaceParentVue ouvrirEspaceParent(@PathVariable UUID id) {
         return espaceParent.ouvrir(id);
+    }
+
+    /**
+     * Ouvre l'espace parent des responsables légaux et des contacts prioritaires des élèves d'une
+     * classe, et renvoie la fiche de remise des accès (PDF par défaut, ou Excel) : une ligne par
+     * parent, avec son mot de passe provisoire s'il vient d'être créé. Les mots de passe n'étant
+     * renvoyés qu'une fois, la fiche ne peut pas être rééditée (réinitialiser le compte si besoin).
+     */
+    @PostMapping("/api/v1/classes/{classeId}/espaces-parents")
+    @PreAuthorize(Roles.GESTION)
+    public ResponseEntity<byte[]> ouvrirEspacesParents(@PathVariable UUID classeId,
+            @RequestParam(defaultValue = "pdf") String format) {
+        ExportTableaux.Format f = ExportTableaux.Format.lire(format);
+        List<AccesParent> acces = espaceParent.ouvrirPourClasse(classeId);
+        String classe = espaceParent.codeClasse(classeId);
+        long nouveaux = acces.stream().filter(a -> a.motDePasseTemporaire() != null).count();
+        Tableau t = new Tableau("Accès parents", "Accès à l'espace parent : " + classe)
+                .sousTitre(acces.size() + " parent(s) ou tuteur(s), dont " + nouveaux + " nouveau(x) compte(s)")
+                .colonnes(Colonne.texte("Parent ou tuteur", 10), Colonne.texte("Lien", 4), Colonne.texte("Téléphone", 6),
+                        Colonne.texte("Élève(s)", 12), Colonne.texte("Mot de passe provisoire", 8))
+                .portrait();
+        for (AccesParent a : acces) {
+            t.ligne(a.parent(), a.lien(), a.telephone(), a.eleves(),
+                    a.motDePasseTemporaire() != null ? a.motDePasseTemporaire() : "compte existant : mot de passe habituel");
+        }
+        t.note("Connexion à l'application avec le numéro de téléphone et le mot de passe provisoire : un nouveau mot "
+                + "de passe est demandé à la première connexion. Mot de passe oublié : s'adresser à l'administration.");
+        t.note("Document confidentiel : remettre à chaque parent sa ligne (découpée) ou lui communiquer en personne, "
+                + "puis détruire ce document. Les mots de passe provisoires ne seront plus affichés.");
+        return ExportTableaux.reponse(notifications.nomEtablissement(), "acces-parents-" + classe.replaceAll("[^A-Za-z0-9]+", "-"), f, t);
     }
 }

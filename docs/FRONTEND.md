@@ -1,4 +1,4 @@
-# Application web (v0.28.1)
+# Application web (v0.30.1)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -248,6 +248,42 @@ Comptes créés (administrateur d'un établissement, enseignant, personnel) : le
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
 
+## Emplois du temps (v0.30)
+
+Le censeur n'a pas accès aux ateliers (v0.30.1) : tuile, écrans et API reviennent au chef des travaux et à
+l'administrateur. Dans l'emploi du temps, la vue « Par atelier » n'apparaît que si l'établissement a des ateliers.
+
+En ligne. Tuile « Emplois du temps » (administration, censeur, chef des travaux, surveillant) et « Mon emploi du
+temps » (enseignant). Règles et API : [API_EMPLOI_DU_TEMPS.md](API_EMPLOI_DU_TEMPS.md).
+
+- **Grille horaire** (censeur, administrateur) : une ligne par heure de cours, avec les jours où elle existe ;
+  « Partir de la grille courante » propose 7 h – 12 h du lundi au samedi et 15 h – 18 h les lundi, mardi, jeudi et
+  vendredi.
+- **Emplois du temps** : bilan (heures placées, classes complètes, conflits), conflits à régler, grille **par
+  classe, par enseignant ou par atelier** (bleu : matières générales, ocre : techniques et pratiques ; hachures :
+  pas de cours ; « Autre établissement » pour les heures d'un vacataire ailleurs). Par classe, « + » sur une case
+  libre ouvre le placement (matière proposée : celle à qui il manque des heures ; jour, heure, groupe, atelier de la
+  filière proposé pour un TP, salle) ; une séance de son domaine s'ouvre pour être déplacée ou retirée. « + groupe »
+  ajoute l'autre demi-classe. Le censeur ne voit modifiables que les matières générales, le chef des travaux que les
+  techniques et pratiques.
+- **Volume horaire** de la classe : heures placées / prévues pour chaque matière et qui la place.
+- **Génération automatique** : toutes les classes ou la classe affichée, option « Refaire entièrement » ; le résultat
+  liste ce qui reste à placer à la main.
+- **Publication** (censeur) : bloquée tant qu'il reste des conflits ; l'enseignant voit ensuite ses cours jour par
+  jour et télécharge son emploi du temps en PDF.
+- Exports Excel et PDF de la vue affichée et de toutes les classes.
+
+## Parents et tuteurs (v0.29)
+
+- **Dossier d'un élève** (onglet Élèves) : chaque parent ou tuteur avec son lien (père, mère, tuteur, autre), sa
+  profession, « reçoit les SMS » et « compte parent ouvert » ou « pas de compte parent ». Boutons « Créer le compte
+  parent » (mot de passe provisoire affiché une fois ; si le numéro a déjà un compte, l'accès est simplement ajouté),
+  « Ajouter un parent ou tuteur » (responsable légal, contact prioritaire, création du compte cochée par défaut) et
+  « Retirer ».
+- **Fiche d'une classe** : « Ouvrir les comptes des parents » ouvre en une fois les comptes des responsables légaux et
+  des contacts prioritaires de la classe et télécharge la fiche de remise des accès (PDF ou Excel).
+- Un parent qui a perdu son mot de passe se dépanne dans l'onglet Comptes (réinitialisation).
+
 ## Comptes et mots de passe (v0.27, v0.28)
 
 - (v0.28) Tuile « Comptes et mots de passe » sur l'accueil de l'administrateur (la réinitialisation se fait dans
@@ -490,6 +526,7 @@ frontend/src/app/
 | `recherche.spec.ts` | Accents, majuscules et ordre des mots, téléphone avec espaces ; feuille de notes filtrée qui garde le n° d'ordre et place le curseur sur la note ; message clair quand les trimestres manquent |
 | `ateliers.spec.ts` | Contrôles (quantités à deux décimales, code d'atelier, unité d'un article), alertes en phrases ; liste du chef des travaux (chiffres, sans responsable, matières sous le seuil, paramètres) ; désignation du responsable parmi les candidats ; panne signalée par un enseignant de l'atelier ; inventaire saisi (écart affiché, « Tous conformes ») puis clos |
 | `besoins.spec.ts` | Contrôles (ligne de besoin, réception, répartition, nom du fichier exporté) ; boutons d'export (Excel téléchargé avec le nom du serveur, erreur du PDF affichée) ; article proposé puis transmis par le responsable ; arbitrage et validation par le chef des travaux ; commande préremplie avec le reste à commander ; répartition d'une livraison (excédent signalé, validation) |
+| `parents.spec.ts` | Contrôle d'un parent ou tuteur ; dossier d'un élève : compte parent créé (mot de passe affiché), tuteur ajouté avec un compte existant, retrait ; fiche d'une classe : comptes des parents ouverts et fiche PDF téléchargée |
 | `comptes.spec.ts` | (v0.28) message de renouvellement de période sur la page « Mot de passe » ; heure de fin du blocage ; comptes de l'administrateur (chiffres, jamais connecté, verrouillé, son propre compte sans réinitialisation), déverrouillage, réinitialisation confirmée puis mot de passe provisoire affiché une fois avec l'avertissement « autre établissement », comptes retirés sans action ; réinitialisation d'un administrateur par le super administrateur |
 | `fin-engagement.component.spec.ts` | Bandeau de mutation : envois en attente comptés et envoyés tout de suite, rien à 60 jours, affichage sans réseau le jour même, annonce effacée quand la fin est annulée, calcul des jours |
 

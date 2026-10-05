@@ -223,7 +223,7 @@ class EtablissementIntegrationTest {
     }
 
     private UUID nouvelleEcole() {
-        String suffixe = Integer.toString(ThreadLocalRandom.current().nextInt(100_000, 999_999));
+        String suffixe = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         String telephone = "7" + String.format("%07d", ThreadLocalRandom.current().nextInt(10_000_000));
         return etablissements.creer("etab-" + suffixe, "École " + suffixe, telephone, "ADMIN", "Test")
                 .etablissement().id();

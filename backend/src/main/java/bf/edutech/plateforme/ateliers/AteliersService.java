@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import bf.edutech.plateforme.ateliers.Vues.AlertesAtelier;
+import bf.edutech.plateforme.ateliers.Vues.AtelierCourtVue;
 import bf.edutech.plateforme.ateliers.Vues.AtelierResumeVue;
 import bf.edutech.plateforme.ateliers.Vues.AtelierVue;
 import bf.edutech.plateforme.ateliers.Vues.CandidatVue;
@@ -117,6 +118,25 @@ public class AteliersService {
         return visibles.stream().map(a -> new AtelierResumeVue(a.getId(), a.getCode(), a.getNom(), a.getEmplacement(),
                 a.getPostes(), a.isOuvert(), c.filieresDe(a.getId()), c.responsable(a.getId()),
                 c.equipements(a.getId()), c.articles(a.getId()), c.alertes(a.getId()), droits.get(a.getId()))).toList();
+    }
+
+    /**
+     * Ateliers ouverts et leurs filières, pour l'emploi du temps : lisibles par toute la direction
+     * (censeur compris), sans les stocks ni les mandats.
+     */
+    @Transactional(readOnly = true)
+    public List<AtelierCourtVue> ouverts() {
+        UtilisateurConnecte.etablissementActif();
+        List<Atelier> liste = ateliers.findAllByOrderByCodeAsc().stream().filter(Atelier::isOuvert).toList();
+        if (liste.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, List<UUID>> parAtelier = liens.findByAtelierIdIn(liste.stream().map(Atelier::getId).toList()).stream()
+                .collect(java.util.stream.Collectors.groupingBy(AtelierFiliere::getAtelierId,
+                        java.util.stream.Collectors.mapping(AtelierFiliere::getFiliereId,
+                                java.util.stream.Collectors.toList())));
+        return liste.stream().map(a -> new AtelierCourtVue(a.getId(), a.getCode(), a.getNom(), a.getPostes(),
+                parAtelier.getOrDefault(a.getId(), List.of()))).toList();
     }
 
     @Transactional

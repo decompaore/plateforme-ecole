@@ -28,6 +28,14 @@ import bf.edutech.plateforme.utilisateurs.Role;
 @Service
 public class EspaceParentService {
 
+    /**
+     * Accès à l'espace parent d'un responsable, pour la fiche de remise d'une classe ;
+     * {@code motDePasseTemporaire} est null si la personne avait déjà un compte.
+     */
+    public record AccesParent(UUID responsableId, String parent, String lien, String telephone, String eleves,
+            String motDePasseTemporaire) {
+    }
+
     private final ResponsableRepository responsables;
     private final LienResponsableEleveRepository liens;
     private final EleveRepository eleves;
@@ -62,6 +70,61 @@ public class EspaceParentService {
                 Map.of("nouveauCompte", resultat.motDePasseTemporaire() != null));
         return new EspaceParentVue(responsable.getId(), utilisateurId, responsable.getTelephone(),
                 resultat.motDePasseTemporaire());
+    }
+
+    /**
+     * Ouvre en une fois l'espace parent des responsables des élèves inscrits dans une classe :
+     * responsables légaux et contacts prioritaires (ceux qui reçoivent les SMS). Un responsable de
+     * plusieurs élèves de la classe n'a qu'un compte. Les mots de passe provisoires des nouveaux
+     * comptes ne sont renvoyés qu'ici, pour la fiche de remise.
+     */
+    @Transactional
+    public List<AccesParent> ouvrirPourClasse(UUID classeId) {
+        UtilisateurConnecte.etablissementActif();
+        Map<UUID, List<String>> elevesParResponsable = new java.util.LinkedHashMap<>();
+        Map<UUID, LienParente> lienParResponsable = new java.util.HashMap<>();
+        for (Object[] ligne : inscriptions.listerAvecEleves(classeId)) {
+            Inscription inscription = (Inscription) ligne[0];
+            Eleve eleve = (Eleve) ligne[1];
+            if (inscription.getStatut() != StatutInscription.ACTIVE) {
+                continue;
+            }
+            for (LienResponsableEleve lien : liens.findByEleveId(eleve.getId())) {
+                if (lien.isResponsableLegal() || lien.isContactPrioritaire()) {
+                    elevesParResponsable.computeIfAbsent(lien.getResponsableId(), k -> new java.util.ArrayList<>())
+                            .add(eleve.getNom() + " " + eleve.getPrenoms());
+                    lienParResponsable.putIfAbsent(lien.getResponsableId(), lien.getLien());
+                }
+            }
+        }
+        if (elevesParResponsable.isEmpty()) {
+            throw new bf.edutech.plateforme.socle.erreurs.RegleMetierException("AUCUN_RESPONSABLE",
+                    "Aucun responsable légal ni contact prioritaire parmi les élèves inscrits dans cette classe");
+        }
+        return responsables.findByIdIn(elevesParResponsable.keySet()).stream()
+                .sorted(Comparator.comparing(Responsable::getNom).thenComparing(Responsable::getPrenoms))
+                .map(r -> {
+                    EspaceParentVue v = ouvrir(r.getId());
+                    return new AccesParent(r.getId(), r.getNom() + " " + r.getPrenoms(),
+                            libelleLien(lienParResponsable.get(r.getId())), r.getTelephone(),
+                            String.join(", ", elevesParResponsable.get(r.getId())), v.motDePasseTemporaire());
+                })
+                .toList();
+    }
+
+    /** Code de la classe (titre de la fiche de remise). */
+    @Transactional(readOnly = true)
+    public String codeClasse(UUID classeId) {
+        return registre.classe(classeId).code();
+    }
+
+    static String libelleLien(LienParente lien) {
+        return lien == null ? "" : switch (lien) {
+            case PERE -> "Père";
+            case MERE -> "Mère";
+            case TUTEUR -> "Tuteur";
+            case AUTRE -> "Autre";
+        };
     }
 
     /** L'élève est-il un enfant du parent connecté (responsable rattaché, espace ouvert) ? */

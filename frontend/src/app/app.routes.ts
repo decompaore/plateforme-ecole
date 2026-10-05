@@ -231,10 +231,41 @@ export const routes: Routes = [
         ],
       },
       {
+        // Emplois du temps : le censeur place les matières générales, le chef des travaux les
+        // matières techniques et pratiques ; l'enseignant voit le sien une fois publié (en ligne)
+        path: 'emploi-du-temps',
+        canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SURVEILLANT', 'ENSEIGNANT')],
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            canActivate: [
+              () =>
+                inject(SessionService).aLeRole('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SURVEILLANT') ||
+                inject(Router).parseUrl('/emploi-du-temps/mon-emploi'),
+            ],
+            title: 'Emplois du temps',
+            loadComponent: () => import('./emploi-du-temps/pages/emploi-du-temps.page').then((m) => m.EmploiDuTempsPage),
+          },
+          {
+            path: 'grille',
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR')],
+            title: 'Grille horaire',
+            loadComponent: () => import('./emploi-du-temps/pages/grille-horaire.page').then((m) => m.GrilleHorairePage),
+          },
+          {
+            path: 'mon-emploi',
+            canActivate: [role('ENSEIGNANT')],
+            title: 'Mon emploi du temps',
+            loadComponent: () => import('./emploi-du-temps/pages/mon-emploi.page').then((m) => m.MonEmploiPage),
+          },
+        ],
+      },
+      {
         // Ateliers : catalogue des prix, responsables, équipements, matière d'œuvre, inventaires,
         // besoins, commandes, réception et répartition (en ligne)
         path: 'ateliers',
-        canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'INTENDANT', 'ENSEIGNANT')],
+        canActivate: [role('ADMIN_ECOLE', 'CHEF_TRAVAUX', 'INTENDANT', 'ENSEIGNANT')],
         children: [
           {
             path: '',

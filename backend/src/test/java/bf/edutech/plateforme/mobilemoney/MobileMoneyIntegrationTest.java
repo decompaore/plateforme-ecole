@@ -345,7 +345,7 @@ class MobileMoneyIntegrationTest {
     }
 
     private UUID nouvelleEcole() {
-        String suffixe = Integer.toString(ThreadLocalRandom.current().nextInt(100_000, 999_999));
+        String suffixe = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         return etablissements.creer("mm-" + suffixe, "Lycée " + suffixe, "7" + telephone().substring(1), "ADMIN",
                 "Test").etablissement().id();
     }

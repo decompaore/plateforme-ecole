@@ -87,6 +87,8 @@ export class ExportBoutonsComponent {
   readonly nom = input('export');
   /** Ce qui est téléchargé, pour les lecteurs d'écran : « le catalogue », « l'état des besoins »… */
   readonly libelle = input('la liste');
+  /** Paramètres ajoutés à la demande (filtre : classe, enseignant…). */
+  readonly parametres = input<Record<string, string>>({});
 
   protected readonly enCours = signal<FormatExport | null>(null);
   protected readonly erreur = signal<string | null>(null);
@@ -96,7 +98,7 @@ export class ExportBoutonsComponent {
     this.erreur.set(null);
     try {
       const r: HttpResponse<Blob> = await firstValueFrom(
-        this.http.get(`${API}${this.chemin()}/export`, { params: { format }, responseType: 'blob', observe: 'response' }),
+        this.http.get(`${API}${this.chemin()}/export`, { params: { ...this.parametres(), format }, responseType: 'blob', observe: 'response' }),
       );
       if (r.body) {
         enregistrerFichier(r.body, nomDuFichier(r.headers.get('Content-Disposition'), `${this.nom()}.${format}`));

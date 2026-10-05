@@ -5,6 +5,9 @@
   @if (action.erreur()) {
     <div class="alerte erreur" role="alert">{{ action.erreur() }}</div>
   }
+  @if (secret(); as s) {
+    <app-mot-de-passe-temporaire [titre]="s.titre" [telephone]="s.telephone" [motDePasse]="s.motDePasse" (fermer)="secret.set(null)" />
+  }
   @if (message(); as m) {
     <div class="alerte succes" role="status">{{ m }}</div>
   }
@@ -163,17 +166,66 @@
             <button type="button" class="bouton petit" (click)="inscrireDossier()">Inscrire en {{ a.libelle }}</button>
           </div>
         }
-        <h3>Parents et tuteurs</h3>
+        <div class="entete-section">
+          <h3>Parents et tuteurs</h3>
+          @if (peutModifier() && !formResponsable()) {
+            <button type="button" class="bouton secondaire petit" (click)="ouvrirFormResponsable()">Ajouter un parent ou tuteur</button>
+          }
+        </div>
         <ul class="liste">
           @for (r of d.responsables; track r.responsableId) {
-            <li class="ligne-lien">
-              <span>{{ r.nom }} {{ r.prenoms }} · {{ r.telephone }}</span>
-              @if (r.contactPrioritaire) { <span class="pastille present">reçoit les SMS</span> }
+            <li class="responsable">
+              <span>
+                <strong>{{ r.nom }}</strong> {{ r.prenoms }} · {{ libelleLien[r.lien] }} · {{ r.telephone }}
+                @if (r.profession) { <span class="doux">· {{ r.profession }}</span> }
+                <br />
+                @if (r.contactPrioritaire) { <span class="pastille present">reçoit les SMS</span> }
+                @if (r.espaceParentOuvert) {
+                  <span class="pastille present">compte parent ouvert</span>
+                } @else {
+                  <span class="pastille">pas de compte parent</span>
+                }
+              </span>
+              @if (peutModifier()) {
+                <span class="actions-ligne">
+                  @if (!r.espaceParentOuvert) {
+                    <button type="button" class="bouton petit" [disabled]="action.enCours()" (click)="ouvrirEspaceParent(r)">Créer le compte parent</button>
+                  }
+                  @if (d.responsables.length > 1) {
+                    <button type="button" class="bouton discret petit" [disabled]="action.enCours()" (click)="retirerResponsable(r)">Retirer</button>
+                  }
+                </span>
+              }
             </li>
           } @empty {
-            <li class="doux">Aucun.</li>
+            <li class="doux">Aucun parent ni tuteur enregistré.</li>
           }
         </ul>
+        @if (formResponsable()) {
+          <form class="sous-formulaire" (ngSubmit)="ajouterResponsable()">
+            <div class="grille-champs">
+              <div class="champ"><label for="rNom">Nom</label><input id="rNom" name="rNom" [(ngModel)]="rNom" /></div>
+              <div class="champ"><label for="rPrenoms">Prénoms</label><input id="rPrenoms" name="rPrenoms" [(ngModel)]="rPrenoms" /></div>
+              <div class="champ"><label for="rTel">Téléphone</label><input id="rTel" name="rTel" type="tel" inputmode="tel" [(ngModel)]="rTelephone" /></div>
+              <div class="champ">
+                <label for="rLien">Lien avec l'élève</label>
+                <select id="rLien" name="rLien" [ngModel]="rLien()" (ngModelChange)="rLien.set($event)">
+                  @for (l of liens; track l) { <option [value]="l">{{ libelleLien[l] }}</option> }
+                </select>
+              </div>
+              <div class="champ"><label for="rProf">Profession <span class="doux">(facultatif)</span></label><input id="rProf" name="rProf" [(ngModel)]="rProfession" /></div>
+            </div>
+            <label class="case"><input type="checkbox" name="rLegal" [ngModel]="rLegal()" (ngModelChange)="rLegal.set($event)" /> Responsable légal</label>
+            <label class="case"><input type="checkbox" name="rPrio" [ngModel]="rPrioritaire()" (ngModelChange)="rPrioritaire.set($event)" /> Reçoit les SMS de l'établissement (contact prioritaire)</label>
+            <label class="case"><input type="checkbox" name="rCompte" [ngModel]="rCompte()" (ngModelChange)="rCompte.set($event)" /> Créer aussi son compte parent</label>
+            @if (erreurResponsable(); as e) { <p class="rouge" role="alert">{{ e }}</p> }
+            <div class="actions-ligne">
+              <button type="submit" class="bouton petit" [disabled]="!!erreurResponsable() || action.enCours()">Enregistrer</button>
+              <button type="button" class="bouton discret petit" (click)="formResponsable.set(false)">Fermer</button>
+            </div>
+            <p class="doux">Si ce numéro a déjà un compte (parent d'un autre élève, enseignant…), il est réutilisé avec son mot de passe habituel.</p>
+          </form>
+        }
       </div>
     }
   </section>

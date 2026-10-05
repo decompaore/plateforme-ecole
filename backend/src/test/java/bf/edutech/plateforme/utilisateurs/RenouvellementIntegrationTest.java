@@ -75,7 +75,7 @@ class RenouvellementIntegrationTest {
 
     @Test
     void lePersonnelChangeDeMotDePasseAChaquePeriode() throws Exception {
-        String suffixe = Integer.toString(ThreadLocalRandom.current().nextInt(100_000, 999_999));
+        String suffixe = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         String telAdmin = telephone();
         EtablissementsService.ResultatCreation creation = etablissements.creer("renouv-" + suffixe, "Lycée " + suffixe,
                 telAdmin, "ADMIN", "Test");

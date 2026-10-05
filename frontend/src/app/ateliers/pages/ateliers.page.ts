@@ -295,7 +295,7 @@ export class AteliersPage {
   protected readonly charge = signal(false);
   protected readonly parametres = signal<ParametresAteliers | null>(null);
   protected readonly filieres = signal<FiliereVue[]>([]);
-  /** Direction des ateliers (le serveur refuse au censeur quand un chef des travaux est en fonction). */
+  /** Direction des ateliers (chef des travaux et administrateur). */
   protected readonly direction = computed(() => this.session.aLeRole(...DIRECTION_ATELIERS));
 
   protected readonly ouvert = signal(false);

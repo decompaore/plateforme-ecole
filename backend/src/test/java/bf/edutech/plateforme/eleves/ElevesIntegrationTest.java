@@ -291,6 +291,51 @@ class ElevesIntegrationTest {
     }
 
     @Test
+    void lesComptesDesParentsDUneClasseSOuvrentEnUneFois() throws Exception {
+        ClasseVue classe = dans(ecole, () -> classes.creer(annee.id(), filiere, "6e C", "6e", null));
+        ClasseVue vide = dans(ecole, () -> classes.creer(annee.id(), filiere, "6e D", "6e", null));
+        String telMere = telephone();
+        DossierEleveVue aine = dans(ecole, () -> eleves.creer(eleve("KABORE", "Ali", Sexe.M),
+                List.of(responsable("KABORE", "Rasmata", telMere, LienParente.MERE, null))));
+        DossierEleveVue cadette = dans(ecole, () -> eleves.creer(eleve("KABORE", "Fanta", Sexe.F),
+                List.of(responsable("KABORE", "Rasmata", telMere, LienParente.MERE, null))));
+        DossierEleveVue autre = dans(ecole, () -> eleves.creer(eleve("ZONGO", "Issa", Sexe.M),
+                List.of(responsable("ZONGO", "Moussa", telephone(), LienParente.TUTEUR, null))));
+        for (DossierEleveVue d : List.of(aine, cadette, autre)) {
+            dans(ecole, () -> inscriptions.inscrire(d.eleve().id(), classe.id(), false, null));
+        }
+        // Le tuteur a déjà son espace : il garde son mot de passe
+        dans(ecole, () -> espaceParent.ouvrir(autre.responsables().get(0).responsableId()));
+
+        List<EspaceParentService.AccesParent> acces = dans(ecole, () -> espaceParent.ouvrirPourClasse(classe.id()));
+        assertThat(acces).hasSize(2);
+        assertThat(acces.get(0).parent()).isEqualTo("KABORE Rasmata");
+        assertThat(acces.get(0).lien()).isEqualTo("Mère");
+        assertThat(acces.get(0).eleves()).contains("KABORE Ali").contains("KABORE Fanta");
+        assertThat(acces.get(0).motDePasseTemporaire()).isNotBlank();
+        assertThat(acces.get(1).parent()).isEqualTo("ZONGO Moussa");
+        assertThat(acces.get(1).motDePasseTemporaire()).isNull();
+        assertThat(dans(ecole, () -> eleves.trouver(aine.eleve().id())).responsables().get(0).espaceParentOuvert()).isTrue();
+
+        // Fiche de remise : PDF par défaut, Excel sur demande ; réservée à l'administration et au secrétariat
+        byte[] pdf = mvc.perform(post("/api/v1/classes/{id}/espaces-parents", classe.id())
+                        .with(jeton(ecole, UUID.randomUUID(), "SECRETARIAT")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+        assertThat(new String(pdf, 0, 4, java.nio.charset.StandardCharsets.ISO_8859_1)).isEqualTo("%PDF");
+        byte[] excel = mvc.perform(post("/api/v1/classes/{id}/espaces-parents", classe.id()).param("format", "xlsx")
+                        .with(jeton(ecole, UUID.randomUUID(), "ADMIN_ECOLE")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsByteArray();
+        assertThat(new String(excel, 0, 2, java.nio.charset.StandardCharsets.ISO_8859_1)).isEqualTo("PK");
+        mvc.perform(post("/api/v1/classes/{id}/espaces-parents", classe.id())
+                .with(jeton(ecole, UUID.randomUUID(), "ENSEIGNANT"))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/classes/{id}/espaces-parents", vide.id())
+                        .with(jeton(ecole, UUID.randomUUID(), "SECRETARIAT")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("AUCUN_RESPONSABLE"));
+    }
+
+    @Test
     void uneEcoleNeVoitPasLesElevesDUneAutre() {
         UUID id = nouvelEleve("SOME", "Ines");
         UUID autre = nouvelleEcole();
@@ -333,7 +378,7 @@ class ElevesIntegrationTest {
     }
 
     private UUID nouvelleEcole() {
-        String suffixe = Integer.toString(ThreadLocalRandom.current().nextInt(100_000, 999_999));
+        String suffixe = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         return etablissements.creer("elev-" + suffixe, "École " + suffixe, "7" + telephone().substring(1), "ADMIN",
                 "Test").etablissement().id();
     }

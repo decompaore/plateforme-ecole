@@ -29,8 +29,8 @@ import bf.edutech.plateforme.utilisateurs.Role;
 /**
  * Qui peut quoi dans les ateliers :
  * <ul>
- * <li>la direction des ateliers (administrateur, chef des travaux ; le censeur tant qu'aucun chef des
- * travaux n'est en fonction) gère tout ;</li>
+ * <li>la direction des ateliers (chef des travaux, et l'administrateur, qui le remplace s'il n'y en a pas)
+ * gère tout ; le censeur n'intervient pas dans les ateliers ;</li>
  * <li>le responsable d'un atelier (mandat en cours) tient son inventaire, son stock et ses pannes ;</li>
  * <li>les enseignants des matières techniques d'une filière de l'atelier le consultent et y signalent
  * les pannes ;</li>
@@ -58,10 +58,7 @@ class AccesAteliers {
     }
 
     boolean direction() {
-        if (UtilisateurConnecte.aUnRole("ADMIN_ECOLE", "CHEF_TRAVAUX")) {
-            return true;
-        }
-        return UtilisateurConnecte.aUnRole("CENSEUR") && !chefDesTravauxEnFonction();
+        return UtilisateurConnecte.aUnRole("ADMIN_ECOLE", "CHEF_TRAVAUX");
     }
 
     boolean intendance() {

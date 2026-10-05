@@ -1,4 +1,4 @@
-import { HttpClient, HttpParams } from '@angular/common/http';
+import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
@@ -8,8 +8,10 @@ import {
   AnneeVue,
   ClasseVue,
   CompteVue,
+  DonneesResponsable,
   DossierEleveVue,
   EleveVue,
+  EspaceParentVue,
   EnseignantVue,
   EtablissementVue,
   FicheEnseignantVue,
@@ -93,6 +95,26 @@ export class AdminApi {
 
   desactiverMembre(id: string): Promise<void> {
     return this.post(`/membres/${id}/desactivation`);
+  }
+
+  // ---------------- Parents et tuteurs (v0.29)
+
+  ajouterResponsable(eleveId: string, d: DonneesResponsable): Promise<DossierEleveVue> {
+    return this.post(`/eleves/${eleveId}/responsables`, d);
+  }
+
+  retirerResponsable(eleveId: string, responsableId: string): Promise<DossierEleveVue> {
+    return this.delete(`/eleves/${eleveId}/responsables/${responsableId}`);
+  }
+
+  ouvrirEspaceParent(responsableId: string): Promise<EspaceParentVue> {
+    return this.post(`/responsables/${responsableId}/espace-parent`);
+  }
+
+  /** Ouvre les comptes des parents d'une classe et renvoie la fiche de remise des accès (PDF ou Excel). */
+  espacesParentsClasse(classeId: string, format: 'pdf' | 'xlsx'): Promise<HttpResponse<Blob>> {
+    return firstValueFrom(this.http.post(`${API}/classes/${classeId}/espaces-parents`, null,
+      { params: { format }, responseType: 'blob', observe: 'response' }));
   }
 
   // ---------------- Comptes (v0.27)

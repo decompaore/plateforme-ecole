@@ -7,14 +7,37 @@ import { Action } from '../action';
 import { AdminApi } from '../admin-api.service';
 import { AdminNavComponent } from '../admin-nav.component';
 import { AnneeCourante } from '../annee-courante.service';
-import { ClasseVue, DossierEleveVue, EleveVue, LienParente, Page, RapportImport, Sexe, StatutBourse } from '../modeles-admin';
+import {
+  ClasseVue,
+  DossierEleveVue,
+  EleveVue,
+  LIBELLE_LIEN,
+  LienParente,
+  Page,
+  RapportImport,
+  ResponsableDeEleveVue,
+  Sexe,
+  StatutBourse,
+} from '../modeles-admin';
+import { MotDePasseTemporaireComponent } from '../mot-de-passe-temporaire.component';
 
 const TAILLE_PAGE = 20;
+
+/** Contrôle d'un parent ou tuteur avant l'envoi. */
+export function erreurResponsable(nom: string, prenoms: string, telephone: string): string | null {
+  if (!nom.trim() || !prenoms.trim()) {
+    return 'Indiquez le nom et les prénoms.';
+  }
+  if (!/^\+?[0-9 ]{8,16}$/.test(telephone.trim())) {
+    return 'Téléphone : 8 chiffres (ou numéro international).';
+  }
+  return null;
+}
 
 /** Élèves : recherche, nouvel élève avec son inscription, import Excel de la rentrée. */
 @Component({
   selector: 'app-eleves',
-  imports: [FormsModule, RouterLink, AdminNavComponent],
+  imports: [FormsModule, RouterLink, AdminNavComponent, MotDePasseTemporaireComponent],
   templateUrl: './eleves.page.html',
   styles: `
     .recherche {
@@ -37,6 +60,30 @@ const TAILLE_PAGE = 20;
     }
     .rapport li {
       padding: 0.35rem 0;
+    }
+    .responsable {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      .pastille {
+        margin: 0.3rem 0.3rem 0 0;
+      }
+    }
+    .sous-formulaire {
+      margin-top: 0.75rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--bordure);
+    }
+    .case {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin: 0.3rem 0;
+    }
+    .rouge {
+      color: var(--absent);
     }
   `,
 })
@@ -74,6 +121,21 @@ export class ElevesPage {
   protected readonly parentPrenoms = signal('');
   protected readonly parentTelephone = signal('');
   protected readonly parentLien = signal<LienParente>('PERE');
+
+  // Parents et tuteurs du dossier ouvert (v0.29)
+  protected readonly libelleLien = LIBELLE_LIEN;
+  protected readonly liens: LienParente[] = ['PERE', 'MERE', 'TUTEUR', 'AUTRE'];
+  protected readonly secret = signal<{ titre: string; telephone: string; motDePasse: string } | null>(null);
+  protected readonly formResponsable = signal(false);
+  protected readonly rNom = signal('');
+  protected readonly rPrenoms = signal('');
+  protected readonly rTelephone = signal('');
+  protected readonly rLien = signal<LienParente>('PERE');
+  protected readonly rProfession = signal('');
+  protected readonly rLegal = signal(true);
+  protected readonly rPrioritaire = signal(false);
+  protected readonly rCompte = signal(true);
+  protected readonly erreurResponsable = computed(() => erreurResponsable(this.rNom(), this.rPrenoms(), this.rTelephone()));
 
   // Import
   protected readonly fichier = signal<File | null>(null);
@@ -213,5 +275,79 @@ export class ElevesPage {
         await this.rechercher(0);
       }
     }
+  }
+
+  // ---------------- Parents et tuteurs
+
+  protected ouvrirFormResponsable(): void {
+    for (const x of [this.rNom, this.rPrenoms, this.rTelephone, this.rProfession]) {
+      x.set('');
+    }
+    this.rLien.set('PERE');
+    this.rLegal.set(true);
+    this.rPrioritaire.set(false);
+    this.rCompte.set(true);
+    this.formResponsable.set(true);
+  }
+
+  protected async ajouterResponsable(): Promise<void> {
+    const d = this.dossier();
+    if (!d || this.erreurResponsable()) {
+      return;
+    }
+    const telephone = this.rTelephone().trim();
+    const apres = await this.action.executer(() =>
+      this.api.ajouterResponsable(d.eleve.id, {
+        nom: this.rNom().trim(),
+        prenoms: this.rPrenoms().trim(),
+        telephone,
+        lien: this.rLien(),
+        profession: this.rProfession().trim() || null,
+        langueSms: null,
+        responsableLegal: this.rLegal(),
+        contactPrioritaire: this.rPrioritaire(),
+      }),
+    );
+    if (!apres) {
+      return;
+    }
+    this.dossier.set(apres);
+    this.formResponsable.set(false);
+    this.message.set(`${this.rPrenoms().trim()} ${this.rNom().trim().toUpperCase()} ajouté(e) au dossier.`);
+    const nouveau = apres.responsables.find((r) => r.telephone.replace(/\D/g, '').endsWith(telephone.replace(/\D/g, '').slice(-8)));
+    if (this.rCompte() && nouveau && !nouveau.espaceParentOuvert) {
+      await this.ouvrirEspaceParent(nouveau);
+    }
+  }
+
+  protected async retirerResponsable(r: ResponsableDeEleveVue): Promise<void> {
+    const d = this.dossier();
+    if (!d || !window.confirm(`Retirer ${r.prenoms} ${r.nom} des responsables de ${d.eleve.prenoms} ${d.eleve.nom} ?`)) {
+      return;
+    }
+    const apres = await this.action.executer(() => this.api.retirerResponsable(d.eleve.id, r.responsableId));
+    if (apres) {
+      this.dossier.set(apres);
+    }
+  }
+
+  /** Crée (ou rouvre) le compte parent : mot de passe provisoire affiché une seule fois. */
+  protected async ouvrirEspaceParent(r: ResponsableDeEleveVue): Promise<void> {
+    const d = this.dossier();
+    const v = await this.action.executer(() => this.api.ouvrirEspaceParent(r.responsableId));
+    if (!v || !d) {
+      return;
+    }
+    if (v.motDePasseTemporaire) {
+      this.message.set(null);
+      this.secret.set({
+        titre: `Compte parent de ${r.prenoms} ${r.nom} créé.`,
+        telephone: v.telephone,
+        motDePasse: v.motDePasseTemporaire,
+      });
+    } else {
+      this.message.set(`${r.prenoms} ${r.nom} avait déjà un compte : il ou elle accède à l'espace parent avec son mot de passe habituel.`);
+    }
+    this.dossier.set({ ...d, responsables: d.responsables.map((x) => (x.responsableId === r.responsableId ? { ...x, espaceParentOuvert: true } : x)) });
   }
 }
