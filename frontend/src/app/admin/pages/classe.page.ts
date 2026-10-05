@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
@@ -9,6 +10,8 @@ import { RechercheComponent } from '../../partage/recherche.component';
 import { Action } from '../action';
 import { AdminApi } from '../admin-api.service';
 import { AdminNavComponent } from '../admin-nav.component';
+import { nomDuFichier } from '../../ateliers/export-boutons.component';
+import { enregistrerFichier } from '../../scolarite/scolarite-api.service';
 import {
   ClasseVue,
   EnseignantVue,
@@ -35,6 +38,15 @@ const GROUPES_PROPOSES = ['Matières générales', 'Matières techniques', 'Mati
   imports: [FormsModule, RouterLink, AdminNavComponent, RechercheComponent],
   templateUrl: './classe.page.html',
   styles: `
+    .comptes-parents {
+      margin-top: 1rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid var(--bordure);
+      h3 {
+        font-size: 1rem;
+        margin: 0 0 0.4rem;
+      }
+    }
     .ajout {
       border-top: 1px solid var(--bordure);
       margin-top: 1rem;
@@ -73,6 +85,11 @@ export class ClassePage implements OnInit {
   protected readonly enregistre = signal<string | null>(null);
 
   protected readonly peutModifier = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'CENSEUR'));
+  /** Dossiers des élèves et comptes des parents : administration et secrétariat. */
+  protected readonly gestionEleves = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'SECRETARIAT'));
+  protected readonly actionParents = new Action();
+  protected readonly confirmationParents = signal(false);
+  protected readonly messageParents = signal<string | null>(null);
   protected readonly groupesObligatoires = computed(() => this.profil()?.modele === 'NOTES_PAR_GROUPES');
   protected readonly volumeTotalObligatoire = computed(() => this.profil()?.decoupage === 'MODULE');
   protected readonly matieresDisponibles = computed(() => {
@@ -228,4 +245,37 @@ export class ClassePage implements OnInit {
       await this.router.navigate(['/admin/classes']);
     }
   }
+
+  /** Ouvre les comptes des parents de la classe et télécharge la fiche de remise des accès. */
+  protected async ouvrirComptesParents(format: 'pdf' | 'xlsx'): Promise<void> {
+    const c = this.classe();
+    if (!c) {
+      return;
+    }
+    this.messageParents.set(null);
+    const r = await this.actionParents.executer(async () => {
+      try {
+        return await this.api.espacesParentsClasse(c.id, format);
+      } catch (e) {
+        throw await problemeDepuisBlob(e);
+      }
+    });
+    this.confirmationParents.set(false);
+    if (r?.body) {
+      enregistrerFichier(r.body, nomDuFichier(r.headers.get('Content-Disposition'), `acces-parents-${c.code}.${format}`));
+      this.messageParents.set('Comptes des parents ouverts : la fiche de remise des accès est téléchargée.');
+    }
+  }
+}
+
+/** Une erreur sur un téléchargement arrive en Blob : on relit le problème JSON du serveur. */
+async function problemeDepuisBlob(e: unknown): Promise<unknown> {
+  if (e instanceof HttpErrorResponse && e.error instanceof Blob) {
+    try {
+      return new HttpErrorResponse({ error: JSON.parse(await e.error.text()), status: e.status, statusText: e.statusText });
+    } catch {
+      return e;
+    }
+  }
+  return e;
 }

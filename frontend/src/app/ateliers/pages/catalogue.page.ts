@@ -259,7 +259,7 @@ export class CataloguePage implements OnDestroy {
   /** Un enseignant ne modifie le catalogue que s'il est responsable d'un atelier. */
   private readonly responsable = signal(false);
   protected readonly peutModifier = computed(
-    () => this.session.aLeRole('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'INTENDANT') || this.responsable(),
+    () => this.session.aLeRole('ADMIN_ECOLE', 'CHEF_TRAVAUX', 'INTENDANT') || this.responsable(),
   );
 
   protected readonly ouvert = signal(false);
@@ -402,7 +402,7 @@ export class CataloguePage implements OnDestroy {
       this.articles.set(articles);
     }
     this.filieres.set(filieres);
-    if (!this.session.aLeRole('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'INTENDANT')) {
+    if (!this.session.aLeRole('ADMIN_ECOLE', 'CHEF_TRAVAUX', 'INTENDANT')) {
       const ateliers = await this.api.ateliers().catch(() => []);
       this.responsable.set(ateliers.some((a) => a.droits.responsable));
     }

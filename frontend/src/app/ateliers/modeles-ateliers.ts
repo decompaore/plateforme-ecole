@@ -10,9 +10,9 @@ export type StatutInventaire = 'EN_COURS' | 'CLOS';
 export type FrequenceInventaire = 'SEMESTRIELLE' | 'ANNUELLE';
 
 /** Rôles qui ouvrent l'espace des ateliers (le serveur restreint chacun à ses ateliers). */
-export const ROLES_ATELIERS: Role[] = ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'INTENDANT', 'ENSEIGNANT'];
+export const ROLES_ATELIERS: Role[] = ['ADMIN_ECOLE', 'CHEF_TRAVAUX', 'INTENDANT', 'ENSEIGNANT'];
 /** Direction des ateliers (le censeur seulement s'il n'y a pas de chef des travaux : le serveur décide). */
-export const DIRECTION_ATELIERS: Role[] = ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX'];
+export const DIRECTION_ATELIERS: Role[] = ['ADMIN_ECOLE', 'CHEF_TRAVAUX'];
 
 export const LIBELLE_NATURE: Record<NatureArticle, string> = {
   MATIERE_OEUVRE: 'Matière d’œuvre',

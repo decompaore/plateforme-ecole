@@ -12,7 +12,7 @@ les exports Excel et PDF sont décrits en fin de document (v0.26).
 
 | Qui | Droits |
 |---|---|
-| Direction des ateliers : ADMIN_ECOLE, CHEF_TRAVAUX ; CENSEUR **tant qu'aucun chef des travaux n'est en fonction** | Tout : ateliers, désignation des responsables, paramètres, et tout ce que fait un responsable |
+| Direction des ateliers : CHEF_TRAVAUX et ADMIN_ECOLE (qui le remplace s'il n'y en a pas). Le censeur n'a pas accès aux ateliers (v0.30.1) | Tout : ateliers, désignation des responsables, paramètres, et tout ce que fait un responsable |
 | Responsable d'un atelier (mandat en cours) | Dans son atelier : équipements, pannes (signalement et clôture), stock (entrées, sorties, seuils), inventaires ; catalogue des prix |
 | Enseignant d'une matière technique, pratique ou module d'une classe (année active) d'une filière de l'atelier | Consulte l'atelier, **signale les pannes** |
 | INTENDANT | Consulte tous les ateliers ; tient le catalogue des prix |

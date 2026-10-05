@@ -34,6 +34,10 @@ public final class Vues {
     public record FiliereCourte(UUID id, String code, String libelle) {
     }
 
+    /** Atelier ouvert, pour placer les séances pratiques dans l'emploi du temps. */
+    public record AtelierCourtVue(UUID id, String code, String nom, Short postes, List<UUID> filieres) {
+    }
+
     /** Mandat d'un responsable ; {@code echeanceProche} : fin prévue dans les 60 jours. */
     public record MandatVue(UUID id, UUID engagementId, String enseignant, LocalDate debut, LocalDate finPrevue,
             LocalDate fin, String motifFin, boolean echeanceProche, boolean echu) {

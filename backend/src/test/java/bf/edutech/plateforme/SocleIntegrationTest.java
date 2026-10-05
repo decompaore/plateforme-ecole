@@ -330,6 +330,6 @@ class SocleIntegrationTest {
     }
 
     private static String suffixe() {
-        return Integer.toString(ThreadLocalRandom.current().nextInt(100_000, 999_999));
+        return java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
     }
 }

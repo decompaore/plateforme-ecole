@@ -176,7 +176,32 @@ export interface ResponsableDeEleveVue {
   telephone: string;
   lien: LienParente;
   contactPrioritaire: boolean;
+  responsableLegal?: boolean;
+  profession?: string | null;
+  /** Compte parent ouvert (le parent consulte notes, absences et paiements de ses enfants). */
+  espaceParentOuvert?: boolean;
 }
+
+/** Ouverture de l'espace parent : mot de passe provisoire renvoyé une seule fois (null si compte existant). */
+export interface EspaceParentVue {
+  responsableId: string;
+  utilisateurId: string;
+  telephone: string;
+  motDePasseTemporaire: string | null;
+}
+
+export interface DonneesResponsable {
+  nom: string;
+  prenoms: string;
+  telephone: string;
+  lien: LienParente;
+  profession: string | null;
+  langueSms: null;
+  responsableLegal: boolean;
+  contactPrioritaire: boolean;
+}
+
+export const LIBELLE_LIEN: Record<LienParente, string> = { PERE: 'Père', MERE: 'Mère', TUTEUR: 'Tuteur', AUTRE: 'Autre' };
 
 export interface DossierEleveVue {
   eleve: EleveVue;

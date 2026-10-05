@@ -49,6 +49,7 @@ POST /api/v1/eleves
 | Réinscriptions | `POST /api/v1/classes/{id}/reinscriptions` | ADMIN_ECOLE, SECRETARIAT |
 | Import | `GET /api/v1/annees/{id}/eleves/import/modele`, `POST /api/v1/annees/{id}/eleves/import` | ADMIN_ECOLE, SECRETARIAT |
 | Espace parent | `POST /api/v1/responsables/{id}/espace-parent` | ADMIN_ECOLE, SECRETARIAT |
+| | `POST /api/v1/classes/{classeId}/espaces-parents[?format=pdf\|xlsx]` (v0.29) : ouvre l'espace parent des responsables légaux et des contacts prioritaires des élèves inscrits (un compte pour les frères et sœurs) et renvoie la **fiche de remise des accès** (PDF par défaut) avec le mot de passe provisoire de chaque nouveau compte, « compte existant » sinon ; `409 AUCUN_RESPONSABLE` si personne à traiter | ADMIN_ECOLE, SECRETARIAT |
 | | `GET /api/v1/espace-parent/enfants` | PARENT |
 
 \* ADMIN_ECOLE, CENSEUR, SECRETARIAT, INTENDANT, SURVEILLANT. Les dossiers concernent des mineurs : les enseignants voient

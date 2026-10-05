@@ -11,7 +11,7 @@ export type StatutCommande = 'EN_COURS' | 'LIVREE_PARTIELLEMENT' | 'LIVREE' | 'A
 export type StatutLivraison = 'A_REPARTIR' | 'REPARTIE';
 
 /** Rôles qui suivent les campagnes et les commandes (direction des ateliers et intendance). */
-export const ROLES_BESOINS: Role[] = ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'INTENDANT'];
+export const ROLES_BESOINS: Role[] = ['ADMIN_ECOLE', 'CHEF_TRAVAUX', 'INTENDANT'];
 
 export const LIBELLE_TYPE_CAMPAGNE: Record<TypeCampagne, string> = {
   ANNEE_EN_COURS: 'Année scolaire en cours',

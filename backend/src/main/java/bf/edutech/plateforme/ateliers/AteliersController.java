@@ -53,7 +53,7 @@ import bf.edutech.plateforme.ateliers.Vues.SaisieInventaire;
 @RestController
 public class AteliersController {
 
-    static final String LECTURE = "hasAnyRole('ADMIN_ECOLE','CENSEUR','CHEF_TRAVAUX','INTENDANT','ENSEIGNANT')";
+    static final String LECTURE = "hasAnyRole('ADMIN_ECOLE','CHEF_TRAVAUX','INTENDANT','ENSEIGNANT')";
 
     private final ParametresAteliersService parametres;
     private final CatalogueService catalogue;
@@ -81,7 +81,7 @@ public class AteliersController {
     }
 
     @PutMapping("/api/v1/parametres/ateliers")
-    @PreAuthorize("hasAnyRole('ADMIN_ECOLE','CENSEUR','CHEF_TRAVAUX')")
+    @PreAuthorize("hasAnyRole('ADMIN_ECOLE','CHEF_TRAVAUX')")
     public ParametresVue modifierParametres(@RequestBody ParametresVue p) {
         return parametres.modifier(p);
     }
@@ -139,7 +139,7 @@ public class AteliersController {
 
     @PostMapping("/api/v1/ateliers")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize("hasAnyRole('ADMIN_ECOLE','CENSEUR','CHEF_TRAVAUX')")
+    @PreAuthorize("hasAnyRole('ADMIN_ECOLE','CHEF_TRAVAUX')")
     public AtelierVue creerAtelier(@RequestBody DonneesAtelier d) {
         return ateliers.creer(d);
     }
@@ -151,25 +151,25 @@ public class AteliersController {
     }
 
     @PutMapping("/api/v1/ateliers/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN_ECOLE','CENSEUR','CHEF_TRAVAUX')")
+    @PreAuthorize("hasAnyRole('ADMIN_ECOLE','CHEF_TRAVAUX')")
     public AtelierVue modifierAtelier(@PathVariable UUID id, @RequestBody DonneesAtelier d) {
         return ateliers.modifier(id, d);
     }
 
     @GetMapping("/api/v1/ateliers/{id}/candidats")
-    @PreAuthorize("hasAnyRole('ADMIN_ECOLE','CENSEUR','CHEF_TRAVAUX')")
+    @PreAuthorize("hasAnyRole('ADMIN_ECOLE','CHEF_TRAVAUX')")
     public List<CandidatVue> candidats(@PathVariable UUID id) {
         return ateliers.candidats(id);
     }
 
     @PostMapping("/api/v1/ateliers/{id}/responsable")
-    @PreAuthorize("hasAnyRole('ADMIN_ECOLE','CENSEUR','CHEF_TRAVAUX')")
+    @PreAuthorize("hasAnyRole('ADMIN_ECOLE','CHEF_TRAVAUX')")
     public AtelierVue designer(@PathVariable UUID id, @RequestBody DemandeMandat d) {
         return ateliers.designer(id, d);
     }
 
     @PostMapping("/api/v1/ateliers/{id}/responsable/fin")
-    @PreAuthorize("hasAnyRole('ADMIN_ECOLE','CENSEUR','CHEF_TRAVAUX')")
+    @PreAuthorize("hasAnyRole('ADMIN_ECOLE','CHEF_TRAVAUX')")
     public AtelierVue terminerMandat(@PathVariable UUID id, @RequestBody(required = false) DemandeFinMandat d) {
         return ateliers.terminerMandat(id, d);
     }

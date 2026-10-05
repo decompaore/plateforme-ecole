@@ -186,6 +186,32 @@
           </tbody>
         </table>
       </div>
+
+      @if (gestionEleves() && eleves().length) {
+        <div class="comptes-parents">
+          <h3>Comptes des parents</h3>
+          <p class="doux">
+            Ouvre en une fois l'espace parent des responsables légaux et des contacts prioritaires des élèves de la classe
+            (un seul compte pour les frères et sœurs). Vous obtenez la fiche de remise des accès, avec le mot de passe
+            provisoire de chaque nouveau compte, à remettre aux parents (réunion de rentrée, remise des bulletins…).
+          </p>
+          @if (!confirmationParents()) {
+            <button type="button" class="bouton secondaire petit" (click)="confirmationParents.set(true)">Ouvrir les comptes des parents</button>
+          } @else {
+            <p class="alerte attention">
+              Les mots de passe provisoires ne figurent que sur cette fiche : imprimez-la ou gardez-la en lieu sûr. Pour un
+              parent qui l'a perdue, réinitialisez son compte (onglet Comptes).
+            </p>
+            <div class="actions-ligne">
+              <button type="button" class="bouton petit" [disabled]="actionParents.enCours()" (click)="ouvrirComptesParents('pdf')">Ouvrir et télécharger la fiche (PDF)</button>
+              <button type="button" class="bouton secondaire petit" [disabled]="actionParents.enCours()" (click)="ouvrirComptesParents('xlsx')">… en Excel</button>
+              <button type="button" class="bouton discret petit" (click)="confirmationParents.set(false)">Annuler</button>
+            </div>
+          }
+          @if (actionParents.erreur()) { <div class="alerte erreur" role="alert">{{ actionParents.erreur() }}</div> }
+          @if (messageParents()) { <div class="alerte succes" role="status">{{ messageParents() }}</div> }
+        </div>
+      }
     </section>
 
     @if (peutModifier() && eleves().length === 0) {
