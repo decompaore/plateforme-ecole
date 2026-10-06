@@ -39,7 +39,7 @@ jobs:
       tag: ${{ steps.nom.outputs.tag }}
     steps:
       - name: Récupérer le code testé par la CI
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
