@@ -1,0 +1,123 @@
+# =====================================================================
+# Intégration continue : à chaque push et pull request sur main/develop.
+# Compile, exécute les tests (sur un vrai PostgreSQL 16) et publie les
+# rapports. Une pull request ne peut être fusionnée que si ce workflow
+# réussit (règle de protection de branche à activer dans GitHub).
+# =====================================================================
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend – compilation et tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v5
+
+      - name: Installer Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Créer les rôles et la base de test
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -v ON_ERROR_STOP=1 -f infra/postgres/init/01-roles-et-bases.sql
+
+      - name: Compiler, tester et vérifier
+        working-directory: backend
+        env:
+          TEST_DB_URL: jdbc:postgresql://localhost:5432/plateforme_test
+        run: mvn -B -ntp verify
+
+      - name: Publier les rapports de tests et de couverture
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rapports-backend
+          path: |
+            backend/target/surefire-reports/
+            backend/target/site/jacoco/
+          retention-days: 14
+
+  frontend:
+    name: Frontend – tests et construction
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v5
+
+      - name: Installer Node.js 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Installer les dépendances (versions exactes du package-lock)
+        run: npm ci
+
+      - name: Tests unitaires
+        run: npx ng test --watch=false
+
+      - name: Construction de production (avec service worker)
+        run: npx ng build
+
+      - name: Chaque appel de l'application a sa route dans l'API
+        run: node ../scripts/verifier-routes.mjs
+
+      - name: Publier l'application construite
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend
+          path: frontend/dist/frontend/browser/
+          retention-days: 14
+
+  revue-dependances:
+    name: Revue des dépendances
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+      - name: Bloquer les dépendances vulnérables ajoutées par la pull request
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure

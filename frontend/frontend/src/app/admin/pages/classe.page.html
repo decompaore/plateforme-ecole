@@ -1,0 +1,224 @@
+<div class="page large">
+  <a routerLink="/admin/classes" class="bouton discret">‹ Classes</a>
+  <h1>{{ classe()?.code ?? 'Classe' }}</h1>
+  <app-admin-nav />
+
+  @if (action.erreur()) {
+    <div class="alerte erreur" role="alert">{{ action.erreur() }}</div>
+  }
+  @if (enregistre(); as e) {
+    <div class="alerte succes" role="status">{{ e }} : enregistré.</div>
+  }
+
+  @if (classe(); as c) {
+    <p class="doux">
+      Niveau {{ c.niveau }} · filière {{ c.filiereCode }}@if (profil(); as p) { · {{ p.libelle }} }
+      @if (c.effectifMax) { · {{ eleves().length }} / {{ c.effectifMax }} élèves } @else { · {{ eleves().length }} élèves }
+    </p>
+
+    <section class="carte">
+      <div class="entete-section">
+        <h2>Programme</h2>
+        <span class="doux">
+          {{ programme().length }} matière(s) · {{ chargeHebdo() }} h par semaine
+          @if (sansEnseignant() > 0) { · <span class="pastille">{{ sansEnseignant() }} sans enseignant</span> }
+        </span>
+      </div>
+      @if (groupesObligatoires()) {
+        <p class="doux">Profil technique : chaque matière appartient à un groupe (les moyennes sont calculées par groupe).</p>
+      }
+
+      <div class="tableau-defilant">
+        <table class="tableau">
+          <thead>
+            <tr>
+              <th>Matière</th>
+              <th class="nombre">Coef.</th>
+              <th>Groupe</th>
+              <th class="nombre">H / sem.</th>
+              @if (volumeTotalObligatoire()) { <th class="nombre">H total</th> }
+              <th>Enseignant</th>
+              @if (peutModifier()) { <th></th> }
+            </tr>
+          </thead>
+          <tbody>
+            @for (m of programme(); track m.matiereId) {
+              @let b = brouillon(m);
+              <tr>
+                <td>
+                  <strong>{{ m.matiereLibelle }}</strong><br />
+                  <span class="doux">{{ types[m.type] }}</span>
+                </td>
+                @if (peutModifier()) {
+                  <td class="nombre">
+                    <input class="court" type="number" min="0.1" step="0.5" [value]="b.coefficient"
+                           [attr.aria-label]="'Coefficient ' + m.matiereLibelle"
+                           (input)="modifier(m, 'coefficient', $any($event.target).value)" />
+                  </td>
+                  <td>
+                    <input class="moyen" list="groupes" [value]="b.groupe"
+                           [attr.aria-label]="'Groupe ' + m.matiereLibelle"
+                           (input)="modifier(m, 'groupe', $any($event.target).value)" />
+                  </td>
+                  <td class="nombre">
+                    <input class="court" type="number" min="0" step="0.5" [value]="b.volumeHebdo ?? ''"
+                           [attr.aria-label]="'Heures par semaine ' + m.matiereLibelle"
+                           (input)="modifier(m, 'volumeHebdo', $any($event.target).value)" />
+                  </td>
+                  @if (volumeTotalObligatoire()) {
+                    <td class="nombre">
+                      <input class="court" type="number" min="0" step="1" [value]="b.volumeTotal ?? ''"
+                             [attr.aria-label]="'Heures au total ' + m.matiereLibelle"
+                             (input)="modifier(m, 'volumeTotal', $any($event.target).value)" />
+                    </td>
+                  }
+                  <td>
+                    <select [value]="m.engagementId ?? ''" [attr.aria-label]="'Enseignant ' + m.matiereLibelle"
+                            (change)="affecter(m, $any($event.target).value)">
+                      <option value="">— aucun —</option>
+                      @for (e of enseignantsActifs(); track e.engagementId) {
+                        <option [value]="e.engagementId">{{ e.nom }} {{ e.prenoms }}@if (e.finProgrammee && e.fin) { (part le {{ dateCourte(e.fin) }}) }</option>
+                      }
+                    </select>
+                  </td>
+                  <td class="nombre">
+                    <div class="actions-ligne">
+                      @if (modifiee(m)) {
+                        <button type="button" class="bouton petit" [disabled]="action.enCours()" (click)="enregistrer(m)">
+                          Enregistrer
+                        </button>
+                      }
+                      <button type="button" class="bouton discret petit" (click)="retirer(m)" title="Retirer du programme">✕</button>
+                    </div>
+                  </td>
+                } @else {
+                  <td class="nombre">{{ m.coefficient }}</td>
+                  <td>{{ m.groupe }}</td>
+                  <td class="nombre">{{ m.volumeHebdo }}</td>
+                  @if (volumeTotalObligatoire()) { <td class="nombre">{{ m.volumeTotal }}</td> }
+                  <td>{{ nomEnseignant(m.engagementId) }}</td>
+                }
+              </tr>
+            } @empty {
+              <tr><td colspan="7" class="doux">Aucune matière au programme.</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <datalist id="groupes">
+        @for (g of groupesProposes; track g) { <option [value]="g"></option> }
+      </datalist>
+
+      @if (peutModifier()) {
+        <form (ngSubmit)="ajouter()" class="ajout">
+          <h3>Ajouter une matière</h3>
+          @if (matieresDisponibles().length === 0) {
+            <p class="doux">
+              Toutes les matières sont déjà au programme. Créez-en d'autres dans « Filières et matières ».
+            </p>
+          } @else {
+            <div class="grille-champs">
+              <div class="champ">
+                <label for="nMatiere">Matière</label>
+                <select id="nMatiere" name="nMatiere" required [(ngModel)]="nMatiere">
+                  <option value="" disabled>Choisir…</option>
+                  @for (m of matieresDisponibles(); track m.id) {
+                    <option [value]="m.id">{{ m.libelle }} ({{ m.code }})</option>
+                  }
+                </select>
+              </div>
+              <div class="champ">
+                <label for="nCoef">Coefficient</label>
+                <input id="nCoef" name="nCoef" type="number" min="0.1" step="0.5" required [(ngModel)]="nCoefficient" />
+              </div>
+              <div class="champ">
+                <label for="nGroupe">Groupe @if (groupesObligatoires()) { (obligatoire) }</label>
+                <input id="nGroupe" name="nGroupe" list="groupes" [required]="groupesObligatoires()" [(ngModel)]="nGroupe" />
+              </div>
+              <div class="champ">
+                <label for="nHebdo">Heures par semaine</label>
+                <input id="nHebdo" name="nHebdo" type="number" min="0" step="0.5" [(ngModel)]="nVolumeHebdo" />
+              </div>
+              @if (volumeTotalObligatoire()) {
+                <div class="champ">
+                  <label for="nTotal">Heures au total (obligatoire)</label>
+                  <input id="nTotal" name="nTotal" type="number" min="1" required [(ngModel)]="nVolumeTotal" />
+                </div>
+              }
+            </div>
+            <button type="submit" class="bouton secondaire" [disabled]="action.enCours() || !nMatiere()">Ajouter</button>
+          }
+        </form>
+      }
+    </section>
+
+    <section class="carte">
+      <div class="entete-section">
+        <h2>Élèves ({{ eleves().length }})</h2>
+        <a class="bouton secondaire petit" [routerLink]="['/admin/eleves']" [queryParams]="{ classe: c.id }">Inscrire des élèves</a>
+      </div>
+      @if (eleves().length > 10) {
+        <app-recherche
+          libelle="Rechercher un élève (nom, matricule)"
+          [(valeur)]="filtreEleves"
+          [total]="eleves().length"
+          [trouves]="elevesAffiches().length"
+        />
+      }
+      <div class="tableau-defilant">
+        <table class="tableau">
+          <thead><tr><th class="nombre">N°</th><th>Nom et prénoms</th><th>Matricule</th><th>Sexe</th><th></th></tr></thead>
+          <tbody>
+            @for (e of elevesAffiches(); track e.id) {
+              <tr>
+                <td class="nombre doux">{{ e.rang }}</td>
+                <td><strong>{{ e.nom }}</strong> {{ e.prenoms }}</td>
+                <td>{{ e.matricule }}</td>
+                <td>{{ e.sexe }}</td>
+                <td>
+                  @if (e.redoublant) { <span class="pastille">redoublant</span> }
+                  @if (e.statutBourse !== 'NON_BOURSIER') { <span class="pastille present">{{ e.statutBourse === 'BOURSIER' ? 'boursier' : 'semi-boursier' }}</span> }
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="doux">{{ eleves().length ? 'Aucun élève ne correspond.' : 'Aucun élève inscrit.' }}</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (gestionEleves() && eleves().length && espaceParent) {
+        <div class="comptes-parents">
+          <h3>Comptes des parents</h3>
+          <p class="doux">
+            Ouvre en une fois l'espace parent des responsables légaux et des contacts prioritaires des élèves de la classe
+            (un seul compte pour les frères et sœurs). Vous obtenez la fiche de remise des accès, avec le mot de passe
+            provisoire de chaque nouveau compte, à remettre aux parents (réunion de rentrée, remise des bulletins…).
+          </p>
+          @if (!confirmationParents()) {
+            <button type="button" class="bouton secondaire petit" (click)="confirmationParents.set(true)">Ouvrir les comptes des parents</button>
+          } @else {
+            <p class="alerte attention">
+              Les mots de passe provisoires ne figurent que sur cette fiche : imprimez-la ou gardez-la en lieu sûr. Pour un
+              parent qui l'a perdue, réinitialisez son compte (onglet Comptes).
+            </p>
+            <div class="actions-ligne">
+              <button type="button" class="bouton petit" [disabled]="actionParents.enCours()" (click)="ouvrirComptesParents('pdf')">Ouvrir et télécharger la fiche (PDF)</button>
+              <button type="button" class="bouton secondaire petit" [disabled]="actionParents.enCours()" (click)="ouvrirComptesParents('xlsx')">… en Excel</button>
+              <button type="button" class="bouton discret petit" (click)="confirmationParents.set(false)">Annuler</button>
+            </div>
+          }
+          @if (actionParents.erreur()) { <div class="alerte erreur" role="alert">{{ actionParents.erreur() }}</div> }
+          @if (messageParents()) { <div class="alerte succes" role="status">{{ messageParents() }}</div> }
+        </div>
+      }
+    </section>
+
+    @if (peutModifier() && eleves().length === 0) {
+      <p>
+        <button type="button" class="bouton danger petit" (click)="supprimer()">Supprimer cette classe</button>
+        <span class="doux"> (seulement pendant la préparation de l'année)</span>
+      </p>
+    }
+  }
+</div>

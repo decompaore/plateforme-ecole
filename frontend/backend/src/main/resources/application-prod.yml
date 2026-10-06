@@ -1,0 +1,17 @@
+# =====================================================================
+# Profil "prod" (recette et production). Toutes les valeurs sensibles
+# viennent des variables d'environnement (fichier .env du serveur,
+# jamais dans le dépôt).
+# =====================================================================
+management:
+  server:
+    port: 8081                            # métriques et santé : port interne, non publié
+
+logging:
+  structured:
+    format:
+      console: ecs                        # journaux JSON (Loki / Grafana)
+
+app:
+  securite:
+    cookie-securise: true

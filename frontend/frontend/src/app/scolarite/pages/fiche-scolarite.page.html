@@ -1,0 +1,374 @@
+<div class="page large">
+  <h1>Scolarité et paiements</h1>
+  <app-sco-nav />
+
+  <a routerLink="/scolarite" class="retour">‹ Autre élève</a>
+
+  @if (action.erreur()) {
+    <div class="alerte erreur" role="alert">{{ action.erreur() }}</div>
+  }
+
+  @if (dossier(); as d) {
+    <div class="entete-eleve">
+      <div>
+        <h2>{{ d.eleve.nom }} {{ d.eleve.prenoms }}</h2>
+        <p class="doux">
+          @if (d.eleve.matricule) { Matricule {{ d.eleve.matricule }} · }
+          @if (inscription(); as i) { {{ i.classeCode }} · {{ i.anneeLibelle }} }
+          @if (situation(); as s) { · {{ libelleBourse[s.statutBourse] }} }
+        </p>
+      </div>
+      @if (inscriptions().length > 1) {
+        <label class="annee">
+          <span class="doux">Année</span>
+          <select [value]="inscriptionId()" (change)="choisirInscription($any($event.target).value)">
+            @for (i of inscriptions(); track i.id) {
+              <option [value]="i.id">{{ i.anneeLibelle }} · {{ i.classeCode }}</option>
+            }
+          </select>
+        </label>
+      }
+    </div>
+
+    @if (!inscriptions().length) {
+      <div class="carte"><p class="doux">Cet élève n'est inscrit dans aucune classe : aucun frais à payer.</p></div>
+    }
+    @if (inscription() && !active()) {
+      <div class="alerte attention">Élève sorti de l'établissement pour cette année : consultation seulement.</div>
+    }
+
+    @if (message()) {
+      <div class="alerte succes" role="status">{{ message() }}</div>
+    }
+
+    @if (situation(); as s) {
+      <div class="chiffres">
+        <div>
+          <strong>{{ fcfa(s.resteFamille) }}</strong>
+          <span>reste à payer par la famille</span>
+        </div>
+        <div [class.alerte-valeur]="s.retardFamille > 0">
+          <strong>{{ fcfa(s.retardFamille) }}</strong>
+          <span>en retard (échéances passées)</span>
+        </div>
+        <div>
+          <strong>{{ fcfa(s.payeFamille) }}</strong>
+          <span>payé sur {{ fcfa(s.totalFamille) }}</span>
+        </div>
+        <div>
+          <strong>{{ s.prochaineEcheance ? dateCourte(s.prochaineEcheance) : '—' }}</strong>
+          <span>prochaine échéance</span>
+        </div>
+      </div>
+      @if (s.totalOrganisme > 0) {
+        <p class="organisme">
+          Part prise en charge par <strong>{{ s.organisme ?? 'l’organisme' }}</strong>
+          @if (s.tauxPriseEnCharge !== null) { ({{ s.tauxPriseEnCharge }} %) } :
+          {{ fcfa(s.payeOrganisme) }} reçus sur {{ fcfa(s.totalOrganisme) }}, reste {{ fcfa(s.resteOrganisme) }}.
+        </p>
+      }
+
+      <!-- Dernier reçu -->
+      @if (dernier(); as p) {
+        <div class="alerte succes recu" role="status">
+          <span>
+            <strong>Paiement enregistré · reçu n° {{ p.recuNumero }}</strong><br />
+            {{ fcfa(p.montant) }} en {{ libelleMoyen[p.moyen] }}. Reste à payer : {{ fcfa(s.resteFamille) }}.
+          </span>
+          <button type="button" class="bouton" (click)="telechargerRecu(p)">Imprimer le reçu (PDF)</button>
+        </div>
+      }
+
+      <!-- Encaissement -->
+      @if (gestion() && active()) {
+        <section class="carte">
+          <h3>Encaisser un paiement</h3>
+          @if (s.resteFamille <= 0 && s.resteOrganisme <= 0) {
+            <p class="present">Tout est payé pour cette année ✓</p>
+          } @else {
+            <form (ngSubmit)="encaisser()">
+              @if (s.resteOrganisme > 0) {
+                <div class="bascule" role="group" aria-label="Qui paie ?">
+                  <button type="button" [class.actif]="payeur() === 'FAMILLE'" (click)="payeur.set('FAMILLE')">Famille</button>
+                  <button type="button" [class.actif]="payeur() === 'ORGANISME'" (click)="payeur.set('ORGANISME')">
+                    {{ s.organisme ?? 'Organisme' }}
+                  </button>
+                </div>
+              }
+              <div class="grille-champs">
+                <div class="champ">
+                  <label for="montant">Montant (FCFA)</label>
+                  <input id="montant" name="montant" inputmode="numeric" autocomplete="off" [(ngModel)]="montant" />
+                  <div class="suggestions">
+                    @if (payeur() === 'FAMILLE' && s.retardFamille > 0 && s.retardFamille < s.resteFamille) {
+                      <button type="button" class="bouton secondaire petit" (click)="proposer(s.retardFamille)">Le retard : {{ fcfa(s.retardFamille) }}</button>
+                    }
+                    <button type="button" class="bouton secondaire petit" (click)="proposer(reste())">Tout le reste : {{ fcfa(reste()) }}</button>
+                  </div>
+                </div>
+                <div class="champ">
+                  <label for="moyen">Moyen de paiement</label>
+                  <select id="moyen" name="moyen" [ngModel]="moyen()" (ngModelChange)="moyen.set($event)">
+                    @for (m of moyens; track m) { <option [value]="m">{{ libelleMoyen[m] }}</option> }
+                  </select>
+                </div>
+                @if (moyen() !== 'ESPECES') {
+                  <div class="champ">
+                    <label for="reference">Référence {{ moyen() === 'CHEQUE' ? 'du chèque' : 'de la transaction' }}</label>
+                    <input id="reference" name="reference" autocomplete="off" [(ngModel)]="reference" />
+                  </div>
+                }
+                @if (payeur() === 'FAMILLE') {
+                  <div class="champ">
+                    <label for="deposant">Déposant <span class="doux">(facultatif)</span></label>
+                    <input id="deposant" name="deposant" placeholder="M. Ouédraogo" [(ngModel)]="deposant" />
+                  </div>
+                }
+                <div class="champ">
+                  <label for="date">Date du paiement</label>
+                  <input id="date" name="date" type="date" [max]="aujourdhui" [(ngModel)]="datePaiement" />
+                </div>
+              </div>
+              @if (montant() && erreurSaisie(); as e) {
+                <p class="rouge" role="alert">{{ e }}</p>
+              }
+              @if (envoi.erreur()) {
+                <div class="alerte erreur" role="alert">{{ envoi.erreur() }}</div>
+              }
+              <button type="submit" class="bouton" [disabled]="envoi.enCours() || !!erreurSaisie()">
+                {{ envoi.enCours() ? 'Enregistrement…' : 'Encaisser' + (montantLu() !== null && !erreurSaisie() ? ' ' + fcfa(montantLu()!) : '') }}
+              </button>
+              <p class="doux note">Un reçu numéroté est émis ; pour un paiement de la famille, le parent reçoit un SMS avec le reste à payer.</p>
+            </form>
+          }
+        </section>
+      }
+
+      @if (modification.erreur()) {
+        <div class="alerte erreur" role="alert">{{ modification.erreur() }}</div>
+      }
+
+      <!-- Échéancier -->
+      <section class="carte">
+        <h3>Échéancier</h3>
+        <div class="tableau-defilant">
+          <table class="tableau">
+            <thead>
+              <tr>
+                <th>Frais</th>
+                <th>Échéance</th>
+                <th class="nombre">Montant</th>
+                @if (s.exonere > 0) { <th class="nombre">Exonération</th> }
+                @if (s.totalOrganisme > 0) { <th class="nombre">Organisme</th> }
+                <th class="nombre">Famille</th>
+                <th class="nombre">Payé</th>
+                <th class="nombre">Reste</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (e of s.echeances; track e.fraisId + e.numero) {
+                <tr [class.retard]="e.enRetard">
+                  <td>
+                    <strong>{{ e.libelle }}</strong>
+                    @if (e.nombreTranches > 1) { <span class="doux"> · tranche {{ e.numero }}/{{ e.nombreTranches }}</span> }
+                  </td>
+                  <td>
+                    {{ dateCourte(e.dateLimite) }}
+                    @if (e.enRetard) { <span class="pastille absent">en retard</span> }
+                  </td>
+                  <td class="nombre">{{ fcfa(e.montant) }}</td>
+                  @if (s.exonere > 0) { <td class="nombre">{{ e.exoneration ? '− ' + fcfa(e.exoneration) : '' }}</td> }
+                  @if (s.totalOrganisme > 0) { <td class="nombre">{{ e.partOrganisme ? fcfa(e.partOrganisme) : '' }}</td> }
+                  <td class="nombre">{{ fcfa(e.partFamille) }}</td>
+                  <td class="nombre">{{ fcfa(e.payeFamille + e.payeOrganisme) }}</td>
+                  <td class="nombre">
+                    @if (e.resteFamille + e.resteOrganisme === 0) { <span class="present">soldé ✓</span> } @else { <strong>{{ fcfa(e.resteFamille + e.resteOrganisme) }}</strong> }
+                  </td>
+                </tr>
+              } @empty {
+                <tr><td colspan="8" class="doux">Aucun frais pour cette classe : vérifiez les frais de l'année dans « Frais et bourses ».</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Paiements -->
+      <section class="carte">
+        <h3>Paiements</h3>
+        @if (paiements().length) {
+          <ul class="liste paiements">
+            @for (p of paiements(); track p.id) {
+              <li [class.annule]="p.annule">
+                <div class="ligne-paiement">
+                  <span>
+                    <strong>{{ fcfa(p.montant) }}</strong> · {{ libelleMoyen[p.moyen] }}
+                    @if (p.payeur === 'ORGANISME') { · {{ s.organisme ?? 'organisme' }} }
+                    <br />
+                    <span class="doux">
+                      Reçu n° {{ p.recuNumero }} · {{ dateCourte(p.datePaiement) }}
+                      @if (p.deposant) { · déposé par {{ p.deposant }} }
+                      @if (p.referenceExterne) { · réf. {{ p.referenceExterne }} }
+                    </span>
+                    @if (p.annule) {
+                      <br /><span class="rouge">Annulé : {{ p.motifAnnulation }}</span>
+                    }
+                  </span>
+                  <span class="actions-ligne">
+                    <button type="button" class="bouton secondaire petit" (click)="telechargerRecu(p)">Reçu</button>
+                    @if (gestion() && !p.annule && aAnnuler() !== p.id) {
+                      <button type="button" class="bouton danger petit" (click)="ouvrirAnnulation(p)">Annuler</button>
+                    }
+                  </span>
+                </div>
+                @if (aAnnuler() === p.id) {
+                  <form class="annulation" (ngSubmit)="annuler()">
+                    <label for="motif-{{ p.id }}">Motif de l'annulation (il figurera sur le reçu)</label>
+                    <input id="motif-{{ p.id }}" name="motif" placeholder="Erreur de saisie, chèque impayé…" [(ngModel)]="motifAnnulation" />
+                    <div class="actions-ligne">
+                      <button type="submit" class="bouton danger petit" [disabled]="!motifAnnulation().trim() || modification.enCours()">Confirmer l'annulation</button>
+                      <button type="button" class="bouton discret petit" (click)="aAnnuler.set(null)">Garder le paiement</button>
+                    </div>
+                  </form>
+                }
+              </li>
+            }
+          </ul>
+          <p class="doux note">Un paiement n'est jamais supprimé : annulé, il ne compte plus et son reçu porte la mention « REÇU ANNULÉ ».</p>
+        } @else {
+          <p class="doux">Aucun paiement pour cette année.</p>
+        }
+      </section>
+
+      <!-- Bourse, exonérations, frais facultatifs -->
+      <section class="carte">
+        <h3>Bourse et réductions</h3>
+
+        <h4>Prise en charge</h4>
+        @if (!boursier()) {
+          <p class="doux">Élève non boursier. Le statut de bourse se change dans le dossier de l'élève (secrétariat).</p>
+        } @else {
+          @if (priseEnCharge(); as p) {
+            <p>
+              <strong>{{ p.organisme }}</strong> · {{ p.taux !== null ? p.taux + ' %' : 'taux par défaut du statut' }}
+              @if (p.referenceDecision) { · décision {{ p.referenceDecision }} }
+              @if (p.dateDecision) { du {{ dateCourte(p.dateDecision) }} }
+            </p>
+          } @else {
+            <p class="doux">
+              {{ libelleBourse[s.statutBourse] }} sans décision enregistrée : la part organisme est calculée au taux par défaut du statut.
+            </p>
+          }
+          @if (gestion() && !pecOuverte()) {
+            <div class="actions-ligne">
+              <button type="button" class="bouton secondaire petit" (click)="ouvrirPriseEnCharge()">{{ priseEnCharge() ? 'Modifier' : 'Enregistrer la décision' }}</button>
+              @if (priseEnCharge()) {
+                <button type="button" class="bouton discret petit" (click)="supprimerPriseEnCharge()">Retirer</button>
+              }
+            </div>
+          }
+          @if (pecOuverte()) {
+            <form class="sous-formulaire" (ngSubmit)="enregistrerPriseEnCharge()">
+              <div class="grille-champs">
+                <div class="champ">
+                  <label for="pec-org">Organisme</label>
+                  <select id="pec-org" name="org" [ngModel]="pecOrganisme()" (ngModelChange)="pecOrganisme.set($event)">
+                    @for (o of organismes(); track o.id) {
+                      @if (o.actif || o.id === pecOrganisme()) { <option [value]="o.id">{{ o.nom }}</option> }
+                    }
+                  </select>
+                  @if (!organismes().length) {
+                    <span class="doux">Ajoutez d'abord l'organisme dans « Frais et bourses ».</span>
+                  }
+                </div>
+                <div class="champ">
+                  <label for="pec-taux">Taux (%) <span class="doux">vide = par défaut</span></label>
+                  <input id="pec-taux" name="taux" inputmode="decimal" [(ngModel)]="pecTaux" />
+                </div>
+                <div class="champ">
+                  <label for="pec-ref">Référence de la décision</label>
+                  <input id="pec-ref" name="ref" placeholder="Arrêté 2026-045" [(ngModel)]="pecReference" />
+                </div>
+                <div class="champ">
+                  <label for="pec-date">Date de la décision</label>
+                  <input id="pec-date" name="date" type="date" [(ngModel)]="pecDate" />
+                </div>
+              </div>
+              <div class="actions-ligne">
+                <button type="submit" class="bouton petit" [disabled]="modification.enCours()">Enregistrer</button>
+                <button type="button" class="bouton discret petit" (click)="pecOuverte.set(false)">Fermer</button>
+              </div>
+            </form>
+          }
+        }
+
+        <h4>Exonérations</h4>
+        @if (s.exonerations.length) {
+          <ul class="liste">
+            @for (x of s.exonerations; track x.fraisId) {
+              <li class="ligne-simple">
+                <span><strong>{{ x.frais }}</strong> : − {{ fcfa(x.montant) }} @if (x.motif) { <span class="doux">· {{ x.motif }}</span> }</span>
+                @if (gestion()) {
+                  <button type="button" class="bouton discret petit" (click)="retirerExoneration(x.fraisId)">Retirer</button>
+                }
+              </li>
+            }
+          </ul>
+        } @else {
+          <p class="doux">Aucune exonération.</p>
+        }
+        @if (gestion() && active() && !exoOuverte() && fraisEleve().length) {
+          <button type="button" class="bouton secondaire petit" (click)="ouvrirExoneration()">Accorder une exonération</button>
+        }
+        @if (exoOuverte()) {
+          <form class="sous-formulaire" (ngSubmit)="exonerer()">
+            <div class="grille-champs">
+              <div class="champ">
+                <label for="exo-frais">Frais</label>
+                <select id="exo-frais" name="frais" [ngModel]="exoFrais()" (ngModelChange)="exoFrais.set($event)">
+                  @for (f of fraisEleve(); track f.id) { <option [value]="f.id">{{ f.libelle }}</option> }
+                </select>
+              </div>
+              <div class="champ">
+                <label for="exo-montant">Réduction (FCFA)</label>
+                <input id="exo-montant" name="montant" inputmode="numeric" [(ngModel)]="exoMontant" />
+              </div>
+              <div class="champ">
+                <label for="exo-motif">Motif</label>
+                <input id="exo-motif" name="motif" placeholder="Enfant du personnel" [(ngModel)]="exoMotif" />
+              </div>
+            </div>
+            <div class="actions-ligne">
+              <button type="submit" class="bouton petit" [disabled]="modification.enCours()">Accorder</button>
+              <button type="button" class="bouton discret petit" (click)="exoOuverte.set(false)">Fermer</button>
+            </div>
+            <p class="doux note">La réduction s'applique d'abord aux dernières tranches du frais.</p>
+          </form>
+        }
+
+        @if (facultatifs().length) {
+          <h4>Frais facultatifs</h4>
+          <ul class="liste">
+            @for (f of facultatifs(); track f.frais.id) {
+              <li class="ligne-simple">
+                <span>
+                  <strong>{{ f.frais.libelle }}</strong> · {{ fcfa(f.frais.montant) }}
+                  @if (f.souscrit) { <span class="pastille present">souscrit</span> }
+                </span>
+                @if (gestion() && active()) {
+                  <button type="button" class="bouton secondaire petit" [disabled]="modification.enCours()" (click)="basculerFacultatif(f.frais, f.souscrit)">
+                    {{ f.souscrit ? 'Résilier' : 'Souscrire' }}
+                  </button>
+                }
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    } @else if (action.enCours()) {
+      <p class="doux">Chargement…</p>
+    }
+  } @else if (action.enCours()) {
+    <p class="doux">Chargement…</p>
+  }
+</div>
