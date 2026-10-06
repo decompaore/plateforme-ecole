@@ -1,0 +1,44 @@
+# =====================================================================
+# Serveur d'application (VPS 1) – recette ou production.
+# À copier dans /opt/plateforme sur le serveur, avec :
+#   .env        (secrets, jamais dans le dépôt – voir .env.exemple)
+#   Caddyfile   (reverse proxy, certificats TLS automatiques)
+#   deployer.sh (appelé par GitHub Actions)
+# La base PostgreSQL est sur le VPS 2 (variable DB_URL).
+# =====================================================================
+services:
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAINE_API: ${DOMAINE_API}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-donnees:/data
+      - caddy-config:/config
+    depends_on:
+      - api1
+      - api2
+
+  api1: &api
+    image: ${IMAGE}:${TAG}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+    expose:
+      - "8080"
+      - "8081"
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+  api2: *api
+
+volumes:
+  caddy-donnees:
+  caddy-config:
