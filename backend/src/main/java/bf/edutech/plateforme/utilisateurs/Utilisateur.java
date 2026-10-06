@@ -90,6 +90,11 @@ public class Utilisateur extends EntiteUuid {
         }
     }
 
+    /** Mot de passe confirmé (action sensible) : les échecs précédents ne comptent plus. */
+    public void oublierEchecs() {
+        echecsConnexion = 0;
+    }
+
     public void enregistrerConnexionReussie(Instant maintenant) {
         echecsConnexion = 0;
         verrouilleJusqua = null;

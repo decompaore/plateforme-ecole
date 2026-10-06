@@ -8,6 +8,7 @@ import { RechercheComponent } from '../../partage/recherche.component';
 import { Action } from '../action';
 import { AdminApi } from '../admin-api.service';
 import { CompteVue, EtablissementVue, ModuleEtablissementVue, ResultatReinitialisation, StatutTenant } from '../modeles-admin';
+import { ExportsDonneesComponent } from '../exports-donnees.component';
 import { MotDePasseTemporaireComponent } from '../mot-de-passe-temporaire.component';
 
 const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU: 'Suspendu', RESILIE: 'Résilié' };
@@ -15,7 +16,7 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
 /** Super administrateur : établissements de la plateforme. */
 @Component({
   selector: 'app-plateforme',
-  imports: [FormsModule, DatePipe, MotDePasseTemporaireComponent, RechercheComponent],
+  imports: [FormsModule, DatePipe, MotDePasseTemporaireComponent, RechercheComponent, ExportsDonneesComponent],
   template: `
     <div class="page large">
       <h1>Établissements</h1>
@@ -119,6 +120,7 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
                   <td class="nombre actions-etab">
                     <button type="button" class="bouton secondaire petit" [attr.aria-expanded]="ouvert() === e.id" (click)="basculerAdmins(e)">Administrateurs</button>
                     <button type="button" class="bouton secondaire petit" [attr.aria-expanded]="ouvertModules() === e.id" (click)="basculerModules(e)">Modules</button>
+                    <button type="button" class="bouton secondaire petit" [attr.aria-expanded]="ouvertExports() === e.id" (click)="basculerExports(e)">Données</button>
                     @if (e.statut === 'ACTIF') {
                       <button type="button" class="bouton danger petit" (click)="statut(e, 'SUSPENDU')">Suspendre</button>
                     } @else if (e.statut === 'SUSPENDU') {
@@ -126,6 +128,18 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
                     }
                   </td>
                 </tr>
+                @if (ouvertExports() === e.id) {
+                  <tr class="admins">
+                    <td colspan="5">
+                      <p class="doux">
+                        Export complet des données de l'établissement (réversibilité), par exemple quand il quitte la
+                        plateforme : possible aussi s'il est suspendu ou résilié. L'établissement voit cet export dans sa
+                        propre liste.
+                      </p>
+                      <app-exports-donnees [etablissementId]="e.id" />
+                    </td>
+                  </tr>
+                }
                 @if (ouvertModules() === e.id) {
                   <tr class="admins modules">
                     <td colspan="5">
@@ -296,6 +310,8 @@ export class PlateformePage implements OnInit {
     return JSON.stringify(avant) !== JSON.stringify([...this.actifs()].sort());
   });
   protected readonly reinitialise = signal<ResultatReinitialisation | null>(null);
+  // Export complet de l'établissement ouvert (v0.33)
+  protected readonly ouvertExports = signal<string | null>(null);
   protected readonly creation = new Action();
 
   protected readonly code = signal('');
@@ -334,6 +350,10 @@ export class PlateformePage implements OnInit {
     if (l && this.ouvertModules() === e.id) {
       this.afficherModules(l);
     }
+  }
+
+  protected basculerExports(e: EtablissementVue): void {
+    this.ouvertExports.set(this.ouvertExports() === e.id ? null : e.id);
   }
 
   protected libelleModule(code: Module): string {

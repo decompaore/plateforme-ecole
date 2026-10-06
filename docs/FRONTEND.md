@@ -1,4 +1,4 @@
-# Application web (v0.32)
+# Application web (v0.33)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -22,6 +22,8 @@ Application Angular 22 installable sur smartphone (PWA). Elle couvre :
   ou le nouveau **chef des travaux** (matières techniques et pratiques) ;
 - le **cahier de textes, même sans réseau** (v0.24) : après chaque cours, ce qui a été fait et le travail donné,
   rattaché à une séquence ; réalisé face au prévu pour l'enseignant et la direction ;
+- l'**export complet des données** de l'établissement (v0.33) : archive ZIP de fichiers CSV décrits, pour la
+  réversibilité ;
 - un **accueil par rôle** : chaque personne ne voit que les tuiles de ses rôles.
 
 ## Démarrer en local
@@ -248,6 +250,16 @@ Mise en place d'un établissement, dans l'ordre :
 Comptes créés (administrateur d'un établissement, enseignant, personnel) : le **mot de passe provisoire** s'affiche
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
+
+## Export complet des données (v0.33)
+
+- **Administration → Données** (administrateur) : « Préparer un export complet » avec le mot de passe ; la liste se
+  met à jour toute seule pendant la préparation (toutes les 3 secondes), puis « Télécharger » : le navigateur
+  télécharge lui-même l'archive par un lien signé (progression, reprise). Taille, nombre de tables et de lignes,
+  date d'effacement et empreinte SHA-256 sont affichés.
+- **Établissements → Données** (super administrateur) : même composant (`app-exports-donnees` avec
+  `etablissementId`), pour un établissement actif, suspendu ou résilié.
+- Détails du contenu de l'archive : [API_REVERSIBILITE.md](API_REVERSIBILITE.md).
 
 ## Sécurité des appareils (v0.32)
 

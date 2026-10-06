@@ -234,6 +234,30 @@ public class AuthService {
         });
     }
 
+    /**
+     * Confirmation du mot de passe avant une action sensible (export complet des données).
+     * Les échecs comptent comme à la connexion : après plusieurs erreurs, le compte est
+     * verrouillé quelques minutes. Réponse 409 (et non 401) : la session reste ouverte.
+     */
+    @Transactional(noRollbackFor = RegleMetierException.class)
+    public void confirmerMotDePasse(UUID utilisateurId, String motDePasse) {
+        Utilisateur utilisateur = utilisateurs.findById(utilisateurId)
+                .orElseThrow(() -> new AuthentificationException(MESSAGE_ECHEC));
+        Instant maintenant = horloge.instant();
+        if (utilisateur.estVerrouille(maintenant)) {
+            throw new RegleMetierException("COMPTE_VERROUILLE",
+                    "Trop d'essais : réessayez dans quelques minutes");
+        }
+        if (motDePasse == null || !encodeur.matches(motDePasse, utilisateur.getMotDePasseHache())) {
+            utilisateur.enregistrerEchec(maintenant, securite.maxEchecsConnexion(), securite.dureeVerrouillage());
+            utilisateurs.save(utilisateur);
+            audit.enregistrerPour(utilisateurId, "CONFIRMATION_ECHEC", null, null);
+            throw new RegleMetierException("MOT_DE_PASSE_INCORRECT", "Mot de passe incorrect");
+        }
+        utilisateur.oublierEchecs();
+        utilisateurs.save(utilisateur);
+    }
+
     @Transactional
     public void changerMotDePasse(UUID utilisateurId, String actuel, String nouveau) {
         Utilisateur utilisateur = utilisateurs.findById(utilisateurId)
