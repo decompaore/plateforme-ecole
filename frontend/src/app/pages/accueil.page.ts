@@ -73,6 +73,10 @@ const TUILES: Tuile[] = [
             <strong>Établissements</strong>
             <span>Créer, suivre, suspendre</span>
           </a>
+          <a class="tuile active" routerLink="/plateforme/adoption">
+            <strong>Adoption</strong>
+            <span>Qui utilise l'application, et quoi</span>
+          </a>
         </div>
       } @else if (!session.profil()?.etablissement) {
         <div class="carte">

@@ -5,6 +5,8 @@ import { firstValueFrom } from 'rxjs';
 import { Module, Role } from '../core/modeles';
 import { API } from '../core/session.service';
 import {
+  AdoptionEtablissement,
+  AdoptionPlateforme,
   AnneeVue,
   ClasseVue,
   CompteVue,
@@ -145,6 +147,20 @@ export class AdminApi {
 
   definirModules(etablissementId: string, actifs: Module[]): Promise<ModuleEtablissementVue[]> {
     return firstValueFrom(this.http.put<ModuleEtablissementVue[]>(`${API}/plateforme/etablissements/${etablissementId}/modules`, { actifs }));
+  }
+
+  // ---------------- Mesure de l'adoption (v0.34)
+
+  adoption(jours: number): Promise<AdoptionEtablissement> {
+    return this.get('/adoption', { jours });
+  }
+
+  adoptionPlateforme(jours: number): Promise<AdoptionPlateforme> {
+    return this.get('/plateforme/adoption', { jours });
+  }
+
+  recalculerAdoption(jours: number): Promise<AdoptionPlateforme> {
+    return firstValueFrom(this.http.post<AdoptionPlateforme>(`${API}/plateforme/adoption/calcul`, null, { params: { jours } }));
   }
 
   // ---------------- Export complet des données (v0.33)

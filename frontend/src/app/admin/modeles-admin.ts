@@ -450,3 +450,86 @@ export interface LienExport {
   chemin: string;
   expireLe: string;
 }
+
+// ---------------- Mesure de l'adoption (v0.34)
+
+export interface IndicateurAdoption {
+  code: string;
+  libelle: string;
+}
+
+export interface JourActif {
+  jour: string;
+  actifs: number;
+}
+
+export interface Taux {
+  total: number;
+  actifs: number;
+}
+
+export type AlerteAdoption = 'SANS_ACTIVITE' | 'PEU_D_ENSEIGNANTS' | 'SANS_APPEL';
+
+export const LIBELLE_ALERTE_ADOPTION: Record<AlerteAdoption, string> = {
+  SANS_ACTIVITE: 'Aucune activité depuis 7 jours',
+  PEU_D_ENSEIGNANTS: 'Moins de la moitié des enseignants actifs',
+  SANS_APPEL: 'Appel numérique pas utilisé',
+};
+
+export interface EtablissementAdoption {
+  id: string;
+  code: string;
+  nom: string;
+  statut: StatutTenant;
+  comptes: number;
+  actifs: number;
+  enseignants: Taux;
+  parents: Taux;
+  joursActifs: number;
+  derniereActivite: string | null;
+  actions: Record<string, number>;
+  alertes: AlerteAdoption[];
+}
+
+export interface AdoptionPlateforme {
+  debut: string;
+  fin: string;
+  calculeLe: string;
+  indicateurs: IndicateurAdoption[];
+  etablissements: number;
+  etablissementsActifs: number;
+  comptes: number;
+  actifs: number;
+  enseignants: Taux;
+  parents: Taux;
+  actions: Record<string, number>;
+  quotidien: JourActif[];
+  details: EtablissementAdoption[];
+}
+
+export interface PersonneActivite {
+  utilisateurId: string;
+  nom: string;
+  prenoms: string;
+  roles: Role[];
+  joursActifs: number;
+  derniereActivite: string | null;
+  appels: number;
+  notes: number;
+  cahier: number;
+}
+
+export interface AdoptionEtablissement {
+  debut: string;
+  fin: string;
+  calculeLe: string;
+  indicateurs: IndicateurAdoption[];
+  comptes: number;
+  actifs: number;
+  personnel: Taux;
+  enseignants: Taux;
+  parents: Taux;
+  actions: Record<string, number>;
+  quotidien: JourActif[];
+  personnes: PersonneActivite[];
+}

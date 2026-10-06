@@ -59,6 +59,7 @@ Pourquoi deux rôles ? Le propriétaire des tables contourne la Row-Level Securi
 | Relances des familles en retard | lundi 7 h 30 | `app.scolarite.cron-relances` ; chaque école peut les désactiver |
 | Clôture des engagements échus (fins programmées, contrats de vacataires) | chaque nuit à 0 h 15 | `app.enseignants.cron-fins` |
 | Effacement des archives d'export expirées (7 jours) | chaque heure | `app.exports.duree-conservation`, `purge-automatique` |
+| Mesure de l'adoption (actions de la veille et de l'avant-veille) | chaque nuit à 0 h 20 ; au démarrage, les jours jamais calculés | `app.adoption.cron`, `calcul-automatique`, `historique-jours` |
 
 Chaque tâche est idempotente : plusieurs instances de l'API peuvent tourner sans doublon.
 L'agrégateur `SIMULATEUR` n'est accepté que si `app.mobile-money.simulateur-autorise=true` (profils `dev` et `test`) :

@@ -22,6 +22,7 @@ export const ONGLETS: Onglet[] = [
   { lien: '/admin/comptes', titre: 'Comptes', roles: ['ADMIN_ECOLE'] },
   { lien: '/admin/referentiel', titre: 'Filières et matières', roles: ['ADMIN_ECOLE', 'CENSEUR'] },
   { lien: '/admin/annee', titre: 'Année scolaire', roles: ['ADMIN_ECOLE', 'CENSEUR'] },
+  { lien: '/admin/utilisation', titre: 'Utilisation', roles: ['ADMIN_ECOLE'] },
   { lien: '/admin/donnees', titre: 'Données', roles: ['ADMIN_ECOLE'] },
 ];
 

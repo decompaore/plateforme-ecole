@@ -61,6 +61,7 @@ Pour travailler avec Eclipse, suivre [docs/GUIDE_ECLIPSE.md](docs/GUIDE_ECLIPSE.
 | [docs/API_PASSAGE.md](docs/API_PASSAGE.md) | Moyenne annuelle, décisions de fin d'année, conseil de classe, année suivante, réinscriptions en masse |
 | [docs/API_VIE_SCOLAIRE.md](docs/API_VIE_SCOLAIRE.md) | Retards, avertissements, blâmes, exclusions temporaires, convocations, historique, espace parent |
 | [docs/API_STATISTIQUES.md](docs/API_STATISTIQUES.md) | Statistiques de rentrée, personnel, recouvrement, résultats, export Excel |
+| [docs/API_ADOPTION.md](docs/API_ADOPTION.md) | Mesure de l'adoption : jours d'activité, actions par fonction, tableaux de bord du super administrateur et de l'établissement |
 | [docs/API_REVERSIBILITE.md](docs/API_REVERSIBILITE.md) | Export complet des données d'un établissement (réversibilité) : archive ZIP de CSV décrits, lien signé, conservation |
 | [docs/API_EMPLOI_DU_TEMPS.md](docs/API_EMPLOI_DU_TEMPS.md) | Grille horaire, emplois du temps (censeur et chef des travaux), conflits, génération automatique, publication, exports |
 

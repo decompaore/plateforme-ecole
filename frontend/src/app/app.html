@@ -37,6 +37,7 @@
       }
       @if (session.profil()?.superAdmin) {
         <a routerLink="/plateforme">Établissements</a>
+        <a routerLink="/plateforme/adoption">Adoption</a>
       }
       @if (session.aLeRole('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')) {
         <a routerLink="/admin/classes">Classes</a>

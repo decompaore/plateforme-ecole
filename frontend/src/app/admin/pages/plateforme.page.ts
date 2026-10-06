@@ -10,16 +10,19 @@ import { AdminApi } from '../admin-api.service';
 import { CompteVue, EtablissementVue, ModuleEtablissementVue, ResultatReinitialisation, StatutTenant } from '../modeles-admin';
 import { ExportsDonneesComponent } from '../exports-donnees.component';
 import { MotDePasseTemporaireComponent } from '../mot-de-passe-temporaire.component';
+import { PlateformeNavComponent } from '../plateforme-nav.component';
+
 
 const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU: 'Suspendu', RESILIE: 'Résilié' };
 
 /** Super administrateur : établissements de la plateforme. */
 @Component({
   selector: 'app-plateforme',
-  imports: [FormsModule, DatePipe, MotDePasseTemporaireComponent, RechercheComponent, ExportsDonneesComponent],
+  imports: [FormsModule, DatePipe, MotDePasseTemporaireComponent, RechercheComponent, ExportsDonneesComponent, PlateformeNavComponent],
   template: `
     <div class="page large">
       <h1>Établissements</h1>
+      <app-plateforme-nav />
 
       @if (cree(); as c) {
         <app-mot-de-passe-temporaire

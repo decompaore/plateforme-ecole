@@ -1,4 +1,4 @@
-# Application web (v0.33)
+# Application web (v0.34)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -24,6 +24,8 @@ Application Angular 22 installable sur smartphone (PWA). Elle couvre :
   rattaché à une séquence ; réalisé face au prévu pour l'enseignant et la direction ;
 - l'**export complet des données** de l'établissement (v0.33) : archive ZIP de fichiers CSV décrits, pour la
   réversibilité ;
+- la **mesure de l'adoption** (v0.34) : utilisation de l'application par établissement (super administrateur) et
+  par membre du personnel (administrateur) ;
 - un **accueil par rôle** : chaque personne ne voit que les tuiles de ses rôles.
 
 ## Démarrer en local
@@ -250,6 +252,18 @@ Mise en place d'un établissement, dans l'ordre :
 Comptes créés (administrateur d'un établissement, enseignant, personnel) : le **mot de passe provisoire** s'affiche
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
+
+## Mesure de l'adoption (v0.34)
+
+- **Administration → Utilisation** (administrateur) : période de 7, 30 ou 90 jours ; membres du personnel,
+  enseignants et parents actifs ; graphique des personnes actives par jour (le nombre au survol de chaque jour, les
+  week-ends plus clairs) ; ce qui a été fait dans l'application ; tableau du personnel (jours actifs, dernière
+  activité, appels, notes, cahier) avec les filtres « Pas actifs sur la période » et « Enseignants sans appel dans
+  l'application ».
+- **Adoption** (super administrateur, tuile de l'accueil, menu et onglet à côté d'« Établissements ») : mêmes
+  chiffres pour toute la plateforme, tableau des établissements (les établissements à accompagner en premier, case
+  « À accompagner seulement »), détail de toutes les actions d'un établissement, bouton « Recalculer la période ».
+- Détails : [API_ADOPTION.md](API_ADOPTION.md).
 
 ## Export complet des données (v0.33)
 
