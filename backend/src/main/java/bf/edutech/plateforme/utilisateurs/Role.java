@@ -11,6 +11,8 @@ package bf.edutech.plateforme.utilisateurs;
 public enum Role {
     ADMIN_ECOLE,
     CENSEUR,
+    /** Chef des travaux : supervise les matières techniques et pratiques, les ateliers. */
+    CHEF_TRAVAUX,
     SECRETARIAT,
     INTENDANT,
     SURVEILLANT,

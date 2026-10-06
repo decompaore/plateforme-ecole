@@ -13,13 +13,17 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import bf.edutech.plateforme.socle.modules.Module;
 import bf.edutech.plateforme.plateforme.EtablissementsService.EtablissementVue;
 import bf.edutech.plateforme.plateforme.EtablissementsService.ResultatCreation;
+import bf.edutech.plateforme.utilisateurs.ComptesService.CompteVue;
+import bf.edutech.plateforme.utilisateurs.ComptesService.ResultatReinitialisation;
 
 /**
  * Administration des établissements. Réservé au super administrateur
@@ -56,6 +60,30 @@ public class EtablissementsController {
     public ResultatCreation creer(@Valid @RequestBody DemandeCreation d) {
         return service.creer(d.code(), d.nom(), d.telephoneAdministrateur(), d.nomAdministrateur(),
                 d.prenomsAdministrateur());
+    }
+
+    @GetMapping("/{id}/administrateurs")
+    public List<CompteVue> administrateurs(@PathVariable UUID id) {
+        return service.administrateurs(id);
+    }
+
+    /** Mot de passe oublié par l'administrateur d'un établissement : nouveau mot de passe provisoire. */
+    @PostMapping("/{id}/administrateurs/{utilisateurId}/reinitialisation")
+    public ResultatReinitialisation reinitialiserAdministrateur(@PathVariable UUID id, @PathVariable UUID utilisateurId) {
+        return service.reinitialiserAdministrateur(id, utilisateurId);
+    }
+
+    public record DemandeModules(@NotNull java.util.Set<Module> actifs) {
+    }
+
+    @GetMapping("/{id}/modules")
+    public List<EtablissementsService.ModuleVue> modules(@PathVariable UUID id) {
+        return service.modules(id);
+    }
+
+    @PutMapping("/{id}/modules")
+    public List<EtablissementsService.ModuleVue> definirModules(@PathVariable UUID id, @Valid @RequestBody DemandeModules d) {
+        return service.definirModules(id, d.actifs());
     }
 
     @PatchMapping("/{id}/statut")

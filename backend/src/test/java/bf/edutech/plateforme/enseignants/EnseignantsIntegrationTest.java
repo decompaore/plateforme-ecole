@@ -196,8 +196,16 @@ class EnseignantsIntegrationTest {
                 .andExpect(jsonPath("$.chargeHebdomadaire").value(10.0))
                 .andExpect(jsonPath("$.affectations.length()").value(2));
 
-        // Fin d'engagement : accès retiré, matières libérées
-        dans(lycee, () -> enseignants.terminer(engagement, LocalDate.of(2027, 6, 30), "Mutation"));
+        // Fin d'engagement programmée : rien ne change avant la date
+        int libres = dans(lycee, () -> classes.matieresSansEnseignant(annee.id())).size();
+        EnseignantVue programmee = dans(lycee,
+                () -> enseignants.terminer(engagement, LocalDate.of(2027, 6, 30), "Mutation"));
+        assertThat(programmee.statut()).isEqualTo(StatutEngagement.ACTIF);
+        assertThat(programmee.finProgrammee()).isTrue();
+        assertThat(dans(lycee, () -> classes.matieresSansEnseignant(annee.id()))).hasSize(libres);
+
+        // Le lendemain, le traitement quotidien clôt l'engagement : accès retiré, matières libérées
+        assertThat(dans(lycee, () -> enseignants.terminerEchus(LocalDate.of(2027, 7, 1)))).isEqualTo(1);
         assertThat(dans(lycee, () -> classes.matieresSansEnseignant(annee.id()))).hasSize(3);
         assertThat(dans(lycee, () -> membres.lister()).stream()
                 .filter(m -> m.utilisateurId().equals(compte) && m.role() == Role.ENSEIGNANT))
@@ -205,23 +213,101 @@ class EnseignantsIntegrationTest {
     }
 
     @Test
-    void apresUneMutationLeNouvelEtablissementPeutEngagerCommeTitulaire() throws Exception {
+    void uneMutationProgrammeeLaisseLePosteActifEtLibereLeTitulariatDesLeLendemain() throws Exception {
         String tel = telephone();
         ResultatEngagement premier = dans(lycee, () -> enseignants.engager(titulaire(tel, RENTREE)));
-        dans(lycee, () -> enseignants.terminer(premier.enseignant().engagementId(), LocalDate.of(2027, 6, 30),
-                "Mutation"));
+        UUID auLycee = premier.enseignant().engagementId();
 
+        // Mutation au 30 juin : l'engagement reste actif jusque-là
+        EnseignantVue programmee = dans(lycee,
+                () -> enseignants.terminer(auLycee, LocalDate.of(2027, 6, 30), "Mutation"));
+        assertThat(programmee.statut()).isEqualTo(StatutEngagement.ACTIF);
+        assertThat(programmee.finProgrammee()).isTrue();
+        assertThat(programmee.fin()).isEqualTo(LocalDate.of(2027, 6, 30));
+        assertThat(programmee.motifFin()).isEqualTo("Mutation");
+
+        // Le nouvel établissement l'invite comme titulaire dès le lendemain, pas avant
+        assertThatThrownBy(() -> dans(cfp, () -> enseignants.engager(titulaire(tel, LocalDate.of(2027, 6, 1)))))
+                .isInstanceOf(RegleMetierException.class).extracting("code").isEqualTo("POSTE_TITULAIRE_OCCUPE");
         ResultatEngagement nouveau = dans(cfp, () -> enseignants.engager(titulaire(tel, LocalDate.of(2027, 7, 1))));
         assertThat(nouveau.invitation()).isTrue();
+
+        // L'ancien établissement ne peut plus annuler la mutation : le poste est promis ailleurs
+        assertThatThrownBy(() -> dans(lycee, () -> enseignants.annulerFin(auLycee)))
+                .isInstanceOf(RegleMetierException.class).extracting("code").isEqualTo("ANNULATION_FIN_IMPOSSIBLE");
+
+        // Jusqu'à la date de fin, l'enseignant travaille toujours au lycée
+        mvc.perform(post("/api/v1/auth/connexion").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"telephone\":\"%s\",\"motDePasse\":\"%s\"}"
+                                .formatted(tel, premier.motDePasseTemporaire())))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.jetonAcces").isNotEmpty())
+                .andExpect(jsonPath("$.etablissements.length()").value(1));
+
+        // Rien à clore le dernier jour ; le lendemain, clôture automatique
+        assertThat(dans(lycee, () -> enseignants.terminerEchus(LocalDate.of(2027, 6, 30)))).isZero();
+        assertThat(dans(lycee, () -> enseignants.terminerEchus(LocalDate.of(2027, 7, 1)))).isEqualTo(1);
+        EnseignantVue close = dans(lycee, () -> enseignants.lister(null)).getFirst();
+        assertThat(close.statut()).isEqualTo(StatutEngagement.TERMINE);
+        assertThat(close.finProgrammee()).isFalse();
+        assertThat(close.motifFin()).isEqualTo("Mutation");
 
         // Sans aucun établissement actif, l'enseignant peut quand même se connecter pour répondre
         mvc.perform(post("/api/v1/auth/connexion").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"telephone\":\"%s\",\"motDePasse\":\"%s\"}"
                                 .formatted(tel, premier.motDePasseTemporaire())))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.jetonAcces").isNotEmpty())
                 .andExpect(jsonPath("$.selectionRequise").value(false))
                 .andExpect(jsonPath("$.etablissements").isEmpty());
+    }
+
+    @Test
+    void uneFinProgrammeeSAnnuleEtUnContratDeVacataireSeClotDeLuiMeme() {
+        String tel = telephone();
+        UUID vacation = dans(lycee, () -> enseignants.engager(vacataire(tel, RENTREE))).enseignant().engagementId();
+
+        // Une fin d'engagement ne prolonge jamais un contrat
+        assertThatThrownBy(() -> dans(lycee, () -> enseignants.terminer(vacation, LocalDate.of(2027, 8, 15), null)))
+                .isInstanceOf(RegleMetierException.class).extracting("code").isEqualTo("FIN_APRES_CONTRAT");
+
+        EnseignantVue programmee = dans(lycee,
+                () -> enseignants.terminer(vacation, LocalDate.of(2027, 3, 31), "Démission"));
+        assertThat(programmee.fin()).isEqualTo(LocalDate.of(2027, 3, 31));
+        assertThat(programmee.finProgrammee()).isTrue();
+
+        // Annulation : la fin de contrat d'origine revient
+        EnseignantVue annulee = dans(lycee, () -> enseignants.annulerFin(vacation));
+        assertThat(annulee.statut()).isEqualTo(StatutEngagement.ACTIF);
+        assertThat(annulee.fin()).isEqualTo(LocalDate.of(2027, 7, 31));
+        assertThat(annulee.finProgrammee()).isFalse();
+        assertThat(annulee.motifFin()).isNull();
+        assertThatThrownBy(() -> dans(lycee, () -> enseignants.annulerFin(vacation)))
+                .isInstanceOf(RegleMetierException.class).extracting("code").isEqualTo("AUCUNE_FIN_PROGRAMMEE");
+
+        // Le contrat arrive à son terme : clôture automatique, motif par défaut
+        assertThat(dans(lycee, () -> enseignants.terminerEchus(LocalDate.of(2027, 7, 31)))).isZero();
+        assertThat(dans(lycee, () -> enseignants.terminerEchus(LocalDate.of(2027, 8, 1)))).isEqualTo(1);
+        EnseignantVue close = dans(lycee, () -> enseignants.lister(null)).getFirst();
+        assertThat(close.statut()).isEqualTo(StatutEngagement.TERMINE);
+        assertThat(close.motifFin()).isEqualTo("Fin de contrat");
+        assertThat(dans(lycee, () -> membres.lister()).stream().filter(m -> m.role() == Role.ENSEIGNANT))
+                .singleElement().extracting(MembreVue::actif).isEqualTo(false);
+    }
+
+    @Test
+    void uneDateDeFinDejaPasseeTermineImmediatement() {
+        String tel = telephone();
+        UUID engagement = dans(lycee, () -> enseignants.engager(titulaire(tel, RENTREE.minusYears(1))))
+                .enseignant().engagementId();
+
+        EnseignantVue terminee = dans(lycee,
+                () -> enseignants.terminer(engagement, RENTREE.minusYears(1).plusMonths(9), "Retraite"));
+        assertThat(terminee.statut()).isEqualTo(StatutEngagement.TERMINE);
+        assertThat(terminee.finProgrammee()).isFalse();
+        assertThat(dans(lycee, () -> membres.lister()).stream().filter(m -> m.role() == Role.ENSEIGNANT))
+                .singleElement().extracting(MembreVue::actif).isEqualTo(false);
+        assertThatThrownBy(() -> dans(lycee, () -> enseignants.annulerFin(engagement)))
+                .isInstanceOf(RegleMetierException.class).extracting("code").isEqualTo("STATUT_ENGAGEMENT");
     }
 
     @Test
@@ -281,7 +367,7 @@ class EnseignantsIntegrationTest {
     }
 
     private UUID nouvelleEcole() {
-        String suffixe = Integer.toString(ThreadLocalRandom.current().nextInt(100_000, 999_999));
+        String suffixe = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         return etablissements.creer("ens-" + suffixe, "École " + suffixe, "7" + telephone().substring(1), "ADMIN",
                 "Test").etablissement().id();
     }

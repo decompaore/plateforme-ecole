@@ -177,6 +177,7 @@ class RapportExcel {
         return switch (role) {
             case ADMIN_ECOLE -> "Chef d'établissement / administration";
             case CENSEUR -> "Censeur / directeur des études";
+            case CHEF_TRAVAUX -> "Chef des travaux";
             case SECRETARIAT -> "Secrétariat";
             case INTENDANT -> "Intendance";
             case SURVEILLANT -> "Surveillance";

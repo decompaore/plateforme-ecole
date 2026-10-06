@@ -26,6 +26,7 @@ import bf.edutech.plateforme.etablissement.AnneesService;
 import bf.edutech.plateforme.notifications.NotificationsService;
 import bf.edutech.plateforme.scolarite.RenduRecu.DonneesRecu;
 import bf.edutech.plateforme.scolarite.Situations.Situation;
+import bf.edutech.plateforme.scolarite.Vues.EleveJournalVue;
 import bf.edutech.plateforme.scolarite.Vues.JournalVue;
 import bf.edutech.plateforme.scolarite.Vues.PaiementVue;
 import bf.edutech.plateforme.scolarite.Vues.TotalMoyenVue;
@@ -235,8 +236,12 @@ public class EncaissementsService {
         }
         List<TotalMoyenVue> parMoyen = new ArrayList<>();
         totaux.forEach((moyen, t) -> parMoyen.add(new TotalMoyenVue(moyen, t[0], (int) t[1])));
+        Map<UUID, EleveJournalVue> eleves = new java.util.HashMap<>();
+        inscriptions.trouverTous(liste.stream().map(Paiement::getInscriptionId).distinct().toList())
+                .forEach((id, i) -> eleves.put(id, new EleveJournalVue(i.matricule(), i.nom(), i.prenoms(),
+                        i.classeCode())));
         return new JournalVue(du, au, liste.stream().mapToLong(Paiement::getMontant).sum(), parMoyen,
-                situations.paiements(liste));
+                situations.paiements(liste), eleves);
     }
 
     /** Vérification publique d'un reçu papier (sans connexion). */

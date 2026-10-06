@@ -55,6 +55,11 @@ public class Evaluation extends EntiteCloisonnee {
         this.creePar = creePar;
     }
 
+    /** Identifiant généré par l'appareil (évaluation créée hors connexion). */
+    void imposerIdentifiant(UUID identifiant) {
+        imposerId(identifiant);
+    }
+
     void definir(String libelle, TypeEvaluation type, LocalDate date, BigDecimal bareme, BigDecimal poids) {
         this.libelle = libelle;
         this.type = type;

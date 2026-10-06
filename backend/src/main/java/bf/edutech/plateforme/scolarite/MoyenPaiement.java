@@ -4,6 +4,7 @@ public enum MoyenPaiement {
     ESPECES("Espèces"),
     ORANGE_MONEY("Orange Money"),
     MOOV_MONEY("Moov Money"),
+    TELECEL_MONEY("Telecel Money"),
     VIREMENT("Virement"),
     CHEQUE("Chèque");
 

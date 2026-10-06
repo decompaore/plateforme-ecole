@@ -17,8 +17,11 @@ LABEL org.opencontainers.image.title="plateforme-api" \
 RUN groupadd --system app && useradd --system --gid app --home /app app
 WORKDIR /app
 COPY --from=construction /src/target/plateforme-api.jar app.jar
+# Archives d'export complet (volume partagé par les instances, voir docker-compose)
+RUN mkdir -p /var/lib/plateforme/exports && chown app:app /var/lib/plateforme/exports
 USER app
 ENV SPRING_PROFILES_ACTIVE=prod \
+    EXPORTS_REPERTOIRE=/var/lib/plateforme/exports \
     JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
 EXPOSE 8080 8081
 # Vérifie que le port de supervision répond (bash est présent dans l'image)

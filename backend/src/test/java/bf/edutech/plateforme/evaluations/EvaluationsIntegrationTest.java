@@ -55,6 +55,7 @@ import bf.edutech.plateforme.evaluations.Vues.ResultatEleveVue;
 import bf.edutech.plateforme.evaluations.Vues.ResultatsPeriodeVue;
 import bf.edutech.plateforme.evaluations.Vues.SaisieCompetence;
 import bf.edutech.plateforme.evaluations.Vues.SaisieNote;
+import bf.edutech.plateforme.evaluations.Vues.SuiviEvaluationVue;
 import bf.edutech.plateforme.pedagogie.ProfilVue;
 import bf.edutech.plateforme.pedagogie.ProfilsService;
 import bf.edutech.plateforme.pedagogie.ProfilsService.DonneesProfil;
@@ -87,6 +88,7 @@ class EvaluationsIntegrationTest {
     @Autowired private EvaluationsService evaluations;
     @Autowired private CompetencesService competences;
     @Autowired private ResultatsService resultats;
+    @Autowired private SuiviEvaluationsService suiviEvaluations;
     @Autowired private WebApplicationContext contexte;
 
     private final LocalDate aujourdhui = LocalDate.now(ZoneOffset.UTC);
@@ -274,11 +276,63 @@ class EvaluationsIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.eleves[0].moyenne").value(9.67)); // (14,5×4 + 0×2)/6
 
+        // Suivi des évaluations : l'enseignant ne voit que sa matière, avec le décompte par type
+        mvc.perform(get("/api/v1/annees/{id}/suivi-evaluations", annee.id()).with(jeton(compte, "ENSEIGNANT")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1))
+                .andExpect(jsonPath("$[0].matiereCode").value("MATH"))
+                .andExpect(jsonPath("$[0].enseignant").value("SANOU Paul"))
+                .andExpect(jsonPath("$[0].evaluations").value(1))
+                .andExpect(jsonPath("$[0].parType.INTERROGATION").value(1))
+                .andExpect(jsonPath("$[0].derniere").value(aujourdhui.toString()))
+                .andExpect(jsonPath("$[0].notesSaisies").value(1))
+                .andExpect(jsonPath("$[0].notesAttendues").value(1));
+        // La direction voit tout le programme, y compris la matière sans enseignant ni évaluation
+        List<SuiviEvaluationVue> suivi = commeCenseur(() -> suiviEvaluations.suivi(annee.id(), null));
+        assertThat(suivi).extracting(SuiviEvaluationVue::matiereCode).containsExactlyInAnyOrder("MATH", "FR");
+        assertThat(suivi).filteredOn(l -> l.matiereCode().equals("FR")).singleElement().satisfies(l -> {
+            assertThat(l.evaluations()).isZero();
+            assertThat(l.enseignant()).isNull();
+            assertThat(l.derniere()).isNull();
+        });
+        // Une période sans évaluation (rang inexistant) : tout à zéro
+        assertThat(commeCenseur(() -> suiviEvaluations.suivi(annee.id(), 9)))
+                .allSatisfy(l -> assertThat(l.evaluations()).isZero());
+
         // Période verrouillée : plus aucune saisie
         dans(() -> periodes.verrouiller(trimestre));
         assertThatThrownBy(() -> commeCenseur(() -> evaluations.saisir(UUID.fromString(evaluationId),
                 List.of(new SaisieNote(awa, new BigDecimal("15"), false)))))
                 .isInstanceOf(RegleMetierException.class).extracting("code").isEqualTo("PERIODE_VERROUILLEE");
+    }
+
+    @Test
+    void uneEvaluationCreeeHorsConnexionNeSeDupliqueJamais() {
+        UUID general = profil("GENERAL");
+        UUID classe = classe(general, "4e C", false);
+        UUID maths = matiere("MATH", TypeMatiere.GENERALE, classe, "4", null);
+        UUID francais = matiere("FR", TypeMatiere.GENERALE, classe, "2", null);
+        UUID trimestre = ouvrirAvecTrimestres(general);
+        UUID idClient = UUID.randomUUID();
+
+        EvaluationVue creee = commeCenseur(() -> evaluations.creer(classe, maths, trimestre, "Devoir surprise",
+                TypeEvaluation.DEVOIR, aujourdhui, null, null, idClient));
+        // Coupure réseau : l'appareil renvoie la même création
+        EvaluationVue renvoi = commeCenseur(() -> evaluations.creer(classe, maths, trimestre, "Devoir surprise",
+                TypeEvaluation.DEVOIR, aujourdhui, null, null, idClient));
+        assertThat(creee.id()).isEqualTo(idClient);
+        assertThat(renvoi.id()).isEqualTo(idClient);
+        assertThat(commeCenseur(() -> evaluations.lister(classe, trimestre))).hasSize(1);
+
+        // Période verrouillée entre la création et le renvoi : le renvoi reste reconnu, pas refusé
+        dans(() -> periodes.verrouiller(trimestre));
+        assertThat(commeCenseur(() -> evaluations.creer(classe, maths, trimestre, "Devoir surprise",
+                TypeEvaluation.DEVOIR, aujourdhui, null, null, idClient)).id()).isEqualTo(idClient);
+
+        // Le même identifiant ne peut pas désigner une évaluation d'une autre matière
+        assertThatThrownBy(() -> commeCenseur(() -> evaluations.creer(classe, francais, trimestre, "Dictée",
+                TypeEvaluation.DEVOIR, aujourdhui, null, null, idClient)))
+                .isInstanceOf(RegleMetierException.class).extracting("code").isEqualTo("IDENTIFIANT_DEJA_UTILISE");
     }
 
     // ------------------------------------------------------------------
@@ -349,7 +403,7 @@ class EvaluationsIntegrationTest {
     }
 
     private UUID nouvelleEcole() {
-        String suffixe = Integer.toString(ThreadLocalRandom.current().nextInt(100_000, 999_999));
+        String suffixe = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         return etablissements.creer("eval-" + suffixe, "Lycée " + suffixe, "7" + telephone().substring(1), "ADMIN",
                 "Test").etablissement().id();
     }

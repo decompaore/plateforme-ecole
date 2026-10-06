@@ -185,14 +185,18 @@ class MobileMoneyIntegrationTest {
         });
         assertThat(commeIntendant(() -> situations.situation(awa)).payeFamille()).isEqualTo(10_000);
 
-        // 4. Notification perdue : la tâche planifiée consulte l'agrégateur et confirme ; sinon, expiration
-        TransactionVue t3 = payer(parent, awa, 8_000, UUID.randomUUID().toString());
+        // 4. Notification perdue (paiement Telecel Money) : la tâche planifiée consulte l'agrégateur et
+        //    confirme ; sinon, expiration
+        TransactionVue t3 = payer(parent, awa, 8_000, UUID.randomUUID().toString(), "TELECEL_MONEY");
+        assertThat(t3.operateur()).isEqualTo(Operateur.TELECEL_MONEY);
         simulateur.confirmer(marchand, t3.reference());
         paiements.traiterEchues(Instant.now().plus(Duration.ofMinutes(20)));
-        assertThat(suivre(parent, t3.id()).statut()).isEqualTo(StatutTransaction.CONFIRMEE);
+        assertThat(suivre(t3.id()).statut()).isEqualTo(StatutTransaction.CONFIRMEE);
+        assertThat(commeIntendant(() -> situations.situation(awa)).paiements())
+                .anySatisfy(p -> assertThat(p.moyen()).isEqualTo(MoyenPaiement.TELECEL_MONEY));
         TransactionVue t4 = payer(parent, awa, 1_000, UUID.randomUUID().toString());
         paiements.traiterEchues(Instant.now().plus(Duration.ofMinutes(20)));
-        assertThat(suivre(parent, t4.id()).statut()).isEqualTo(StatutTransaction.EXPIREE);
+        assertThat(suivre(t4.id()).statut()).isEqualTo(StatutTransaction.EXPIREE);
 
         // 5. Agrégateur en panne : 503 et invitation à payer à l'intendance
         simulateur.panne(true);
@@ -269,14 +273,24 @@ class MobileMoneyIntegrationTest {
     }
 
     private ResultActions demande(UUID parent, UUID inscription, long montant, String cle) throws Exception {
+        return demande(parent, inscription, montant, cle, "ORANGE_MONEY");
+    }
+
+    private ResultActions demande(UUID parent, UUID inscription, long montant, String cle, String operateur)
+            throws Exception {
         return mvc.perform(post("/api/v1/espace-parent/inscriptions/{id}/mobile-money", inscription)
                 .with(jeton(parent, "PARENT")).contentType(MediaType.APPLICATION_JSON)
-                .content("{\"montant\":%d,\"operateur\":\"ORANGE_MONEY\",\"telephone\":\"70 11 22 33\"%s}"
-                        .formatted(montant, cle == null ? "" : ",\"cleIdempotence\":\"" + cle + "\"")));
+                .content("{\"montant\":%d,\"operateur\":\"%s\",\"telephone\":\"70 11 22 33\"%s}"
+                        .formatted(montant, operateur, cle == null ? "" : ",\"cleIdempotence\":\"" + cle + "\"")));
     }
 
     private TransactionVue payer(UUID parent, UUID inscription, long montant, String cle) throws Exception {
-        String json = demande(parent, inscription, montant, cle).andExpect(status().isAccepted())
+        return payer(parent, inscription, montant, cle, "ORANGE_MONEY");
+    }
+
+    private TransactionVue payer(UUID parent, UUID inscription, long montant, String cle, String operateur)
+            throws Exception {
+        String json = demande(parent, inscription, montant, cle, operateur).andExpect(status().isAccepted())
                 .andReturn().getResponse().getContentAsString();
         UUID id = UUID.fromString(json.replaceAll(".*\"id\":\"([0-9a-f-]+)\".*", "$1"));
         return suivre(id);
@@ -331,7 +345,7 @@ class MobileMoneyIntegrationTest {
     }
 
     private UUID nouvelleEcole() {
-        String suffixe = Integer.toString(ThreadLocalRandom.current().nextInt(100_000, 999_999));
+        String suffixe = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         return etablissements.creer("mm-" + suffixe, "Lycée " + suffixe, "7" + telephone().substring(1), "ADMIN",
                 "Test").etablissement().id();
     }

@@ -78,3 +78,13 @@ Le script déploie une instance à la fois et s'arrête si elle n'est pas saine 
   (migrations en deux temps : ajouter, migrer, puis supprimer dans une version ultérieure), sinon l'instance non encore mise à jour peut échouer.
 - Un tag `v*` déclenche le déploiement sans relancer la CI : ne poser un tag que sur un commit de `main` dont la CI est verte.
 - Les versions des actions sont mises à jour par Dependabot ; relire ses pull requests chaque semaine.
+
+## Migrations figées (v0.34.1)
+
+Une migration Flyway déjà appliquée ne doit jamais changer : la base refuserait ensuite de démarrer
+(« Migration checksum mismatch »). `MigrationsFigeesTest` (sans base de données) calcule l'empreinte de chaque fichier
+`V*.sql` comme Flyway et la compare à `backend/src/test/resources/migrations-figees.txt` ; il échoue dès `mvn verify`.
+
+- Fichier modifié : le remettre (`git checkout develop -- <fichier>`), **jamais** `flyway repair` ; une correction
+  passe par une nouvelle migration.
+- Nouvelle migration : le test affiche la ligne à ajouter à `migrations-figees.txt`.

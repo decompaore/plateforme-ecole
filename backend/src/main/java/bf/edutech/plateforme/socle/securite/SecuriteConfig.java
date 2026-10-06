@@ -111,7 +111,8 @@ public class SecuriteConfig {
     /** Chaîne principale de l'API : politique de contenu la plus stricte possible. */
     @Bean
     @Order(2)
-    SecurityFilterChain chaineDeSecurite(HttpSecurity http, SecuriteProperties proprietes) throws Exception {
+    SecurityFilterChain chaineDeSecurite(HttpSecurity http, SecuriteProperties proprietes,
+            bf.edutech.plateforme.socle.modules.ModulesEtablissement modules) throws Exception {
         http
             // API sans session ni formulaire : pas de CSRF. Le cookie de rafraîchissement
             // est HttpOnly, SameSite=Strict et limité au chemin /api/v1/auth.
@@ -129,6 +130,8 @@ public class SecuriteConfig {
                 // Vérification d'un bulletin ou d'un reçu papier par un tiers (code imprimé sur le document)
                 .requestMatchers(HttpMethod.GET, "/api/v1/verification/bulletins/*").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/v1/verification/recus/*").permitAll()
+                // Archive d'export complet : le lien signé (paramètre « jeton ») est l'autorisation
+                .requestMatchers(HttpMethod.GET, "/api/v1/telechargements/exports/*").permitAll()
                 // Notifications des agrégateurs Mobile Money : signature vérifiée par le service
                 .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/mobile-money/*").permitAll()
                 .requestMatchers("/api/v1/auth/etablissement")
@@ -137,7 +140,8 @@ public class SecuriteConfig {
                 .anyRequest().hasAuthority("TYPE_" + TYPE_ACCES))
             .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(convertisseurJwt())))
             .addFilterAfter(new TenantFilter(proprietes.verifierSousDomaine()), BearerTokenAuthenticationFilter.class)
-            .addFilterAfter(new MotDePasseTemporaireFilter(), TenantFilter.class);
+            .addFilterAfter(new MotDePasseTemporaireFilter(), TenantFilter.class)
+            .addFilterAfter(new bf.edutech.plateforme.socle.modules.ModulesFilter(modules), MotDePasseTemporaireFilter.class);
         return http.build();
     }
 

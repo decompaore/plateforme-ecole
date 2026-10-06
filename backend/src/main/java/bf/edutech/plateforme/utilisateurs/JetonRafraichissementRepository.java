@@ -18,4 +18,10 @@ interface JetonRafraichissementRepository extends JpaRepository<JetonRafraichiss
     @Modifying
     @Query("update JetonRafraichissement j set j.revoqueLe = :maintenant where j.famille = :famille and j.revoqueLe is null")
     int revoquerFamille(@Param("famille") UUID famille, @Param("maintenant") Instant maintenant);
+
+    /** Ferme toutes les sessions d'un compte (réinitialisation du mot de passe). */
+    @Transactional
+    @Modifying
+    @Query("update JetonRafraichissement j set j.revoqueLe = :maintenant where j.utilisateurId = :utilisateur and j.revoqueLe is null")
+    int revoquerTout(@Param("utilisateur") UUID utilisateur, @Param("maintenant") Instant maintenant);
 }

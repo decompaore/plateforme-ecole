@@ -49,6 +49,13 @@ public class GestionnaireErreurs extends ResponseEntityExceptionHandler {
         return pd;
     }
 
+    @ExceptionHandler(AppareilAEffacerException.class)
+    ProblemDetail appareilAEffacer(AppareilAEffacerException ex) {
+        ProblemDetail pd = probleme(HttpStatus.UNAUTHORIZED, "Appareil déconnecté à distance", ex.getMessage());
+        pd.setProperty("code", "APPAREIL_A_EFFACER");
+        return pd;
+    }
+
     @ExceptionHandler(AuthentificationException.class)
     ProblemDetail authentification(AuthentificationException ex) {
         return probleme(HttpStatus.UNAUTHORIZED, "Authentification refusée", ex.getMessage());

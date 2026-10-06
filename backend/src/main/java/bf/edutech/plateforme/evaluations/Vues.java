@@ -3,6 +3,7 @@ package bf.edutech.plateforme.evaluations;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import bf.edutech.plateforme.pedagogie.CodeModele;
@@ -80,5 +81,16 @@ public final class Vues {
     public record ResultatsPeriodeVue(UUID classeId, String classeCode, UUID periodeId, String periodeLibelle,
             CodeModele modele, int effectif, BigDecimal moyenneClasse, BigDecimal plusForte, BigDecimal plusFaible,
             BigDecimal tauxReussite, List<AlerteVue> alertes, List<ResultatEleveVue> eleves) {
+    }
+
+    /**
+     * Suivi des évaluations d'une matière dans une classe : qui l'enseigne, combien
+     * d'évaluations de chaque type ont été faites, la dernière, et l'avancement de la saisie
+     * des notes (notes saisies sur notes attendues, une par élève et par évaluation).
+     */
+    public record SuiviEvaluationVue(UUID classeId, String classeCode, String niveau, UUID matiereId,
+            String matiereCode, String matiereLibelle, UUID engagementId, String enseignant, int evaluations,
+            Map<TypeEvaluation, Integer> parType, LocalDate derniere, int notesSaisies,
+            int notesAttendues) {
     }
 }

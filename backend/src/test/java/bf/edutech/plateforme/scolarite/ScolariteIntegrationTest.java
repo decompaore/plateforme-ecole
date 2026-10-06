@@ -273,6 +273,13 @@ class ScolariteIntegrationTest {
         mvc.perform(get("/api/v1/espace-parent/paiements/{id}/recu", paiementAli.id()).with(jeton(parent, "PARENT")))
                 .andExpect(status().isNotFound());
 
+        // Journal de caisse : chaque paiement avec son élève (nom et classe), sans ouvrir les fiches
+        var journal = commeIntendant(() -> encaissements.journal(paiementAli.datePaiement(), paiementAli.datePaiement()));
+        assertThat(journal.paiements()).anySatisfy(p -> assertThat(p.id()).isEqualTo(paiementAli.id()));
+        assertThat(journal.eleves().get(ali).nom()).isEqualTo("SAWADOGO");
+        assertThat(journal.eleves().get(ali).classeCode()).isEqualTo("6e A");
+        assertThat(journal.eleves()).containsOnlyKeys(journal.paiements().stream().map(PaiementVue::inscriptionId).distinct().toList());
+
         // Vérification publique du reçu papier, sans connexion
         String code = paiementAli.recuCode();
         mvc.perform(get("/api/v1/verification/recus/{code}", code.substring(0, 5) + "-" + code.substring(5)))
@@ -394,7 +401,7 @@ class ScolariteIntegrationTest {
     }
 
     private UUID nouvelleEcole() {
-        String suffixe = Integer.toString(ThreadLocalRandom.current().nextInt(100_000, 999_999));
+        String suffixe = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         return etablissements.creer("sco-" + suffixe, "Lycée " + suffixe, "7" + telephone().substring(1), "ADMIN",
                 "Test").etablissement().id();
     }

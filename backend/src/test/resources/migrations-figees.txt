@@ -1,0 +1,28 @@
+# Empreintes Flyway des migrations déjà livrées : une migration appliquée ne doit JAMAIS changer.
+# Une nouvelle migration s'ajoute ici (le test MigrationsFigeesTest donne la ligne à copier).
+# Format : <fichier> <empreinte Flyway (CRC32 ligne par ligne)>
+V1__extensions_et_privileges.sql -1524285790
+V2__socle.sql 1320889356
+V3__structure_pedagogique.sql 38735773
+V4__eleves_inscriptions.sql 1929759681
+V5__enseignants.sql -2014019482
+V6__absences_notifications.sql -1037623900
+V7__evaluations.sql 2132228427
+V8__bulletins.sql -1929299666
+V9__scolarite.sql -877051172
+V10__mobile_money.sql -511250052
+V11__passage_annee.sql 1711151346
+V12__vie_scolaire.sql -2004970165
+V13__fin_engagement_programmee.sql -1704893849
+V14__grace_rafraichissement.sql 995585769
+V15__telecel_money.sql 590821252
+V16__chef_travaux_progression.sql -1924421695
+V17__cahier_textes.sql -125746358
+V18__ateliers.sql -896404030
+V19__besoins_commandes.sql -1946277376
+V20__renouvellement_mot_de_passe.sql -949266400
+V21__emplois_du_temps.sql 1678507150
+V22__modules_etablissement.sql 1212056403
+V23__sessions_appareils.sql 1387814758
+V24__exports_donnees.sql 94380584
+V25__mesure_adoption.sql -327566621

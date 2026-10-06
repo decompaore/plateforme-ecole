@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import bf.edutech.plateforme.socle.audit.AuditService;
 import bf.edutech.plateforme.socle.config.ParametresPlateforme;
 import bf.edutech.plateforme.socle.erreurs.AccesRefuseException;
+import bf.edutech.plateforme.socle.erreurs.AppareilAEffacerException;
 import bf.edutech.plateforme.socle.erreurs.AuthentificationException;
 import bf.edutech.plateforme.socle.erreurs.RegleMetierException;
 import bf.edutech.plateforme.socle.securite.SecuriteProperties;
@@ -32,8 +33,13 @@ public class AuthService {
     /** Résultat interne ; le jeton de rafraîchissement est transmis au contrôleur pour le cookie. */
     public record ResultatConnexion(String jetonAcces, String jetonSelection, String jetonRafraichissement,
             long expireDansSecondes, EtablissementAccessible etablissementActif,
-            List<EtablissementAccessible> etablissements, boolean superAdmin, boolean doitChangerMotDePasse) {
+            List<EtablissementAccessible> etablissements, boolean superAdmin, boolean doitChangerMotDePasse,
+            String motifChangementMotDePasse) {
     }
+
+    private static final java.time.ZoneId FUSEAU = java.time.ZoneId.of("Africa/Ouagadougou");
+    /** Rôles qui ne sont pas du personnel : pas de renouvellement périodique du mot de passe. */
+    private static final java.util.Set<String> HORS_PERSONNEL = java.util.Set.of("PARENT", "ELEVE");
 
     private final UtilisateurRepository utilisateurs;
     private final JetonRafraichissementRepository jetonsRafraichissement;
@@ -44,11 +50,13 @@ public class AuthService {
     private final SecuriteProperties securite;
     private final ParametresPlateforme parametres;
     private final Clock horloge;
+    private final SessionsAppareils sessions;
     private final String hacheFactice;
 
     AuthService(UtilisateurRepository utilisateurs, JetonRafraichissementRepository jetonsRafraichissement,
             AccesEtablissements acces, ServiceJetons jetons, PasswordEncoder encodeur, AuditService audit,
-            SecuriteProperties securite, ParametresPlateforme parametres, Clock horloge) {
+            SecuriteProperties securite, ParametresPlateforme parametres, Clock horloge, SessionsAppareils sessions) {
+        this.sessions = sessions;
         this.utilisateurs = utilisateurs;
         this.jetonsRafraichissement = jetonsRafraichissement;
         this.acces = acces;
@@ -95,14 +103,14 @@ public class AuthService {
 
         if (utilisateur.isSuperAdmin()) {
             audit.enregistrerPour(utilisateur.getId(), "CONNEXION", "plateforme", null);
-            return sessionComplete(utilisateur, null, List.of());
+            return sessionComplete(utilisateur, null, List.of(), null);
         }
         List<EtablissementAccessible> etablissements = acces.pour(utilisateur.getId());
         if (etablissements.isEmpty() && acces.aDesInvitations(utilisateur.getId())) {
             // Enseignant invité sans autre établissement : session sans établissement,
             // limitée à son compte (/moi) pour répondre aux invitations
             audit.enregistrerPour(utilisateur.getId(), "CONNEXION", "invitations en attente", null);
-            return sessionComplete(utilisateur, null, List.of());
+            return sessionComplete(utilisateur, null, List.of(), null);
         }
         if (etablissements.isEmpty()) {
             audit.enregistrerPour(utilisateur.getId(), "CONNEXION_REFUSEE", null,
@@ -112,13 +120,13 @@ public class AuthService {
         if (etablissements.size() == 1) {
             EtablissementAccessible unique = etablissements.get(0);
             auditerPour(unique.id(), utilisateur.getId(), "CONNEXION");
-            return sessionComplete(utilisateur, unique, etablissements);
+            return sessionComplete(utilisateur, unique, etablissements, null);
         }
         audit.enregistrerPour(utilisateur.getId(), "CONNEXION_SELECTION", null,
                 Map.of("etablissements", etablissements.size()));
         return new ResultatConnexion(null, jetons.jetonSelection(utilisateur), null,
                 securite.dureeJetonSelection().toSeconds(), null, etablissements, false,
-                utilisateur.isDoitChangerMotDePasse());
+                utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement());
     }
 
     /**
@@ -136,18 +144,30 @@ public class AuthService {
                 .filter(e -> e.id().equals(etablissementId))
                 .findFirst()
                 .orElseThrow(() -> new AccesRefuseException("Établissement non accessible pour ce compte"));
+        UUID famillePrecedente = null;
         if (ancienJetonRafraichissement != null) {
-            jetonsRafraichissement.findByHache(ServiceJetons.hacher(ancienJetonRafraichissement))
-                    .ifPresent(j -> jetonsRafraichissement.revoquerFamille(j.getFamille(), horloge.instant()));
+            Optional<JetonRafraichissement> ancien = jetonsRafraichissement
+                    .findByHache(ServiceJetons.hacher(ancienJetonRafraichissement));
+            if (ancien.isPresent()) {
+                famillePrecedente = ancien.get().getFamille();
+                jetonsRafraichissement.revoquerFamille(famillePrecedente, horloge.instant());
+            }
         }
         auditerPour(choisi.id(), utilisateurId, "CHOIX_ETABLISSEMENT");
-        return sessionComplete(utilisateur, choisi, etablissements);
+        return sessionComplete(utilisateur, choisi, etablissements, famillePrecedente);
     }
 
     /**
      * Rotation du jeton de rafraîchissement. La réutilisation d'un jeton déjà
      * révoqué révoque toute la famille (vol probable) ; cette révocation est
      * conservée malgré l'erreur renvoyée.
+     * <p>
+     * Exception : un jeton renouvelé il y a moins de quelques secondes
+     * ({@code app.securite.grace-rafraichissement}) dont le successeur n'a encore
+     * jamais servi. C'est le cas d'une réponse perdue sur un réseau faible : le
+     * téléphone n'a jamais reçu le nouveau cookie. Le successeur inutilisé est alors
+     * révoqué et un autre est émis, dans la même famille. Un jeton volé rejoué plus
+     * tard, ou après que le successeur a servi, reste détecté comme un vol.
      */
     @Transactional(noRollbackFor = AuthentificationException.class)
     public ResultatConnexion rafraichir(String valeur) {
@@ -157,16 +177,34 @@ public class AuthService {
         Instant maintenant = horloge.instant();
         JetonRafraichissement jeton = jetonsRafraichissement.findByHache(ServiceJetons.hacher(valeur))
                 .orElseThrow(() -> new AuthentificationException("Session expirée"));
-        if (jeton.estRevoque()) {
-            jetonsRafraichissement.revoquerFamille(jeton.getFamille(), maintenant);
-            audit.enregistrerPour(jeton.getUtilisateurId(), "REUTILISATION_JETON", null,
-                    Map.of("famille", jeton.getFamille()));
+        // Appareil déconnecté à distance (et, s'il a été perdu, à effacer)
+        Optional<SessionAppareil> session = sessions.deFamille(jeton.getFamille());
+        if (session.isPresent() && session.get().estFermee()) {
+            if (session.get().isEffacementDemande()) {
+                audit.enregistrerPour(jeton.getUtilisateurId(), "APPAREIL_EFFACE", session.get().getAppareil(), null);
+                throw new AppareilAEffacerException();
+            }
             throw new AuthentificationException("Session expirée");
+        }
+        if (jeton.estRevoque()) {
+            Optional<JetonRafraichissement> successeurInutilise = jeton.renouveleRecemment(maintenant,
+                    securite.graceRafraichissement())
+                            ? jetonsRafraichissement.findById(jeton.getRemplacePar()).filter(j -> !j.estRevoque())
+                            : Optional.empty();
+            if (successeurInutilise.isEmpty()) {
+                jetonsRafraichissement.revoquerFamille(jeton.getFamille(), maintenant);
+                sessions.fermer(jeton.getFamille(), SessionsAppareils.VOL);
+                audit.enregistrerPour(jeton.getUtilisateurId(), "REUTILISATION_JETON", null,
+                        Map.of("famille", jeton.getFamille()));
+                throw new AuthentificationException("Session expirée");
+            }
+            successeurInutilise.get().revoquer(maintenant);
+            audit.enregistrerPour(jeton.getUtilisateurId(), "RENOUVELLEMENT_REJOUE", null,
+                    Map.of("famille", jeton.getFamille()));
         }
         if (jeton.estExpire(maintenant)) {
             throw new AuthentificationException("Session expirée");
         }
-        jeton.revoquer(maintenant);
         Utilisateur utilisateur = utilisateurs.findById(jeton.getUtilisateurId())
                 .filter(Utilisateur::isActif)
                 .orElseThrow(() -> new AuthentificationException("Session expirée"));
@@ -175,11 +213,14 @@ public class AuthService {
             etablissement = acces.trouver(utilisateur.getId(), jeton.getTenantId())
                     .orElseThrow(() -> new AuthentificationException("L'accès à cet établissement a été retiré"));
         }
-        String nouveau = jetons.nouveauJetonRafraichissement(utilisateur.getId(), jeton.getTenantId(),
-                jeton.getFamille());
-        return new ResultatConnexion(jetons.jetonAcces(utilisateur, etablissement), null, nouveau,
+        exigerRenouvellementSiNouvellePeriode(utilisateur, etablissement);
+        ServiceJetons.JetonEmis nouveau = jetons.emettreJetonRafraichissement(utilisateur.getId(),
+                jeton.getTenantId(), jeton.getFamille());
+        jeton.remplacer(nouveau.id(), maintenant);
+        sessions.utiliser(jeton.getFamille());
+        return new ResultatConnexion(jetons.jetonAcces(utilisateur, etablissement), null, nouveau.valeur(),
                 jetons.dureeAccesEnSecondes(), etablissement, List.of(), utilisateur.isSuperAdmin(),
-                utilisateur.isDoitChangerMotDePasse());
+                utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement());
     }
 
     @Transactional
@@ -187,8 +228,34 @@ public class AuthService {
         if (valeur == null || valeur.isBlank()) {
             return;
         }
-        jetonsRafraichissement.findByHache(ServiceJetons.hacher(valeur))
-                .ifPresent(j -> jetonsRafraichissement.revoquerFamille(j.getFamille(), horloge.instant()));
+        jetonsRafraichissement.findByHache(ServiceJetons.hacher(valeur)).ifPresent(j -> {
+            jetonsRafraichissement.revoquerFamille(j.getFamille(), horloge.instant());
+            sessions.fermer(j.getFamille(), SessionsAppareils.DECONNEXION);
+        });
+    }
+
+    /**
+     * Confirmation du mot de passe avant une action sensible (export complet des données).
+     * Les échecs comptent comme à la connexion : après plusieurs erreurs, le compte est
+     * verrouillé quelques minutes. Réponse 409 (et non 401) : la session reste ouverte.
+     */
+    @Transactional(noRollbackFor = RegleMetierException.class)
+    public void confirmerMotDePasse(UUID utilisateurId, String motDePasse) {
+        Utilisateur utilisateur = utilisateurs.findById(utilisateurId)
+                .orElseThrow(() -> new AuthentificationException(MESSAGE_ECHEC));
+        Instant maintenant = horloge.instant();
+        if (utilisateur.estVerrouille(maintenant)) {
+            throw new RegleMetierException("COMPTE_VERROUILLE",
+                    "Trop d'essais : réessayez dans quelques minutes");
+        }
+        if (motDePasse == null || !encodeur.matches(motDePasse, utilisateur.getMotDePasseHache())) {
+            utilisateur.enregistrerEchec(maintenant, securite.maxEchecsConnexion(), securite.dureeVerrouillage());
+            utilisateurs.save(utilisateur);
+            audit.enregistrerPour(utilisateurId, "CONFIRMATION_ECHEC", null, null);
+            throw new RegleMetierException("MOT_DE_PASSE_INCORRECT", "Mot de passe incorrect");
+        }
+        utilisateur.oublierEchecs();
+        utilisateurs.save(utilisateur);
     }
 
     @Transactional
@@ -210,17 +277,72 @@ public class AuthService {
         audit.enregistrerPour(utilisateurId, "MOT_DE_PASSE_CHANGE", null, null);
     }
 
+    /** Appareils où le compte est connecté (sessions ouvertes et encore valides), le plus récent d'abord. */
+    @Transactional(readOnly = true)
+    public List<AppareilVue> appareils(UUID utilisateurId, String jetonCourant) {
+        UUID familleCourante = jetonCourant == null || jetonCourant.isBlank() ? null
+                : jetonsRafraichissement.findByHache(ServiceJetons.hacher(jetonCourant))
+                        .map(JetonRafraichissement::getFamille).orElse(null);
+        Map<UUID, String> noms = new java.util.HashMap<>();
+        acces.pour(utilisateurId).forEach(e -> noms.put(e.id(), e.nom()));
+        Instant limite = horloge.instant().minus(securite.dureeJetonRafraichissement());
+        return sessions.ouvertes(utilisateurId).stream()
+                .filter(s -> s.getDernierUsage().isAfter(limite))
+                .map(s -> new AppareilVue(s.getId(), s.getAppareil(), s.getOuverteLe(), s.getDernierUsage(),
+                        s.getTenantId() == null ? null : noms.get(s.getTenantId()),
+                        s.getFamille().equals(familleCourante)))
+                .toList();
+    }
+
+    /**
+     * Déconnecte un de ses appareils à distance ; avec {@code effacer} (téléphone perdu ou volé),
+     * l'appareil effacera ses données locales au prochain contact avec le serveur.
+     */
+    @Transactional
+    public void fermerAppareil(UUID utilisateurId, UUID sessionId, boolean effacer) {
+        SessionAppareil s = sessions.trouver(sessionId).filter(x -> x.getUtilisateurId().equals(utilisateurId))
+                .orElseThrow(() -> new bf.edutech.plateforme.socle.erreurs.RessourceIntrouvableException(
+                        "Appareil introuvable"));
+        sessions.fermerADistance(s, effacer, utilisateurId);
+        audit.enregistrerPour(utilisateurId, effacer ? "APPAREIL_A_EFFACER" : "APPAREIL_DECONNECTE", s.getAppareil(),
+                null);
+    }
+
     public List<EtablissementAccessible> etablissementsDe(UUID utilisateurId) {
         return acces.pour(utilisateurId);
     }
 
+    /**
+     * Renouvellement périodique : un membre du personnel dont le mot de passe date d'avant le début
+     * de la période en cours (trimestre ou semestre de l'année active) doit en choisir un nouveau
+     * avant tout le reste. Les parents et les élèves ne sont pas concernés.
+     */
+    private void exigerRenouvellementSiNouvellePeriode(Utilisateur utilisateur, EtablissementAccessible etablissement) {
+        if (etablissement == null || utilisateur.isSuperAdmin() || utilisateur.isDoitChangerMotDePasse()
+                || etablissement.roles().stream().allMatch(HORS_PERSONNEL::contains)) {
+            return;
+        }
+        java.time.LocalDate aujourdhui = java.time.LocalDate.ofInstant(horloge.instant(), FUSEAU);
+        acces.debutPeriodeEnCours(etablissement.id(), aujourdhui)
+                .filter(debut -> utilisateur.motDePasseChoisiAvant(debut.atStartOfDay(FUSEAU).toInstant()))
+                .ifPresent(debut -> {
+                    utilisateur.exigerRenouvellement();
+                    utilisateurs.save(utilisateur);
+                    audit.enregistrerPour(utilisateur.getId(), "MOT_DE_PASSE_A_RENOUVELER", null,
+                            Map.of("debutPeriode", debut.toString()));
+                });
+    }
+
     private ResultatConnexion sessionComplete(Utilisateur utilisateur, EtablissementAccessible etablissement,
-            List<EtablissementAccessible> etablissements) {
-        String rafraichissement = jetons.nouveauJetonRafraichissement(utilisateur.getId(),
-                etablissement != null ? etablissement.id() : null, null);
+            List<EtablissementAccessible> etablissements, UUID famillePrecedente) {
+        exigerRenouvellementSiNouvellePeriode(utilisateur, etablissement);
+        UUID tenant = etablissement != null ? etablissement.id() : null;
+        ServiceJetons.JetonEmis emis = jetons.emettreJetonRafraichissement(utilisateur.getId(), tenant, null);
+        sessions.ouvrir(utilisateur.getId(), emis.famille(), tenant, famillePrecedente);
+        String rafraichissement = emis.valeur();
         return new ResultatConnexion(jetons.jetonAcces(utilisateur, etablissement), null, rafraichissement,
                 jetons.dureeAccesEnSecondes(), etablissement, etablissements, utilisateur.isSuperAdmin(),
-                utilisateur.isDoitChangerMotDePasse());
+                utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement());
     }
 
     /** Audit rattaché à l'établissement (la Row-Level Security l'exige pour l'écriture). */

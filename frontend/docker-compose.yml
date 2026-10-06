@@ -1,0 +1,26 @@
+# =====================================================================
+# Environnement de DÉVELOPPEMENT : base PostgreSQL 16 locale.
+#   docker compose up -d        (démarre la base)
+#   docker compose down         (arrête ; les données sont conservées)
+#   docker compose down -v      (arrête et efface les données)
+# L'API se lance ensuite depuis Eclipse avec le profil "dev".
+# =====================================================================
+services:
+  postgres:
+    image: postgres:16
+    container_name: plateforme-postgres
+    environment:
+      POSTGRES_PASSWORD: postgres        # superutilisateur local uniquement
+    ports:
+      - "5432:5432"
+    volumes:
+      - donnees-postgres:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  donnees-postgres:

@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -13,9 +14,15 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import bf.edutech.plateforme.socle.audit.AuditService;
+import bf.edutech.plateforme.socle.modules.Module;
+import bf.edutech.plateforme.socle.modules.ModulesEtablissement;
+import bf.edutech.plateforme.socle.securite.UtilisateurConnecte;
 import bf.edutech.plateforme.socle.erreurs.RegleMetierException;
 import bf.edutech.plateforme.socle.erreurs.RessourceIntrouvableException;
 import bf.edutech.plateforme.socle.tenant.TenantContext;
+import bf.edutech.plateforme.utilisateurs.ComptesService;
+import bf.edutech.plateforme.utilisateurs.ComptesService.CompteVue;
+import bf.edutech.plateforme.utilisateurs.ComptesService.ResultatReinitialisation;
 import bf.edutech.plateforme.utilisateurs.MembreVue;
 import bf.edutech.plateforme.utilisateurs.MembresService;
 import bf.edutech.plateforme.utilisateurs.Role;
@@ -33,19 +40,27 @@ public class EtablissementsService {
         }
     }
 
+    /** Module activable d'un établissement, pour la page du super administrateur. */
+    public record ModuleVue(Module code, String libelle, String description, Module requis, boolean actif) {
+    }
+
     public record ResultatCreation(EtablissementVue etablissement, MembreVue administrateur,
             String motDePasseTemporaire) {
     }
 
     private final TenantRepository tenants;
     private final MembresService membres;
+    private final ComptesService comptes;
     private final AuditService audit;
     private final TransactionTemplate transaction;
+    private final ModulesEtablissement modules;
 
-    EtablissementsService(TenantRepository tenants, MembresService membres, AuditService audit,
-            PlatformTransactionManager gestionnaireTransactions) {
+    EtablissementsService(TenantRepository tenants, MembresService membres, ComptesService comptes, AuditService audit,
+            PlatformTransactionManager gestionnaireTransactions, ModulesEtablissement modules) {
+        this.modules = modules;
         this.tenants = tenants;
         this.membres = membres;
+        this.comptes = comptes;
         this.audit = audit;
         this.transaction = new TransactionTemplate(gestionnaireTransactions);
     }
@@ -80,6 +95,44 @@ public class EtablissementsService {
             return new ResultatCreation(EtablissementVue.depuis(tenant), admin.membre(),
                     admin.motDePasseTemporaire());
         }));
+    }
+
+    /** Administrateurs d'un établissement (pour les dépanner en cas d'oubli du mot de passe). */
+    public List<CompteVue> administrateurs(UUID id) {
+        exister(id);
+        return TenantContext.executerPour(id, comptes::administrateurs);
+    }
+
+    /** Réinitialise le mot de passe d'un administrateur d'établissement ; renvoie le mot de passe provisoire. */
+    public ResultatReinitialisation reinitialiserAdministrateur(UUID id, UUID utilisateurId) {
+        exister(id);
+        return TenantContext.executerPour(id, () -> comptes.reinitialiserAdministrateur(utilisateurId));
+    }
+
+    /** Modules de l'établissement : actifs ou désactivés par le super administrateur. */
+    public List<ModuleVue> modules(UUID id) {
+        exister(id);
+        Set<Module> fermes = modules.desactives(List.of(id)).getOrDefault(id, Set.of());
+        return java.util.Arrays.stream(Module.values())
+                .map(m -> new ModuleVue(m, m.libelle(), m.description(), m.requis(), !fermes.contains(m))).toList();
+    }
+
+    /** Active ou désactive des modules ; désactiver un module désactive ceux qui en dépendent. */
+    public List<ModuleVue> definirModules(UUID id, Set<Module> actifs) {
+        Tenant tenant = tenants.findById(id)
+                .orElseThrow(() -> new RessourceIntrouvableException("Établissement introuvable"));
+        Set<Module> fermes = java.util.EnumSet.allOf(Module.class);
+        fermes.removeAll(actifs);
+        Set<Module> resultat = modules.definir(id, fermes, UtilisateurConnecte.id());
+        audit.enregistrer("MODULES_ETABLISSEMENT", tenant.getCode(),
+                Map.of("desactives", resultat.stream().map(Enum::name).sorted().toList()));
+        return modules(id);
+    }
+
+    private void exister(UUID id) {
+        if (!tenants.existsById(id)) {
+            throw new RessourceIntrouvableException("Établissement introuvable");
+        }
     }
 
     @Transactional

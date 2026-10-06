@@ -1,6 +1,7 @@
 package bf.edutech.plateforme.absences;
 
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -22,9 +23,11 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import bf.edutech.plateforme.absences.Vues.AbsenceVue;
+import bf.edutech.plateforme.absences.Vues.AbsencesParMatiereVue;
 import bf.edutech.plateforme.absences.Vues.AccuseAppel;
 import bf.edutech.plateforme.absences.Vues.AppelVue;
 import bf.edutech.plateforme.absences.Vues.DonneesAppel;
+import bf.edutech.plateforme.absences.Vues.EleveDuJourVue;
 import bf.edutech.plateforme.absences.Vues.JustificatifVue;
 import bf.edutech.plateforme.absences.Vues.Marque;
 import bf.edutech.plateforme.absences.Vues.SyntheseEleveVue;
@@ -34,6 +37,8 @@ import bf.edutech.plateforme.socle.erreurs.AccesRefuseException;
 /** Appels (synchronisation depuis les appareils), absences, justificatifs, espace parent. */
 @RestController
 public class AbsencesController {
+
+    private static final ZoneId OUAGADOUGOU = ZoneId.of("Africa/Ouagadougou");
 
     static final String APPEL = "hasAnyRole('ENSEIGNANT','SURVEILLANT','CENSEUR','ADMIN_ECOLE')";
     static final String CONSULTATION =
@@ -96,6 +101,21 @@ public class AbsencesController {
     public List<SyntheseEleveVue> synthese(@PathVariable UUID id, @RequestParam(required = false) LocalDate du,
             @RequestParam(required = false) LocalDate au) {
         return absences.syntheseClasse(id, du, au);
+    }
+
+    /** Absences de la classe par discipline (toute l'année si les dates sont omises). */
+    @GetMapping("/api/v1/classes/{id}/absences/matieres")
+    @PreAuthorize(CONSULTATION)
+    public List<AbsencesParMatiereVue> parMatiere(@PathVariable UUID id, @RequestParam(required = false) LocalDate du,
+            @RequestParam(required = false) LocalDate au) {
+        return absences.parMatiere(id, du, au);
+    }
+
+    /** Élèves absents ou en retard dans l'établissement un jour donné (aujourd'hui par défaut). */
+    @GetMapping("/api/v1/absences/jour")
+    @PreAuthorize(PERSONNEL)
+    public List<EleveDuJourVue> duJour(@RequestParam(required = false) LocalDate date) {
+        return absences.duJour(date != null ? date : LocalDate.now(OUAGADOUGOU));
     }
 
     @GetMapping("/api/v1/inscriptions/{id}/absences")

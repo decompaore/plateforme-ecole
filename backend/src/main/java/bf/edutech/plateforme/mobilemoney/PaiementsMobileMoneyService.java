@@ -167,7 +167,7 @@ public class PaiementsMobileMoneyService {
             throw new AccesRefuseException("Cet élève n'est pas rattaché à votre compte");
         }
         if (operateur == null) {
-            throw new IllegalArgumentException("Choisissez l'opérateur (ORANGE_MONEY ou MOOV_MONEY)");
+            throw new IllegalArgumentException("Choisissez l'opérateur (ORANGE_MONEY, MOOV_MONEY ou TELECEL_MONEY)");
         }
         if (montant == null || montant < MONTANT_MIN || montant > MONTANT_MAX) {
             throw new IllegalArgumentException("Le montant est compris entre 100 et 2 000 000 FCFA");

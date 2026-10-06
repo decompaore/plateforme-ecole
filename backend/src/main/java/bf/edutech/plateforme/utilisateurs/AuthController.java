@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -67,6 +69,23 @@ public class AuthController {
         return ResponseEntity.noContent()
                 .header(HttpHeaders.SET_COOKIE, cookie("", Duration.ZERO).toString())
                 .build();
+    }
+
+    /** Appareils connectés au compte ; le cookie (chemin /api/v1/auth) désigne l'appareil courant. */
+    @GetMapping("/appareils")
+    public java.util.List<AppareilVue> appareils(@AuthenticationPrincipal Jwt jwt,
+            @CookieValue(name = COOKIE_RAFRAICHISSEMENT, required = false) String valeur) {
+        return service.appareils(java.util.UUID.fromString(jwt.getSubject()), valeur);
+    }
+
+    public record DemandeFermeture(Boolean effacer) {
+    }
+
+    @PostMapping("/appareils/{id}/fermeture")
+    public ResponseEntity<Void> fermerAppareil(@AuthenticationPrincipal Jwt jwt, @PathVariable java.util.UUID id,
+            @RequestBody(required = false) DemandeFermeture d) {
+        service.fermerAppareil(java.util.UUID.fromString(jwt.getSubject()), id, d != null && Boolean.TRUE.equals(d.effacer()));
+        return ResponseEntity.noContent().build();
     }
 
     private ResponseEntity<ReponseConnexion> reponse(AuthService.ResultatConnexion resultat) {

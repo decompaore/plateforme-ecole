@@ -25,6 +25,8 @@ import bf.edutech.plateforme.socle.compteurs.Compteurs;
 import bf.edutech.plateforme.socle.erreurs.RegleMetierException;
 import bf.edutech.plateforme.socle.erreurs.RessourceIntrouvableException;
 import bf.edutech.plateforme.socle.securite.UtilisateurConnecte;
+import bf.edutech.plateforme.socle.modules.Module;
+import bf.edutech.plateforme.socle.modules.ModulesEtablissement;
 import bf.edutech.plateforme.socle.tenant.TenantContext;
 
 /**
@@ -56,9 +58,13 @@ public class RapprochementService {
     private final TransactionTemplate ecriture;
     private final TransactionTemplate lecture;
 
+    private final ModulesEtablissement modules;
+
     RapprochementService(RapprochementRepository rapprochements, EcartRepository ecarts,
             TransactionRepository transactions, ConfigurationMobileMoneyService configuration, Compteurs compteurs,
-            AuditService audit, JdbcTemplate jdbc, Clock horloge, PlatformTransactionManager gestionnaire) {
+            AuditService audit, JdbcTemplate jdbc, Clock horloge, PlatformTransactionManager gestionnaire,
+            ModulesEtablissement modules) {
+        this.modules = modules;
         this.rapprochements = rapprochements;
         this.ecarts = ecarts;
         this.transactions = transactions;
@@ -201,6 +207,9 @@ public class RapprochementService {
         List<UUID> ecoles = jdbc.queryForList("select tenant_id from ecoles_mobile_money()", UUID.class);
         int faites = 0;
         for (UUID ecole : ecoles) {
+            if (!modules.actif(ecole, Module.MOBILE_MONEY)) {
+                continue;
+            }
             try {
                 TenantContext.executerPour(ecole, () -> rapprocher(jour));
                 faites++;

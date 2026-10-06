@@ -91,6 +91,8 @@ class AbsencesIntegrationTest {
     private UUID ecole;
     private UUID classe;
     private UUID enseignant;
+    private UUID maths;
+    private UUID francais;
     private final LocalDate aujourdhui = LocalDate.now(ZoneOffset.UTC);
     private DossierEleveVue awa;
     private DossierEleveVue ali;
@@ -111,9 +113,11 @@ class AbsencesIntegrationTest {
         AnneeVue annee = dans(() -> annees.creer(an + "-" + (an + 1), aujourdhui.minusDays(30),
                 aujourdhui.plusDays(300)));
         UUID filiere = dans(() -> filieres.creer("GEN", "Général", "Premier cycle", "BEPC", general)).id();
-        UUID maths = dans(() -> matieres.creer("MATH", "Mathématiques", TypeMatiere.GENERALE)).id();
+        maths = dans(() -> matieres.creer("MATH", "Mathématiques", TypeMatiere.GENERALE)).id();
+        francais = dans(() -> matieres.creer("FR", "Français", TypeMatiere.GENERALE)).id();
         classe = dans(() -> classes.creer(annee.id(), filiere, "6e A", "6e", null)).id();
         dans(() -> classes.definirMatiere(classe, maths, new BigDecimal("4"), null, new BigDecimal("5"), null));
+        dans(() -> classes.definirMatiere(classe, francais, new BigDecimal("3"), null, new BigDecimal("4"), null));
         dans(() -> periodes.generer(annee.id(), general));
         dans(() -> annees.ouvrir(annee.id()));
 
@@ -226,11 +230,29 @@ class AbsencesIntegrationTest {
         assertThat(avant.heuresNonJustifiees()).isEqualByComparingTo("4");
         assertThat(synthese(inscriptionAli).retards()).isEqualTo(1);
 
+        // Liste du jour de la vie scolaire : un élève par ligne, ses créneaux réunis
+        UUID surveillant = membre(Role.SURVEILLANT);
+        mvc.perform(get("/api/v1/absences/jour").param("date", aujourdhui.toString()).with(jeton(surveillant, "SURVEILLANT")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].nom").value("OUEDRAOGO"))
+                .andExpect(jsonPath("$[0].classeCode").value("6e A"))
+                .andExpect(jsonPath("$[0].absences").value(2))
+                .andExpect(jsonPath("$[0].creneaux.length()").value(2))
+                .andExpect(jsonPath("$[0].justifiee").value(false))
+                .andExpect(jsonPath("$[1].nom").value("SAWADOGO"))
+                .andExpect(jsonPath("$[1].retards").value(1));
+        mvc.perform(get("/api/v1/absences/jour").with(jeton(enseignant, "ENSEIGNANT")))
+                .andExpect(status().isForbidden());
+
         dans(() -> absences.justifier(inscriptionAwa, aujourdhui, aujourdhui, TypeJustificatif.MALADIE,
                 "Certificat médical"));
         SyntheseEleveVue apres = synthese(inscriptionAwa);
         assertThat(apres.absencesJustifiees()).isEqualTo(2);
         assertThat(apres.heuresNonJustifiees()).isEqualByComparingTo("0");
+        mvc.perform(get("/api/v1/absences/jour").param("date", aujourdhui.toString()).with(jeton(surveillant, "SURVEILLANT")))
+                .andExpect(jsonPath("$[0].justifiee").value(true))
+                .andExpect(jsonPath("$[1].justifiee").value(false));
 
         // Le parent voit les absences de son enfant, et seulement de son enfant
         UUID parent = dans(() -> espaceParent.ouvrir(awa.responsables().get(0).responsableId())).utilisateurId();
@@ -247,7 +269,65 @@ class AbsencesIntegrationTest {
                 .andExpect(jsonPath("$.length()").value(3));
     }
 
+    @Test
+    void lesAbsencesIndiquentLaDisciplineEtSeResumentParMatiere() throws Exception {
+        UUID surveillant = membre(Role.SURVEILLANT);
+        String hier = aujourdhui.minusDays(1).toString();
+        String jour = aujourdhui.toString();
+        synchroniser(lot(
+                appelEn(maths, hier, "08:00", "10:00", marque(inscriptionAwa, "ABSENCE", null),
+                        marque(inscriptionAli, "ABSENCE", null)),
+                appelEn(maths, jour, "08:00", "10:00", marque(inscriptionAwa, "ABSENCE", null)),
+                appelEn(francais, jour, "10:00", "11:00", marque(inscriptionAwa, "RETARD", 5)),
+                appel(UUID.randomUUID(), aujourdhui, "15:00", "16:00", marque(inscriptionInes, "ABSENCE", null))),
+                membre(Role.CENSEUR), "CENSEUR");
+
+        // Liste du jour : la discipline de chaque créneau, « appel général » sans matière
+        mvc.perform(get("/api/v1/absences/jour").param("date", jour).with(jeton(surveillant, "SURVEILLANT")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].nom").value("OUEDRAOGO"))
+                .andExpect(jsonPath("$[0].creneaux[0].matiereLibelle").value("Mathématiques"))
+                .andExpect(jsonPath("$[0].creneaux[1].matiereCode").value("FR"))
+                .andExpect(jsonPath("$[1].nom").value("ZONGO"))
+                .andExpect(jsonPath("$[1].creneaux[0].matiereId").doesNotExist());
+
+        // Absences de l'élève : la discipline de chaque cours manqué
+        mvc.perform(get("/api/v1/inscriptions/{id}/absences", inscriptionAwa).with(jeton(surveillant, "SURVEILLANT")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[?(@.type == 'ABSENCE')].matiereLibelle", org.hamcrest.Matchers.everyItem(
+                        org.hamcrest.Matchers.is("Mathématiques"))));
+
+        // Synthèse de la classe par discipline : maths en tête (3 cours manqués, 6 h, 2 élèves)
+        mvc.perform(get("/api/v1/classes/{id}/absences/matieres", classe).with(jeton(surveillant, "SURVEILLANT")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(3))
+                .andExpect(jsonPath("$[0].matiereCode").value("MATH"))
+                .andExpect(jsonPath("$[0].absences").value(3))
+                .andExpect(jsonPath("$[0].heures").value(6.0))
+                .andExpect(jsonPath("$[0].heuresNonJustifiees").value(6.0))
+                .andExpect(jsonPath("$[0].eleves").value(2))
+                .andExpect(jsonPath("$[1].matiereId").doesNotExist())
+                .andExpect(jsonPath("$[1].heures").value(1.0))
+                .andExpect(jsonPath("$[2].matiereCode").value("FR"))
+                .andExpect(jsonPath("$[2].absences").value(0))
+                .andExpect(jsonPath("$[2].retards").value(1));
+
+        // Sur la seule journée d'aujourd'hui
+        mvc.perform(get("/api/v1/classes/{id}/absences/matieres", classe).param("du", jour).param("au", jour)
+                        .with(jeton(surveillant, "SURVEILLANT")))
+                .andExpect(jsonPath("$[0].matiereCode").value("MATH"))
+                .andExpect(jsonPath("$[0].absences").value(1))
+                .andExpect(jsonPath("$[0].eleves").value(1));
+    }
+
     // ------------------------------------------------------------------
+
+    private String appelEn(UUID matiere, String date, String debut, String fin, String... marques) {
+        return """
+                {"idClient":"%s","classeId":"%s","matiereId":"%s","date":"%s","heureDebut":"%s","heureFin":"%s","marques":[%s]}"""
+                .formatted(UUID.randomUUID(), classe, matiere, date, debut, fin, String.join(",", marques));
+    }
 
     private SyntheseEleveVue synthese(UUID inscriptionId) {
         return TenantContext.executerPour(ecole, () -> absencesSansControle()).stream()
@@ -317,7 +397,7 @@ class AbsencesIntegrationTest {
     }
 
     private UUID nouvelleEcole() {
-        String suffixe = Integer.toString(ThreadLocalRandom.current().nextInt(100_000, 999_999));
+        String suffixe = java.util.UUID.randomUUID().toString().replace("-", "").substring(0, 12);
         return etablissements.creer("abs-" + suffixe, "Lycée " + suffixe, "7" + telephone().substring(1), "ADMIN",
                 "Test").etablissement().id();
     }

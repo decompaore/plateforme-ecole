@@ -11,6 +11,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import bf.edutech.plateforme.scolarite.Vues.ResultatRelancesVue;
+import bf.edutech.plateforme.socle.modules.Module;
+import bf.edutech.plateforme.socle.modules.ModulesEtablissement;
 import bf.edutech.plateforme.socle.tenant.TenantContext;
 
 /**
@@ -28,9 +30,12 @@ class RelancesPlanifiees {
     private final JdbcTemplate jdbc;
     private final boolean actives;
 
-    RelancesPlanifiees(RelancesService relances, JdbcTemplate jdbc,
+    private final ModulesEtablissement modules;
+
+    RelancesPlanifiees(RelancesService relances, JdbcTemplate jdbc, ModulesEtablissement modules,
             @Value("${app.scolarite.relances-automatiques:true}") boolean actives) {
         this.relances = relances;
+        this.modules = modules;
         this.jdbc = jdbc;
         this.actives = actives;
     }
@@ -46,6 +51,9 @@ class RelancesPlanifiees {
         List<UUID> ecoles = jdbc.queryForList("select tenant_id from ecoles_actives()", UUID.class);
         int envoyees = 0;
         for (UUID ecole : ecoles) {
+            if (!modules.actif(ecole, Module.SCOLARITE)) {
+                continue;
+            }
             try {
                 envoyees += TenantContext.executerPour(ecole, relances::relancerSiAutomatique)
                         .map(ResultatRelancesVue::envoyees).orElse(0);

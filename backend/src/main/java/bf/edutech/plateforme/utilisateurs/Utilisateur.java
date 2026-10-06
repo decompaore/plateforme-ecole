@@ -18,6 +18,9 @@ import bf.edutech.plateforme.socle.persistance.EntiteUuid;
 @Table(name = "utilisateur")
 public class Utilisateur extends EntiteUuid {
 
+    public static final String MOTIF_PROVISOIRE = "PROVISOIRE";
+    public static final String MOTIF_RENOUVELLEMENT = "RENOUVELLEMENT";
+
     @Column(name = "telephone", nullable = false, unique = true, length = 20)
     private String telephone;
 
@@ -41,6 +44,14 @@ public class Utilisateur extends EntiteUuid {
 
     @Column(name = "doit_changer_mot_de_passe", nullable = false)
     private boolean doitChangerMotDePasse = true;
+
+    /** Dernier mot de passe choisi par la personne (pas les mots de passe provisoires). */
+    @Column(name = "mot_de_passe_change_le")
+    private Instant motDePasseChangeLe;
+
+    /** Pourquoi un nouveau mot de passe est demandé : PROVISOIRE ou RENOUVELLEMENT (période). */
+    @Column(name = "motif_changement", length = 14)
+    private String motifChangement = MOTIF_PROVISOIRE;
 
     @Column(name = "echecs_connexion", nullable = false)
     private int echecsConnexion;
@@ -79,15 +90,67 @@ public class Utilisateur extends EntiteUuid {
         }
     }
 
+    /** Mot de passe confirmé (action sensible) : les échecs précédents ne comptent plus. */
+    public void oublierEchecs() {
+        echecsConnexion = 0;
+    }
+
     public void enregistrerConnexionReussie(Instant maintenant) {
         echecsConnexion = 0;
         verrouilleJusqua = null;
         derniereConnexion = maintenant;
     }
 
+    /**
+     * Réinitialisation par l'administration : mot de passe provisoire à changer à la prochaine
+     * connexion ; le compte est déverrouillé.
+     */
+    public void reinitialiserMotDePasse(String nouveauHache) {
+        this.motDePasseHache = nouveauHache;
+        this.doitChangerMotDePasse = true;
+        this.motifChangement = MOTIF_PROVISOIRE;
+        deverrouiller();
+    }
+
+    /** Lève le verrouillage dû aux échecs de connexion. */
+    public void deverrouiller() {
+        this.echecsConnexion = 0;
+        this.verrouilleJusqua = null;
+    }
+
+    public Instant getVerrouilleJusqua() {
+        return verrouilleJusqua;
+    }
+
+    /** Nouvelle période : le personnel doit choisir un nouveau mot de passe avant tout le reste. */
+    public void exigerRenouvellement() {
+        this.doitChangerMotDePasse = true;
+        this.motifChangement = MOTIF_RENOUVELLEMENT;
+    }
+
+    /** Vrai si le dernier mot de passe choisi date d'avant cet instant (ou n'a jamais été choisi). */
+    public boolean motDePasseChoisiAvant(Instant limite) {
+        return motDePasseChangeLe == null || motDePasseChangeLe.isBefore(limite);
+    }
+
+    public Instant getMotDePasseChangeLe() {
+        return motDePasseChangeLe;
+    }
+
+    /** Motif du changement demandé, ou null si aucun changement n'est demandé. */
+    public String getMotifChangement() {
+        return doitChangerMotDePasse ? (motifChangement != null ? motifChangement : MOTIF_PROVISOIRE) : null;
+    }
+
     public void changerMotDePasse(String nouveauHache, boolean temporaire) {
         this.motDePasseHache = nouveauHache;
         this.doitChangerMotDePasse = temporaire;
+        if (temporaire) {
+            this.motifChangement = MOTIF_PROVISOIRE;
+        } else {
+            this.motDePasseChangeLe = Instant.now();
+            this.motifChangement = null;
+        }
     }
 
     public String getTelephone() {

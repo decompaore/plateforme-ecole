@@ -87,6 +87,7 @@ app:
     origines-autorisees: ${ORIGINES_AUTORISEES:}
     max-echecs-connexion: 5
     duree-verrouillage: 15m
+    grace-rafraichissement: 20s           # réponse de renouvellement perdue : l'ancien cookie reste valable une fois
   notifications:
     envoi-automatique: ${NOTIFICATIONS_ENVOI_AUTOMATIQUE:true}
     intervalle-ms: 10000                  # passage du worker d'envoi des SMS
@@ -95,6 +96,8 @@ app:
     max-tentatives: 6                     # 2, 4, 8, 16, 32 minutes entre les tentatives
     seuil-coupe-circuit: 5                # échecs consécutifs avant suspension
     pause-coupe-circuit: 5m
+  enseignants:
+    cron-fins: "0 15 0 * * *"             # chaque nuit à 0 h 15 : clôture des engagements échus
   scolarite:
     relances-automatiques: ${RELANCES_AUTOMATIQUES:true}
     cron-relances: "0 30 7 * * MON"       # chaque lundi à 7 h 30, heure de Ouagadougou
@@ -104,6 +107,17 @@ app:
     taches-automatiques: true             # expiration (chaque minute) et rapprochement (2 h 30)
     simulateur-autorise: false
     cron-rapprochement: "0 30 2 * * *"
+  exports:
+    repertoire: ${EXPORTS_REPERTOIRE:${java.io.tmpdir}/plateforme-exports}   # volume persistant en production
+    duree-conservation: 7d                # archive téléchargeable 7 jours, puis effacée
+    duree-max: 1h                         # au-delà, une préparation est considérée comme interrompue
+    duree-lien: 10m                       # validité d'un lien de téléchargement
+    max-par-jour: 5                       # exports par établissement et par 24 heures
+    purge-automatique: true
+  adoption:
+    calcul-automatique: true              # chaque nuit à 0 h 20 (la veille), et au démarrage les jours manquants
+    cron: "0 20 0 * * *"
+    historique-jours: 400
   amorcage:
     super-admin-telephone: ${SUPER_ADMIN_TELEPHONE:}
     super-admin-mot-de-passe: ${SUPER_ADMIN_MOT_DE_PASSE:}

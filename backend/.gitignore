@@ -1,5 +1,10 @@
 # Maven
 target/
+# Angular / Node
+node_modules/
+.angular/
+dist/
+coverage/
 # Eclipse
 .metadata/
 .recommenders/
