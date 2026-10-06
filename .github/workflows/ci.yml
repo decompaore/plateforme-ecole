@@ -40,7 +40,7 @@ jobs:
 
     steps:
       - name: Récupérer le code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Installer Java 21
         uses: actions/setup-java@v5
@@ -79,7 +79,7 @@ jobs:
         working-directory: frontend
     steps:
       - name: Récupérer le code
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Installer Node.js 24
         uses: actions/setup-node@v5
@@ -115,7 +115,7 @@ jobs:
       contents: read
       pull-requests: write
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Bloquer les dépendances vulnérables ajoutées par la pull request
         uses: actions/dependency-review-action@v4
         with:
