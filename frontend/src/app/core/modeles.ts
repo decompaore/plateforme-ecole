@@ -11,11 +11,23 @@ export type Role =
   | 'PARENT'
   | 'ELEVE';
 
+/** Modules qu'un établissement peut ne pas utiliser (v0.31) ; le socle est toujours actif. */
+export type Module =
+  | 'ATELIERS'
+  | 'EMPLOIS_DU_TEMPS'
+  | 'PROGRESSION'
+  | 'VIE_SCOLAIRE'
+  | 'SCOLARITE'
+  | 'MOBILE_MONEY'
+  | 'ESPACE_PARENT';
+
 export interface EtablissementAccessible {
   id: string;
   code: string;
   nom: string;
   roles: Role[];
+  /** Modules désactivés par le super administrateur (absent : tous actifs). */
+  modulesDesactives?: Module[];
 }
 
 export interface ReponseConnexion {

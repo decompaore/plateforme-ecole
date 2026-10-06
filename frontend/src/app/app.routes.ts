@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, CanDeactivateFn, Router, Routes } from '@angular/router';
 
-import { anonyme, connecte, role } from './core/gardes';
+import { anonyme, connecte, module, role } from './core/gardes';
 import { SessionService } from './core/session.service';
 // Accueil, appel et notes chargés d'emblée (et non à la demande) : ils doivent s'ouvrir
 // sans réseau même avant que le service worker ait fini de tout mettre en cache.
@@ -99,13 +99,13 @@ export const routes: Routes = [
       },
       {
         path: 'cahier',
-        canActivate: [role('ENSEIGNANT')],
+        canActivate: [role('ENSEIGNANT'), module('PROGRESSION')],
         title: 'Cahier de textes',
         component: CahierChoixPage,
       },
       {
         path: 'cahier/:classeId/:matiereId',
-        canActivate: [role('ENSEIGNANT')],
+        canActivate: [role('ENSEIGNANT'), module('PROGRESSION')],
         title: 'Cahier de textes',
         component: CahierPage,
       },
@@ -184,7 +184,7 @@ export const routes: Routes = [
       {
         // Espace parent : chargé à la demande ; la dernière situation reste lisible sans réseau
         path: 'parent',
-        canActivate: [role('PARENT')],
+        canActivate: [role('PARENT'), module('ESPACE_PARENT')],
         children: [
           {
             path: '',
@@ -202,7 +202,7 @@ export const routes: Routes = [
       {
         // Progressions : préparées par l'enseignant, visées par le censeur ou le chef des travaux (en ligne)
         path: 'progression',
-        canActivate: [role('ENSEIGNANT', 'ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX')],
+        canActivate: [role('ENSEIGNANT', 'ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX'), module('PROGRESSION')],
         children: [
           {
             path: '',
@@ -234,7 +234,7 @@ export const routes: Routes = [
         // Emplois du temps : le censeur place les matières générales, le chef des travaux les
         // matières techniques et pratiques ; l'enseignant voit le sien une fois publié (en ligne)
         path: 'emploi-du-temps',
-        canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SURVEILLANT', 'ENSEIGNANT')],
+        canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SURVEILLANT', 'ENSEIGNANT'), module('EMPLOIS_DU_TEMPS')],
         children: [
           {
             path: '',
@@ -265,7 +265,7 @@ export const routes: Routes = [
         // Ateliers : catalogue des prix, responsables, équipements, matière d'œuvre, inventaires,
         // besoins, commandes, réception et répartition (en ligne)
         path: 'ateliers',
-        canActivate: [role('ADMIN_ECOLE', 'CHEF_TRAVAUX', 'INTENDANT', 'ENSEIGNANT')],
+        canActivate: [role('ADMIN_ECOLE', 'CHEF_TRAVAUX', 'INTENDANT', 'ENSEIGNANT'), module('ATELIERS')],
         children: [
           {
             path: '',
@@ -318,7 +318,7 @@ export const routes: Routes = [
       {
         // Scolarité et paiements : en ligne (l'encaissement exige le serveur), chargée à la demande
         path: 'scolarite',
-        canActivate: [role('INTENDANT', 'ADMIN_ECOLE', 'SECRETARIAT')],
+        canActivate: [role('INTENDANT', 'ADMIN_ECOLE', 'SECRETARIAT'), module('SCOLARITE')],
         children: [
           {
             path: '',
@@ -357,7 +357,7 @@ export const routes: Routes = [
       {
         // Vie scolaire : en ligne, chargée à la demande
         path: 'vie-scolaire',
-        canActivate: [role('SURVEILLANT', 'CENSEUR', 'ADMIN_ECOLE', 'SECRETARIAT')],
+        canActivate: [role('SURVEILLANT', 'CENSEUR', 'ADMIN_ECOLE', 'SECRETARIAT'), module('VIE_SCOLAIRE')],
         children: [
           {
             path: '',

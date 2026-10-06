@@ -1,7 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
 
-import { Role } from '../core/modeles';
+import { Module, Role } from '../core/modeles';
 import { SessionService } from '../core/session.service';
 import { EnvoisService } from '../hors-ligne/envois.service';
 import { NotesService } from '../hors-ligne/notes.service';
@@ -13,6 +13,8 @@ interface Tuile {
   texte: string;
   lien?: string;
   roles: Role[];
+  /** Module dont dépend l'écran (v0.31) : tuile masquée s'il est désactivé. */
+  module?: Module;
 }
 
 /** Écrans disponibles selon le rôle. Les autres arrivent dans les prochaines versions. */
@@ -24,19 +26,19 @@ const TUILES: Tuile[] = [
   { titre: 'Personnel', texte: 'Enseignants et administration', lien: '/admin/personnel', roles: ['ADMIN_ECOLE'] },
   { titre: 'Comptes et mots de passe', texte: 'Mot de passe oublié, compte bloqué, renouvellement', lien: '/admin/comptes', roles: ['ADMIN_ECOLE'] },
   { titre: 'Année scolaire', texte: 'Périodes, ouverture, filières', lien: '/admin/annee', roles: ['ADMIN_ECOLE', 'CENSEUR'] },
-  { titre: 'Cahier de textes', texte: 'Après chaque cours, même sans réseau', lien: '/cahier', roles: ['ENSEIGNANT'] },
-  { titre: 'Mes progressions', texte: 'Séquences de l’année, visa', lien: '/progression', roles: ['ENSEIGNANT'] },
-  { titre: 'Progressions', texte: 'Fiches des enseignants à viser', lien: '/progression/suivi', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX'] },
-  { titre: 'Emplois du temps', texte: 'Grille par classe, enseignant, atelier ; génération', lien: '/emploi-du-temps', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SURVEILLANT'] },
-  { titre: 'Mon emploi du temps', texte: 'Mes cours de la semaine', lien: '/emploi-du-temps/mon-emploi', roles: ['ENSEIGNANT'] },
-  { titre: 'Ateliers', texte: 'Responsables, équipements, pannes, matière d’œuvre, inventaires', lien: '/ateliers', roles: ['CHEF_TRAVAUX', 'ADMIN_ECOLE', 'ENSEIGNANT'] },
-  { titre: 'Catalogue des prix', texte: 'Matière d’œuvre et équipements, spécifications, prix', lien: '/ateliers/catalogue', roles: ['INTENDANT', 'CHEF_TRAVAUX'] },
-  { titre: 'Besoins et commandes', texte: 'Campagnes de besoins, état pour la DR, commandes, réception, répartition', lien: '/ateliers/besoins', roles: ['CHEF_TRAVAUX', 'INTENDANT'] },
+  { titre: 'Cahier de textes', texte: 'Après chaque cours, même sans réseau', lien: '/cahier', roles: ['ENSEIGNANT'], module: 'PROGRESSION' },
+  { titre: 'Mes progressions', texte: 'Séquences de l’année, visa', lien: '/progression', roles: ['ENSEIGNANT'], module: 'PROGRESSION' },
+  { titre: 'Progressions', texte: 'Fiches des enseignants à viser', lien: '/progression/suivi', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX'], module: 'PROGRESSION' },
+  { titre: 'Emplois du temps', texte: 'Grille par classe, enseignant, atelier ; génération', lien: '/emploi-du-temps', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SURVEILLANT'], module: 'EMPLOIS_DU_TEMPS' },
+  { titre: 'Mon emploi du temps', texte: 'Mes cours de la semaine', lien: '/emploi-du-temps/mon-emploi', roles: ['ENSEIGNANT'], module: 'EMPLOIS_DU_TEMPS' },
+  { titre: 'Ateliers', texte: 'Responsables, équipements, pannes, matière d’œuvre, inventaires', lien: '/ateliers', roles: ['CHEF_TRAVAUX', 'ADMIN_ECOLE', 'ENSEIGNANT'], module: 'ATELIERS' },
+  { titre: 'Catalogue des prix', texte: 'Matière d’œuvre et équipements, spécifications, prix', lien: '/ateliers/catalogue', roles: ['INTENDANT', 'CHEF_TRAVAUX'], module: 'ATELIERS' },
+  { titre: 'Besoins et commandes', texte: 'Campagnes de besoins, état pour la DR, commandes, réception, répartition', lien: '/ateliers/besoins', roles: ['CHEF_TRAVAUX', 'INTENDANT'], module: 'ATELIERS' },
   { titre: 'Saisie des notes', texte: 'Marche aussi sans réseau', lien: '/notes', roles: ['ENSEIGNANT'] },
-  { titre: 'Vie scolaire', texte: 'Absences du jour, incidents, convocations', lien: '/vie-scolaire', roles: ['SURVEILLANT', 'CENSEUR', 'ADMIN_ECOLE', 'SECRETARIAT'] },
-  { titre: 'Scolarité et paiements', texte: 'Guichet, reçus, retards, journal de caisse', lien: '/scolarite', roles: ['INTENDANT', 'ADMIN_ECOLE', 'SECRETARIAT'] },
+  { titre: 'Vie scolaire', texte: 'Absences du jour, incidents, convocations', lien: '/vie-scolaire', roles: ['SURVEILLANT', 'CENSEUR', 'ADMIN_ECOLE', 'SECRETARIAT'], module: 'VIE_SCOLAIRE' },
+  { titre: 'Scolarité et paiements', texte: 'Guichet, reçus, retards, journal de caisse', lien: '/scolarite', roles: ['INTENDANT', 'ADMIN_ECOLE', 'SECRETARIAT'], module: 'SCOLARITE' },
   { titre: 'Statistiques', texte: 'Effectifs, bourses, recouvrement, résultats', lien: '/admin/statistiques', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'INTENDANT'] },
-  { titre: 'Suivi de mes enfants', texte: 'Absences, bulletins, scolarité', lien: '/parent', roles: ['PARENT'] },
+  { titre: 'Suivi de mes enfants', texte: 'Absences, bulletins, scolarité', lien: '/parent', roles: ['PARENT'], module: 'ESPACE_PARENT' },
 ];
 
 @Component({
@@ -135,6 +137,6 @@ export class AccueilPage {
 
   protected readonly tuiles = computed(() => {
     const roles = this.session.roles();
-    return TUILES.filter((t) => t.roles.some((r) => roles.includes(r)));
+    return TUILES.filter((t) => t.roles.some((r) => roles.includes(r)) && (!t.module || this.session.moduleActif(t.module)));
   });
 }

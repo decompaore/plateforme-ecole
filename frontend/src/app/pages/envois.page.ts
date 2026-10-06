@@ -21,7 +21,9 @@ import { NotesService, OperationNotes } from '../hors-ligne/notes.service';
             Il sera envoyé dès qu'il y aura du réseau.
           }
           @if (cours(); as c) {
+            @if (progression) {
             <br /><a [routerLink]="['/cahier', c.classeId, c.matiereId]" [queryParams]="{ date: c.date, debut: c.debut, fin: c.fin }">Remplir le cahier de textes de ce cours ›</a>
+            }
           }
         </div>
       }
@@ -156,6 +158,7 @@ export class EnvoisPage {
   protected readonly cahier = inject(CahierService);
   protected readonly envois = inject(EnvoisService);
   protected readonly session = inject(SessionService);
+  protected readonly progression = this.session.moduleActif('PROGRESSION');
   protected readonly dateLongue = dateLongue;
   protected readonly dateHeureCourte = dateHeureCourte;
   protected readonly vientDeSaisir = signal(

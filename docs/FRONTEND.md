@@ -1,4 +1,4 @@
-# Application web (v0.30.1)
+# Application web (v0.31)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -247,6 +247,16 @@ Mise en place d'un établissement, dans l'ordre :
 Comptes créés (administrateur d'un établissement, enseignant, personnel) : le **mot de passe provisoire** s'affiche
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
+
+## Modules activables (v0.31)
+
+Page « Établissements » du super administrateur : bouton **Modules** sur chaque établissement. Une case par module
+(ateliers, emplois du temps, progressions et cahier de textes, vie scolaire, scolarité, Mobile Money, espace
+parent), avec ce qu'il contient ; décocher la scolarité décoche Mobile Money, cocher Mobile Money recoche la
+scolarité. Dans l'établissement, un module désactivé disparaît : tuiles de l'accueil, écrans (retour à l'accueil si
+on y accède par un lien), rubriques « Vie scolaire » et « Scolarité » de l'espace parent, paiement Mobile Money,
+boutons de création des comptes parents, lien vers le cahier de textes après l'appel. Règles et API :
+[API_SOCLE.md](API_SOCLE.md#modules-activables-v031).
 
 ## Emplois du temps (v0.30)
 

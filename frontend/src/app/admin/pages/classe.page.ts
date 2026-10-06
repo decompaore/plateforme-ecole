@@ -87,6 +87,7 @@ export class ClassePage implements OnInit {
   protected readonly peutModifier = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'CENSEUR'));
   /** Dossiers des élèves et comptes des parents : administration et secrétariat. */
   protected readonly gestionEleves = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'SECRETARIAT'));
+  protected readonly espaceParent = this.session.moduleActif('ESPACE_PARENT');
   protected readonly actionParents = new Action();
   protected readonly confirmationParents = signal(false);
   protected readonly messageParents = signal<string | null>(null);

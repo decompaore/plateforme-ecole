@@ -4,7 +4,7 @@ import { firstValueFrom, Observable, timeout } from 'rxjs';
 
 import { STOCKAGE } from '../hors-ligne/stockage';
 import { estErreurReseau } from './erreurs';
-import { EtablissementAccessible, MotifChangementMotDePasse, ProfilConnecte, ReponseConnexion, Role } from './modeles';
+import { EtablissementAccessible, Module, MotifChangementMotDePasse, ProfilConnecte, ReponseConnexion, Role } from './modeles';
 
 export const API = '/api/v1';
 
@@ -72,6 +72,11 @@ export class SessionService {
   readonly roles = computed<Role[]>(() => this.profilSignal()?.etablissement?.roles ?? []);
   /** Vrai si le compte appartient à plusieurs établissements (enseignant vacataire, parent, réseau d'écoles). */
   readonly plusieursEtablissements = computed(() => (this.profilSignal()?.nombreEtablissements ?? 0) > 1);
+
+  /** Le module est-il utilisé par l'établissement actif ? */
+  moduleActif(module: Module): boolean {
+    return !(this.profilSignal()?.etablissement?.modulesDesactives ?? []).includes(module);
+  }
 
   aLeRole(...roles: Role[]): boolean {
     const miens = this.roles();

@@ -20,9 +20,11 @@ import org.springframework.stereotype.Component;
 class AccesEtablissements {
 
     private final JdbcTemplate jdbc;
+    private final bf.edutech.plateforme.socle.modules.ModulesEtablissement modules;
 
-    AccesEtablissements(JdbcTemplate jdbc) {
+    AccesEtablissements(JdbcTemplate jdbc, bf.edutech.plateforme.socle.modules.ModulesEtablissement modules) {
         this.jdbc = jdbc;
+        this.modules = modules;
     }
 
     List<EtablissementAccessible> pour(UUID utilisateurId) {
@@ -37,8 +39,11 @@ class AccesEtablissements {
                             .roles().add(texte(ligne, "role"));
                 },
                 utilisateurId);
+        Map<UUID, java.util.Set<bf.edutech.plateforme.socle.modules.Module>> fermes = modules
+                .desactives(parEtablissement.keySet());
         return parEtablissement.values().stream()
-                .map(e -> new EtablissementAccessible(e.id(), e.code(), e.nom(), List.copyOf(e.roles())))
+                .map(e -> new EtablissementAccessible(e.id(), e.code(), e.nom(), List.copyOf(e.roles()),
+                        fermes.getOrDefault(e.id(), java.util.Set.of()).stream().map(Enum::name).sorted().toList()))
                 .toList();
     }
 

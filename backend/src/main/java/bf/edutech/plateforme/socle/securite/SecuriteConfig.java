@@ -111,7 +111,8 @@ public class SecuriteConfig {
     /** Chaîne principale de l'API : politique de contenu la plus stricte possible. */
     @Bean
     @Order(2)
-    SecurityFilterChain chaineDeSecurite(HttpSecurity http, SecuriteProperties proprietes) throws Exception {
+    SecurityFilterChain chaineDeSecurite(HttpSecurity http, SecuriteProperties proprietes,
+            bf.edutech.plateforme.socle.modules.ModulesEtablissement modules) throws Exception {
         http
             // API sans session ni formulaire : pas de CSRF. Le cookie de rafraîchissement
             // est HttpOnly, SameSite=Strict et limité au chemin /api/v1/auth.
@@ -137,7 +138,8 @@ public class SecuriteConfig {
                 .anyRequest().hasAuthority("TYPE_" + TYPE_ACCES))
             .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(convertisseurJwt())))
             .addFilterAfter(new TenantFilter(proprietes.verifierSousDomaine()), BearerTokenAuthenticationFilter.class)
-            .addFilterAfter(new MotDePasseTemporaireFilter(), TenantFilter.class);
+            .addFilterAfter(new MotDePasseTemporaireFilter(), TenantFilter.class)
+            .addFilterAfter(new bf.edutech.plateforme.socle.modules.ModulesFilter(modules), MotDePasseTemporaireFilter.class);
         return http.build();
     }
 
