@@ -107,6 +107,13 @@ app:
     taches-automatiques: true             # expiration (chaque minute) et rapprochement (2 h 30)
     simulateur-autorise: false
     cron-rapprochement: "0 30 2 * * *"
+  exports:
+    repertoire: ${EXPORTS_REPERTOIRE:${java.io.tmpdir}/plateforme-exports}   # volume persistant en production
+    duree-conservation: 7d                # archive téléchargeable 7 jours, puis effacée
+    duree-max: 1h                         # au-delà, une préparation est considérée comme interrompue
+    duree-lien: 10m                       # validité d'un lien de téléchargement
+    max-par-jour: 5                       # exports par établissement et par 24 heures
+    purge-automatique: true
   amorcage:
     super-admin-telephone: ${SUPER_ADMIN_TELEPHONE:}
     super-admin-mot-de-passe: ${SUPER_ADMIN_MOT_DE_PASSE:}

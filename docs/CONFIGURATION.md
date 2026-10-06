@@ -24,6 +24,7 @@ Le fichier `application.yml` contient la configuration commune. Les valeurs `${V
 | `DB_POOL_MAX` | non | Taille du groupe de connexions (défaut 20) |
 | `SUPER_ADMIN_TELEPHONE`, `SUPER_ADMIN_MOT_DE_PASSE` | première installation | Création du premier super administrateur (12 caractères minimum), à retirer ensuite |
 | `MOBILE_MONEY_CLE_CHIFFREMENT` | pour Mobile Money | Clé AES-256 qui chiffre en base les clés des agrégateurs : `openssl rand -base64 32`. Vide : paiement en ligne inactif. **À conserver précieusement** : si elle change, chaque école doit ressaisir ses clés |
+| `EXPORTS_REPERTOIRE` | non | Dossier des archives d'export complet (défaut dans l'image : `/var/lib/plateforme/exports`, volume `exports` **partagé par les deux instances**). Voir [API_REVERSIBILITE.md](API_REVERSIBILITE.md) |
 | `RELANCES_AUTOMATIQUES` | non | `false` pour couper les relances SMS automatiques du lundi sur tout le serveur (défaut `true`) |
 
 ## Rôles PostgreSQL en production
@@ -57,6 +58,7 @@ Pourquoi deux rôles ? Le propriétaire des tables contourne la Row-Level Securi
 | Rapprochement Mobile Money de la veille | 2 h 30 (heure de Ouagadougou) | `app.mobile-money.cron-rapprochement` |
 | Relances des familles en retard | lundi 7 h 30 | `app.scolarite.cron-relances` ; chaque école peut les désactiver |
 | Clôture des engagements échus (fins programmées, contrats de vacataires) | chaque nuit à 0 h 15 | `app.enseignants.cron-fins` |
+| Effacement des archives d'export expirées (7 jours) | chaque heure | `app.exports.duree-conservation`, `purge-automatique` |
 
 Chaque tâche est idempotente : plusieurs instances de l'API peuvent tourner sans doublon.
 L'agrégateur `SIMULATEUR` n'est accepté que si `app.mobile-money.simulateur-autorise=true` (profils `dev` et `test`) :

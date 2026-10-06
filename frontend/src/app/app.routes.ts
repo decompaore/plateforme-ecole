@@ -173,6 +173,12 @@ export const routes: Routes = [
             loadComponent: () => import('./admin/pages/comptes.page').then((m) => m.ComptesPage),
           },
           {
+            path: 'donnees',
+            canActivate: [role('ADMIN_ECOLE')],
+            title: 'Données de l’établissement',
+            loadComponent: () => import('./admin/pages/donnees.page').then((m) => m.DonneesPage),
+          },
+          {
             path: 'referentiel',
             canActivate: [role('ADMIN_ECOLE', 'CENSEUR')],
             title: 'Filières et matières',

@@ -415,3 +415,38 @@ export interface ModuleEtablissementVue {
   requis: Module | null;
   actif: boolean;
 }
+
+// ---------------- Export complet des données (v0.33)
+
+export type StatutExport = 'EN_COURS' | 'PRET' | 'ECHEC' | 'EXPIRE' | 'INTERROMPU';
+
+export const LIBELLE_STATUT_EXPORT: Record<StatutExport, string> = {
+  EN_COURS: 'En préparation',
+  PRET: 'Prêt',
+  ECHEC: 'Échec',
+  EXPIRE: 'Effacé du serveur',
+  INTERROMPU: 'Interrompu',
+};
+
+export interface ExportVue {
+  id: string;
+  statut: StatutExport;
+  demandeLe: string;
+  demandePar: string | null;
+  parPlateforme: boolean;
+  termineLe: string | null;
+  expireLe: string | null;
+  taille: number | null;
+  empreinte: string | null;
+  nombreTables: number | null;
+  nombreLignes: number | null;
+  erreur: string | null;
+  telechargements: number;
+  dernierTelechargement: string | null;
+}
+
+/** Lien de téléchargement signé, relatif à la racine de l'API. */
+export interface LienExport {
+  chemin: string;
+  expireLe: string;
+}

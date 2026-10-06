@@ -14,9 +14,11 @@ import {
   EspaceParentVue,
   EnseignantVue,
   EtablissementVue,
+  ExportVue,
   FicheEnseignantVue,
   FiliereVue,
   InscriptionVue,
+  LienExport,
   LienParente,
   MatiereDeClasseVue,
   MatiereVue,
@@ -143,6 +145,21 @@ export class AdminApi {
 
   definirModules(etablissementId: string, actifs: Module[]): Promise<ModuleEtablissementVue[]> {
     return firstValueFrom(this.http.put<ModuleEtablissementVue[]>(`${API}/plateforme/etablissements/${etablissementId}/modules`, { actifs }));
+  }
+
+  // ---------------- Export complet des données (v0.33)
+  // Sans établissement : celui de la session (administrateur) ; avec : super administrateur.
+
+  exports(etablissementId?: string): Promise<ExportVue[]> {
+    return this.get(cheminExports(etablissementId));
+  }
+
+  demanderExport(motDePasse: string, etablissementId?: string): Promise<ExportVue> {
+    return this.post(cheminExports(etablissementId), { motDePasse });
+  }
+
+  lienExport(exportId: string, etablissementId?: string): Promise<LienExport> {
+    return this.post(`${cheminExports(etablissementId)}/${exportId}/lien`);
   }
 
   administrateursEtablissement(etablissementId: string): Promise<CompteVue[]> {
@@ -339,4 +356,8 @@ export class AdminApi {
   classeurStatistiques(anneeId: string): Promise<Blob> {
     return firstValueFrom(this.http.get(`${API}/annees/${anneeId}/statistiques/excel`, { responseType: 'blob' }));
   }
+}
+
+function cheminExports(etablissementId?: string): string {
+  return etablissementId ? `/plateforme/etablissements/${etablissementId}/exports` : '/exports';
 }
