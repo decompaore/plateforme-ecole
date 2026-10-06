@@ -2,7 +2,7 @@ import { HttpClient, HttpParams, HttpResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
-import { Role } from '../core/modeles';
+import { Module, Role } from '../core/modeles';
 import { API } from '../core/session.service';
 import {
   AnneeVue,
@@ -20,6 +20,7 @@ import {
   LienParente,
   MatiereDeClasseVue,
   MatiereVue,
+  ModuleEtablissementVue,
   MembreVue,
   Page,
   PeriodeVue,
@@ -129,6 +130,14 @@ export class AdminApi {
 
   deverrouillerCompte(utilisateurId: string): Promise<CompteVue> {
     return this.post(`/comptes/${utilisateurId}/deverrouillage`);
+  }
+
+  modulesEtablissement(etablissementId: string): Promise<ModuleEtablissementVue[]> {
+    return this.get(`/plateforme/etablissements/${etablissementId}/modules`);
+  }
+
+  definirModules(etablissementId: string, actifs: Module[]): Promise<ModuleEtablissementVue[]> {
+    return firstValueFrom(this.http.put<ModuleEtablissementVue[]>(`${API}/plateforme/etablissements/${etablissementId}/modules`, { actifs }));
   }
 
   administrateursEtablissement(etablissementId: string): Promise<CompteVue[]> {

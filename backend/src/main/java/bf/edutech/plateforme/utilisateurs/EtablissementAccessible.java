@@ -4,5 +4,10 @@ import java.util.List;
 import java.util.UUID;
 
 /** Établissement auquel un compte a accès, avec ses rôles dans cet établissement. */
-public record EtablissementAccessible(UUID id, String code, String nom, List<String> roles) {
+public record EtablissementAccessible(UUID id, String code, String nom, List<String> roles,
+        List<String> modulesDesactives) {
+
+    public EtablissementAccessible(UUID id, String code, String nom, List<String> roles) {
+        this(id, code, nom, roles, List.of());
+    }
 }

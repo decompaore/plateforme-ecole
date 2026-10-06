@@ -91,3 +91,36 @@ POST /auth/etablissement    (Bearer jetonAcces, {"etablissementId": B}) → jeto
 | `roles` | `["ENSEIGNANT"]` | Autorisations (`ROLE_ENSEIGNANT`) |
 | `typ_jeton` | `ACCES` ou `SELECTION` | Type de jeton |
 | `mdp_a_changer` | `true` | Présent tant que le mot de passe est temporaire |
+
+## Modules activables (v0.31)
+
+Migration `V22__modules_etablissement.sql`. Le **socle** (classes, élèves, enseignants, appel, notes, bulletins,
+comptes) est toujours actif. Les autres modules sont actifs par défaut ; le super administrateur peut en désactiver
+pour un établissement. Aucune donnée n'est effacée : un module réactivé retrouve tout.
+
+| Code | Module | Dépend de |
+|---|---|---|
+| `ATELIERS` | Ateliers et matière d'œuvre (catalogue, équipements, stocks, inventaires, besoins, commandes) | |
+| `EMPLOIS_DU_TEMPS` | Grille horaire, emplois du temps, génération, publication | |
+| `PROGRESSION` | Fiches de progression et cahier de textes | |
+| `VIE_SCOLAIRE` | Incidents, convocations | |
+| `SCOLARITE` | Frais, bourses, guichet, reçus, relances | |
+| `MOBILE_MONEY` | Paiement des parents par Mobile Money, rapprochement | `SCOLARITE` |
+| `ESPACE_PARENT` | Comptes et espace des parents | |
+
+- **Fermeture côté serveur** : chaque module déclare ses chemins d'API (`socle/modules/Module.java`). Pour une
+  requête d'un établissement dont le module est désactivé : `403` `{"code":"MODULE_DESACTIVE","module":"ATELIERS"}`.
+  Les appels sans établissement (connexion, super administrateur, notifications des opérateurs, vérification des
+  reçus) ne sont pas concernés. Le filtre garde la liste 30 secondes en mémoire ; elle est relue après chaque
+  modification.
+- **Désactiver un module désactive ceux qui en dépendent** (scolarité → Mobile Money).
+- **Tâches automatiques** : les relances de scolarité et le rapprochement Mobile Money sautent les établissements
+  où le module est désactivé.
+- **Application** : `etablissementActif.modulesDesactives` (connexion, choix d'établissement, renouvellement du
+  jeton) masque les tuiles, les onglets et les écrans. Un changement est vu par les utilisateurs au prochain
+  renouvellement du jeton (15 minutes au plus) ; le serveur l'applique tout de suite.
+
+| Appel | Rôles |
+|---|---|
+| `GET /api/v1/plateforme/etablissements/{id}/modules` | super administrateur : code, libellé, description, module requis, actif |
+| `PUT /api/v1/plateforme/etablissements/{id}/modules` `{"actifs":["EMPLOIS_DU_TEMPS","PROGRESSION","SCOLARITE"]}` | super administrateur ; les modules absents sont désactivés. Journal d'audit `MODULES_ETABLISSEMENT` |

@@ -711,6 +711,12 @@ async function creerEtablissement(e, sa) {
     prenomsAdministrateur: e.admin.prenoms,
   }, sa);
   e.id = creation.etablissement.id;
+  // Lycée sans ateliers : le super administrateur désactive le module (v0.31)
+  if (!e.definition.ateliers?.length) {
+    await tenter('Modules', () => api('PUT', `/plateforme/etablissements/${e.id}/modules`, {
+      actifs: ['EMPLOIS_DU_TEMPS', 'PROGRESSION', 'VIE_SCOLAIRE', 'SCOLARITE', 'MOBILE_MONEY', 'ESPACE_PARENT'],
+    }, sa));
+  }
   e.sAdmin = await compte(e.admin.telephone, creation.motDePasseTemporaire, e.id);
   noterCompte(e, 'Administrateur', e.admin, e.admin.telephone, 'paramétrage, élèves, scolarité, statistiques');
   ok(`administrateur ${e.admin.prenoms} ${e.admin.nom}`);

@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 
-import { Role } from './modeles';
+import { Module, Role } from './modeles';
 import { SessionService } from './session.service';
 
 /** Page réservée aux utilisateurs connectés (ou reconnus hors connexion). */
@@ -31,3 +31,11 @@ export const anonyme: CanActivateFn = () => {
   const session = inject(SessionService);
   return !session.profil() || session.sessionExpiree() || inject(Router).parseUrl('/');
 };
+
+/** Écrans d'un module : fermés si l'établissement ne l'utilise pas (v0.31). */
+export function module(m: Module): CanActivateFn {
+  return () => {
+    const session = inject(SessionService);
+    return session.moduleActif(m) || inject(Router).parseUrl('/');
+  };
+}

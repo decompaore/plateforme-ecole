@@ -54,11 +54,12 @@ export class EnfantPage implements OnInit {
   protected readonly libelleDistinction = LIBELLE_DISTINCTION;
   protected readonly libelleMoyen = LIBELLE_MOYEN;
 
+  /** Rubriques ; vie scolaire et scolarité seulement si l'établissement utilise ces modules (v0.31). */
   protected readonly onglets: { id: Onglet; titre: string }[] = [
-    { id: 'absences', titre: 'Absences' },
-    { id: 'bulletins', titre: 'Bulletins' },
-    { id: 'vie', titre: 'Vie scolaire' },
-    { id: 'scolarite', titre: 'Scolarité' },
+    { id: 'absences' as Onglet, titre: 'Absences' },
+    { id: 'bulletins' as Onglet, titre: 'Bulletins' },
+    ...(this.session.moduleActif('VIE_SCOLAIRE') ? [{ id: 'vie' as Onglet, titre: 'Vie scolaire' }] : []),
+    ...(this.session.moduleActif('SCOLARITE') ? [{ id: 'scolarite' as Onglet, titre: 'Scolarité' }] : []),
   ];
   protected readonly onglet = signal<Onglet>('absences');
 
@@ -146,8 +147,8 @@ export class EnfantPage implements OnInit {
       }),
       this.charger('absences', async () => this.absences.set(await this.api.absences(id))),
       this.charger('bulletins', async () => this.bulletins.set(await this.api.bulletins(id))),
-      this.charger('vie', async () => this.vie.set(await this.api.vieScolaire(id))),
-      this.charger('scolarite', async () => this.scolarite.set(await this.api.scolarite(id))),
+      ...(this.session.moduleActif('VIE_SCOLAIRE') ? [this.charger('vie', async () => this.vie.set(await this.api.vieScolaire(id)))] : []),
+      ...(this.session.moduleActif('SCOLARITE') ? [this.charger('scolarite', async () => this.scolarite.set(await this.api.scolarite(id)))] : []),
     ]);
   }
 
@@ -191,7 +192,7 @@ export class EnfantPage implements OnInit {
   }
 
   protected peutPayer(s: SituationVue | undefined): boolean {
-    return !!s && s.resteFamille > 0 && !this.session.horsConnexion() && !this.horsLigne();
+    return !!s && s.resteFamille > 0 && this.session.moduleActif('MOBILE_MONEY') && !this.session.horsConnexion() && !this.horsLigne();
   }
 }
 

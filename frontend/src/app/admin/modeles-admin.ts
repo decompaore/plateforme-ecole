@@ -1,6 +1,6 @@
 /** Objets de l'API utilisés par l'espace d'administration (mêmes noms que côté serveur). */
 
-import { Role } from '../core/modeles';
+import { Module, Role } from '../core/modeles';
 
 export type EtatAnnee = 'PREPARATION' | 'ACTIVE' | 'CLOTUREE' | 'ARCHIVEE';
 export type TypeMatiere = 'GENERALE' | 'TECHNIQUE' | 'PRATIQUE' | 'MODULE_COMPETENCES';
@@ -403,4 +403,13 @@ export interface RapportStatistiques {
   recouvrement: RecouvrementClasseVue[];
   recouvrementTotal: RecouvrementClasseVue;
   resultats: ResultatNiveauVue[];
+}
+
+/** Module activable d'un établissement (page du super administrateur, v0.31). */
+export interface ModuleEtablissementVue {
+  code: Module;
+  libelle: string;
+  description: string;
+  requis: Module | null;
+  actif: boolean;
 }

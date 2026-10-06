@@ -2,11 +2,12 @@ import { DatePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
+import { Module } from '../../core/modeles';
 import { filtrer } from '../../core/recherche';
 import { RechercheComponent } from '../../partage/recherche.component';
 import { Action } from '../action';
 import { AdminApi } from '../admin-api.service';
-import { CompteVue, EtablissementVue, ResultatReinitialisation, StatutTenant } from '../modeles-admin';
+import { CompteVue, EtablissementVue, ModuleEtablissementVue, ResultatReinitialisation, StatutTenant } from '../modeles-admin';
 import { MotDePasseTemporaireComponent } from '../mot-de-passe-temporaire.component';
 
 const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU: 'Suspendu', RESILIE: 'Résilié' };
@@ -117,6 +118,7 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
                   </td>
                   <td class="nombre actions-etab">
                     <button type="button" class="bouton secondaire petit" [attr.aria-expanded]="ouvert() === e.id" (click)="basculerAdmins(e)">Administrateurs</button>
+                    <button type="button" class="bouton secondaire petit" [attr.aria-expanded]="ouvertModules() === e.id" (click)="basculerModules(e)">Modules</button>
                     @if (e.statut === 'ACTIF') {
                       <button type="button" class="bouton danger petit" (click)="statut(e, 'SUSPENDU')">Suspendre</button>
                     } @else if (e.statut === 'SUSPENDU') {
@@ -124,6 +126,43 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
                     }
                   </td>
                 </tr>
+                @if (ouvertModules() === e.id) {
+                  <tr class="admins modules">
+                    <td colspan="5">
+                      @if (actionModules.erreur()) { <div class="alerte erreur" role="alert">{{ actionModules.erreur() }}</div> }
+                      @if (messageModules()) { <div class="alerte succes" role="status">{{ messageModules() }}</div> }
+                      @if (modules() === null) {
+                        <span class="doux">Chargement…</span>
+                      } @else {
+                        <p class="doux">
+                          Le socle (classes, élèves, enseignants, appel, notes, bulletins, comptes) est toujours actif. Un
+                          module désactivé disparaît de l'application de l'établissement ; ses données sont gardées et
+                          reviennent si on le réactive.
+                        </p>
+                        <ul class="liste">
+                          @for (m of modules(); track m.code) {
+                            <li class="module">
+                              <label>
+                                <input type="checkbox" [checked]="actifs().includes(m.code)" (change)="basculerModule(m.code)" />
+                                <span>
+                                  <strong>{{ m.libelle }}</strong>
+                                  @if (m.requis) { <span class="doux"> · nécessite « {{ libelleModule(m.requis) }} »</span> }
+                                  <br /><span class="doux">{{ m.description }}</span>
+                                </span>
+                              </label>
+                            </li>
+                          }
+                        </ul>
+                        <div class="actions-ligne">
+                          <button type="button" class="bouton petit" [disabled]="actionModules.enCours() || !modulesModifies()" (click)="enregistrerModules(e)">Enregistrer les modules</button>
+                          @if (modulesModifies()) {
+                            <button type="button" class="bouton discret petit" (click)="annulerModules()">Annuler</button>
+                          }
+                        </div>
+                      }
+                    </td>
+                  </tr>
+                }
                 @if (ouvert() === e.id) {
                   <tr class="admins">
                     <td colspan="5">
@@ -208,6 +247,21 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
       font-size: 1rem;
       margin: 0.5rem 0 0.75rem;
     }
+    .modules li.module {
+      justify-content: flex-start;
+      label {
+        display: flex;
+        gap: 0.6rem;
+        align-items: flex-start;
+        cursor: pointer;
+      }
+      input {
+        width: 1.2rem;
+        min-height: 1.2rem;
+        height: 1.2rem;
+        margin-top: 0.15rem;
+      }
+    }
   `,
 })
 export class PlateformePage implements OnInit {
@@ -231,6 +285,16 @@ export class PlateformePage implements OnInit {
   protected readonly ouvert = signal<string | null>(null);
   protected readonly administrateurs = signal<CompteVue[] | null>(null);
   protected readonly confirmation = signal<string | null>(null);
+  // Modules de l'établissement ouvert (v0.31)
+  protected readonly actionModules = new Action();
+  protected readonly ouvertModules = signal<string | null>(null);
+  protected readonly modules = signal<ModuleEtablissementVue[] | null>(null);
+  protected readonly actifs = signal<Module[]>([]);
+  protected readonly messageModules = signal<string | null>(null);
+  protected readonly modulesModifies = computed(() => {
+    const avant = (this.modules() ?? []).filter((m) => m.actif).map((m) => m.code).sort();
+    return JSON.stringify(avant) !== JSON.stringify([...this.actifs()].sort());
+  });
   protected readonly reinitialise = signal<ResultatReinitialisation | null>(null);
   protected readonly creation = new Action();
 
@@ -256,6 +320,60 @@ export class PlateformePage implements OnInit {
     if (this.ouvert() === e.id) {
       this.administrateurs.set(l ?? []);
     }
+  }
+
+  protected async basculerModules(e: EtablissementVue): Promise<void> {
+    this.messageModules.set(null);
+    if (this.ouvertModules() === e.id) {
+      this.ouvertModules.set(null);
+      return;
+    }
+    this.ouvertModules.set(e.id);
+    this.modules.set(null);
+    const l = await this.actionModules.executer(() => this.api.modulesEtablissement(e.id));
+    if (l && this.ouvertModules() === e.id) {
+      this.afficherModules(l);
+    }
+  }
+
+  protected libelleModule(code: Module): string {
+    return this.modules()?.find((m) => m.code === code)?.libelle ?? code;
+  }
+
+  /** Cocher un module coche celui dont il dépend ; décocher un module décoche ceux qui en dépendent. */
+  protected basculerModule(code: Module): void {
+    this.messageModules.set(null);
+    const tous = this.modules() ?? [];
+    const actifs = new Set(this.actifs());
+    if (actifs.has(code)) {
+      actifs.delete(code);
+      tous.filter((m) => m.requis === code).forEach((m) => actifs.delete(m.code));
+    } else {
+      actifs.add(code);
+      const requis = tous.find((m) => m.code === code)?.requis;
+      if (requis) {
+        actifs.add(requis);
+      }
+    }
+    this.actifs.set(tous.map((m) => m.code).filter((c) => actifs.has(c)));
+  }
+
+  protected annulerModules(): void {
+    this.afficherModules(this.modules() ?? []);
+  }
+
+  protected async enregistrerModules(e: EtablissementVue): Promise<void> {
+    const l = await this.actionModules.executer(() => this.api.definirModules(e.id, this.actifs()));
+    if (l) {
+      this.afficherModules(l);
+      const fermes = l.filter((m) => !m.actif).map((m) => m.libelle);
+      this.messageModules.set(fermes.length ? `Modules enregistrés. Désactivés : ${fermes.join(', ')}.` : 'Modules enregistrés : tous sont actifs.');
+    }
+  }
+
+  private afficherModules(l: ModuleEtablissementVue[]): void {
+    this.modules.set(l);
+    this.actifs.set(l.filter((m) => m.actif).map((m) => m.code));
   }
 
   protected async reinitialiser(e: EtablissementVue, a: CompteVue): Promise<void> {

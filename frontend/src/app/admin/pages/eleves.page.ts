@@ -99,6 +99,7 @@ export class ElevesPage {
   protected readonly actionImport = new Action();
   protected readonly annee = this.anneeCourante.annee;
   protected readonly peutModifier = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'SECRETARIAT'));
+  protected readonly espaceParent = this.session.moduleActif('ESPACE_PARENT');
   protected readonly classes = signal<ClasseVue[]>([]);
 
   // Recherche
@@ -315,7 +316,7 @@ export class ElevesPage {
     this.formResponsable.set(false);
     this.message.set(`${this.rPrenoms().trim()} ${this.rNom().trim().toUpperCase()} ajouté(e) au dossier.`);
     const nouveau = apres.responsables.find((r) => r.telephone.replace(/\D/g, '').endsWith(telephone.replace(/\D/g, '').slice(-8)));
-    if (this.rCompte() && nouveau && !nouveau.espaceParentOuvert) {
+    if (this.rCompte() && this.espaceParent && nouveau && !nouveau.espaceParentOuvert) {
       await this.ouvrirEspaceParent(nouveau);
     }
   }

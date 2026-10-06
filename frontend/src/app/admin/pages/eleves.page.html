@@ -188,7 +188,7 @@
               </span>
               @if (peutModifier()) {
                 <span class="actions-ligne">
-                  @if (!r.espaceParentOuvert) {
+                  @if (!r.espaceParentOuvert && espaceParent) {
                     <button type="button" class="bouton petit" [disabled]="action.enCours()" (click)="ouvrirEspaceParent(r)">Créer le compte parent</button>
                   }
                   @if (d.responsables.length > 1) {
@@ -217,7 +217,9 @@
             </div>
             <label class="case"><input type="checkbox" name="rLegal" [ngModel]="rLegal()" (ngModelChange)="rLegal.set($event)" /> Responsable légal</label>
             <label class="case"><input type="checkbox" name="rPrio" [ngModel]="rPrioritaire()" (ngModelChange)="rPrioritaire.set($event)" /> Reçoit les SMS de l'établissement (contact prioritaire)</label>
-            <label class="case"><input type="checkbox" name="rCompte" [ngModel]="rCompte()" (ngModelChange)="rCompte.set($event)" /> Créer aussi son compte parent</label>
+            @if (espaceParent) {
+              <label class="case"><input type="checkbox" name="rCompte" [ngModel]="rCompte()" (ngModelChange)="rCompte.set($event)" /> Créer aussi son compte parent</label>
+            }
             @if (erreurResponsable(); as e) { <p class="rouge" role="alert">{{ e }}</p> }
             <div class="actions-ligne">
               <button type="submit" class="bouton petit" [disabled]="!!erreurResponsable() || action.enCours()">Enregistrer</button>
