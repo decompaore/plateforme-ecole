@@ -20,7 +20,7 @@ import bf.edutech.plateforme.emploidutemps.Vues.MonEmploiVue;
 import bf.edutech.plateforme.emploidutemps.Vues.OccupationVue;
 import bf.edutech.plateforme.etablissement.Vues.ClasseVue;
 import bf.edutech.plateforme.etablissement.Vues.MatiereDeClasseVue;
-import bf.edutech.plateforme.notifications.NotificationsService;
+import bf.edutech.plateforme.socle.documents.EntetesOfficiels;
 import bf.edutech.plateforme.socle.erreurs.RegleMetierException;
 import bf.edutech.plateforme.socle.erreurs.RessourceIntrouvableException;
 import bf.edutech.plateforme.socle.export.ExportTableaux;
@@ -40,11 +40,11 @@ public class ExportsEmploi {
     private static final String[] JOURS = { "", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche" };
 
     private final EmploiDuTempsService service;
-    private final NotificationsService notifications;
+    private final EntetesOfficiels entetes;
 
-    ExportsEmploi(EmploiDuTempsService service, NotificationsService notifications) {
+    ExportsEmploi(EmploiDuTempsService service, EntetesOfficiels entetes) {
         this.service = service;
-        this.notifications = notifications;
+        this.entetes = entetes;
     }
 
     @Transactional(readOnly = true)
@@ -91,7 +91,7 @@ public class ExportsEmploi {
             etat.classes.forEach(c -> tableaux.add(classe(etat, c, publie)));
             nom = "emplois-du-temps-" + etat.annee.libelle();
         }
-        return ExportTableaux.reponse(notifications.nomEtablissement(), propre(nom), format,
+        return ExportTableaux.reponse(entetes.courant(), propre(nom), format,
                 tableaux.toArray(Tableau[]::new));
     }
 
@@ -131,7 +131,7 @@ public class ExportsEmploi {
         int minutes = moi.seances().stream()
                 .mapToInt(s -> (int) java.time.Duration.between(s.heureDebut(), s.heureFin()).toMinutes()).sum();
         t.note(heures(minutes) + " de cours par semaine dans l'établissement.");
-        return ExportTableaux.reponse(notifications.nomEtablissement(), "mon-emploi-du-temps", format, t);
+        return ExportTableaux.reponse(entetes.courant(), "mon-emploi-du-temps", format, t);
     }
 
     // ------------------------------------------------------------------

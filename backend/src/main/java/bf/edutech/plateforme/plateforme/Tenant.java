@@ -29,6 +29,10 @@ public class Tenant extends EntiteUuid {
     @Column(name = "cree_le", nullable = false, updatable = false)
     private Instant creeLe = Instant.now();
 
+    /** Direction du dernier niveau à laquelle l'établissement est rattaché (v0.35). */
+    @Column(name = "direction_id")
+    private UUID directionId;
+
     protected Tenant() {
     }
 
@@ -36,6 +40,14 @@ public class Tenant extends EntiteUuid {
         imposerId(id);
         this.code = code;
         this.nom = nom;
+    }
+
+    void rattacher(UUID direction) {
+        this.directionId = direction;
+    }
+
+    public UUID getDirectionId() {
+        return directionId;
     }
 
     void changerStatut(StatutTenant nouveau) {

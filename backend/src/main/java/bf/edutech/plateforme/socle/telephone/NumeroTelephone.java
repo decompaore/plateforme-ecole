@@ -10,13 +10,22 @@ import java.util.regex.Pattern;
  */
 public final class NumeroTelephone {
 
-    private static final Pattern FORMAT = Pattern.compile("^\\+?[0-9]{8,15}$");
-    private static final int LONGUEUR_NATIONALE = 8;
+    private static final Pattern FORMAT = Pattern.compile("^\\+?[0-9]{6,15}$");
+    /** Longueur d'un numéro national par défaut (Burkina Faso : 8 chiffres). */
+    public static final int LONGUEUR_NATIONALE = 8;
 
     private NumeroTelephone() {
     }
 
     public static String normaliser(String saisie, String indicatifParDefaut) {
+        return normaliser(saisie, indicatifParDefaut, LONGUEUR_NATIONALE);
+    }
+
+    /**
+     * Normalise un numéro ; un numéro de {@code longueurNationale} chiffres reçoit l'indicatif
+     * du pays (ex. 10 chiffres en Côte d'Ivoire, 8 au Burkina Faso).
+     */
+    public static String normaliser(String saisie, String indicatifParDefaut, int longueurNationale) {
         if (saisie == null || saisie.isBlank()) {
             throw new IllegalArgumentException("Le numéro de téléphone est obligatoire");
         }
@@ -30,7 +39,7 @@ public final class NumeroTelephone {
         if (numero.startsWith("+")) {
             return numero;
         }
-        return numero.length() == LONGUEUR_NATIONALE ? indicatifParDefaut + numero : "+" + numero;
+        return numero.length() == longueurNationale ? indicatifParDefaut + numero : "+" + numero;
     }
 
     /** Version masquée pour les journaux : +226****3456. */

@@ -72,7 +72,21 @@ describe('Espace d’administration', () => {
 
     cliquer(f, 'Nouvel établissement');
     f.detectChanges();
+    await attendre();
+    // Rattachement (v0.35) : seules les directions actives du dernier niveau sont proposées
+    http.expectOne('/api/v1/plateforme/territoire/directions').flush([
+      { id: 'dr', paysId: 'bf', ministereId: 'm', rang: 1, terminale: false, chemin: 'Burkina Faso · MESFPT · DR du Centre-Ouest', actif: true },
+      { id: 'dp', paysId: 'bf', ministereId: 'm', rang: 2, terminale: true, chemin: 'Burkina Faso · MESFPT · DR du Centre-Ouest · DP du Boulkiemdé', actif: true },
+      { id: 'dp2', paysId: 'bf', ministereId: 'm', rang: 2, terminale: true, chemin: 'Burkina Faso · MESFPT · DR du Centre-Ouest · DP fermée', actif: false },
+    ]);
+    await attendre();
+    f.detectChanges();
     await f.whenStable();
+    const options = [...(f.nativeElement as HTMLElement).querySelectorAll<HTMLOptionElement>('#rattachement option')].map((o) => o.textContent?.trim());
+    expect(options).toEqual(['Sans rattachement pour l\'instant', 'Burkina Faso · MESFPT · DR du Centre-Ouest · DP du Boulkiemdé']);
+    const select = (f.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('#rattachement')!;
+    select.selectedIndex = 1;
+    select.dispatchEvent(new Event('change'));
     saisir(f, '#code', 'ltk');
     saisir(f, '#nom', 'Lycée technique de Koudougou');
     saisir(f, '#tel', '70 11 22 33');
@@ -89,6 +103,7 @@ describe('Espace d’administration', () => {
       telephoneAdministrateur: '70 11 22 33',
       nomAdministrateur: 'KABORE',
       prenomsAdministrateur: 'Mathieu',
+      directionId: 'dp',
     });
     creation.flush({
       etablissement: { id: 'e1', code: 'ltk', nom: 'Lycée technique de Koudougou', statut: 'ACTIF', creeLe: '2026-10-01T08:00:00Z' },

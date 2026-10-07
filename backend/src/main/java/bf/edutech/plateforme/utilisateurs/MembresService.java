@@ -10,11 +10,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import bf.edutech.plateforme.socle.audit.AuditService;
-import bf.edutech.plateforme.socle.config.ParametresPlateforme;
+import bf.edutech.plateforme.socle.telephone.Indicatifs;
 import bf.edutech.plateforme.socle.erreurs.RegleMetierException;
 import bf.edutech.plateforme.socle.erreurs.RessourceIntrouvableException;
 import bf.edutech.plateforme.socle.securite.UtilisateurConnecte;
-import bf.edutech.plateforme.socle.telephone.NumeroTelephone;
 
 /**
  * Gestion des membres de l'établissement actif.
@@ -36,15 +35,15 @@ public class MembresService {
     private final UtilisateurRepository utilisateurs;
     private final PasswordEncoder encodeur;
     private final AuditService audit;
-    private final ParametresPlateforme parametres;
+    private final Indicatifs indicatifs;
 
     MembresService(MembreEtablissementRepository membres, UtilisateurRepository utilisateurs,
-            PasswordEncoder encodeur, AuditService audit, ParametresPlateforme parametres) {
+            PasswordEncoder encodeur, AuditService audit, Indicatifs indicatifs) {
         this.membres = membres;
         this.utilisateurs = utilisateurs;
         this.encodeur = encodeur;
         this.audit = audit;
-        this.parametres = parametres;
+        this.indicatifs = indicatifs;
     }
 
     @Transactional(readOnly = true)
@@ -71,7 +70,7 @@ public class MembresService {
     private ResultatAjout ajouter(String telephoneSaisi, String nom, String prenoms, Role role,
             boolean refuserSiDejaMembre) {
         UUID etablissement = UtilisateurConnecte.etablissementActif();
-        String telephone = NumeroTelephone.normaliser(telephoneSaisi, parametres.indicatifTelephone());
+        String telephone = indicatifs.normaliser(telephoneSaisi);
 
         String motDePasseTemporaire = null;
         Utilisateur utilisateur = utilisateurs.findByTelephone(telephone).orElse(null);

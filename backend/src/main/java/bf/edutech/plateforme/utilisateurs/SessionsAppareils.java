@@ -2,6 +2,8 @@ package bf.edutech.plateforme.utilisateurs;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -9,6 +11,7 @@ import java.util.UUID;
 
 import jakarta.servlet.http.HttpServletRequest;
 
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -27,14 +30,30 @@ class SessionsAppareils {
     static final String REINITIALISATION = "REINITIALISATION";
     static final String VOL = "VOL";
 
+    private static final ZoneId FUSEAU = ZoneId.of("Africa/Ouagadougou");
+
     private final SessionAppareilRepository sessions;
     private final JetonRafraichissementRepository jetons;
+    private final JdbcTemplate jdbc;
     private final Clock horloge;
 
-    SessionsAppareils(SessionAppareilRepository sessions, JetonRafraichissementRepository jetons, Clock horloge) {
+    SessionsAppareils(SessionAppareilRepository sessions, JetonRafraichissementRepository jetons, JdbcTemplate jdbc,
+            Clock horloge) {
         this.sessions = sessions;
         this.jetons = jetons;
+        this.jdbc = jdbc;
         this.horloge = horloge;
+    }
+
+    /**
+     * Mesure de l'adoption (v0.34) : la personne a utilisé l'application ce jour-là dans cet
+     * établissement. Une ligne par personne, établissement et jour.
+     */
+    private void noterActivite(UUID utilisateurId, UUID tenantId, Instant maintenant) {
+        if (tenantId != null) {
+            jdbc.queryForObject("select noter_activite(?, ?, ?)::text", String.class, tenantId, utilisateurId,
+                    LocalDate.ofInstant(maintenant, FUSEAU));
+        }
     }
 
     /** Nouvelle connexion ; si une famille précédente est donnée (changement d'établissement), même appareil. */
@@ -43,6 +62,7 @@ class SessionsAppareils {
         Optional<SessionAppareil> precedente = famillePrecedente == null ? Optional.empty()
                 : sessions.findByFamille(famillePrecedente).filter(s -> !s.estFermee()
                         && s.getUtilisateurId().equals(utilisateurId));
+        noterActivite(utilisateurId, tenantId, maintenant);
         if (precedente.isPresent()) {
             precedente.get().changerFamille(famille, tenantId, maintenant);
             sessions.save(precedente.get());
@@ -56,7 +76,11 @@ class SessionsAppareils {
     }
 
     void utiliser(UUID famille) {
-        sessions.findByFamille(famille).ifPresent(s -> s.utiliser(horloge.instant()));
+        Instant maintenant = horloge.instant();
+        sessions.findByFamille(famille).ifPresent(s -> {
+            s.utiliser(maintenant);
+            noterActivite(s.getUtilisateurId(), s.getTenantId(), maintenant);
+        });
     }
 
     void fermer(UUID famille, String motif) {
