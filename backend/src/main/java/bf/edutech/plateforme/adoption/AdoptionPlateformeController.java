@@ -28,6 +28,7 @@ public class AdoptionPlateformeController {
 
     /** Recalcule les mesures des derniers jours (après une correction de données, par exemple). */
     @PostMapping("/calcul")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN')")
     public VuePlateforme recalculer(@RequestParam(defaultValue = "30") int jours,
             @RequestParam(required = false) java.util.UUID direction) {
         service.recalculer(jours);

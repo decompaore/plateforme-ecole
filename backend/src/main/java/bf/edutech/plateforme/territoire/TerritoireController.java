@@ -43,11 +43,13 @@ public class TerritoireController {
 
     @PostMapping("/pays")
     @ResponseStatus(HttpStatus.CREATED)
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN')")
     public PaysVue creerPays(@Valid @RequestBody DonneesPays d) {
         return service.creerPays(d);
     }
 
     @PutMapping("/pays/{id}")
+    @org.springframework.security.access.prepost.PreAuthorize("hasRole('SUPER_ADMIN')")
     public PaysVue modifierPays(@PathVariable UUID id, @Valid @RequestBody DonneesPays d) {
         return service.modifierPays(id, d);
     }

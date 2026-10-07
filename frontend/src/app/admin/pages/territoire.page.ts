@@ -3,7 +3,9 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { Action } from '../action';
-import { DirectionVue, DonneesPays, MinistereVue, PaysVue, RapportImportDirections } from '../modeles-territoire';
+import { AdministrateurPaysVue, DirectionVue, DonneesPays, MinistereVue, PaysVue, RapportImportDirections } from '../modeles-territoire';
+import { SessionService } from '../../core/session.service';
+import { MotDePasseTemporaireComponent } from '../mot-de-passe-temporaire.component';
 import { PlateformeNavComponent } from '../plateforme-nav.component';
 import { TerritoireApi } from '../territoire-api.service';
 
@@ -47,7 +49,7 @@ const PAYS_VIDE: DonneesPays = {
  */
 @Component({
   selector: 'app-territoire',
-  imports: [FormsModule, LowerCasePipe, PlateformeNavComponent],
+  imports: [FormsModule, LowerCasePipe, PlateformeNavComponent, MotDePasseTemporaireComponent],
   template: `
     <div class="page large">
       <h1>Territoire</h1>
@@ -64,7 +66,9 @@ const PAYS_VIDE: DonneesPays = {
       <section class="carte">
         <div class="entete-section">
           <h2>Pays</h2>
-          <button type="button" class="bouton secondaire petit" (click)="nouveauPays()">Nouveau pays</button>
+          @if (superAdmin()) {
+            <button type="button" class="bouton secondaire petit" (click)="nouveauPays()">Nouveau pays</button>
+          }
         </div>
         @if (pays().length) {
           <div class="choix" role="group" aria-label="Pays">
@@ -79,8 +83,55 @@ const PAYS_VIDE: DonneesPays = {
             Indicatif {{ p.indicatifTelephone }} ({{ p.longueurNumero }} chiffres) · {{ p.fuseauHoraire }} · {{ p.monnaie }} ·
             {{ p.ministeres }} ministère(s) · {{ p.etablissements }} établissement(s) rattaché(s)
             @if (p.deviseNationale) { · devise : « {{ p.deviseNationale }} » }
-            <button type="button" class="bouton discret petit" (click)="modifierPays(p)">Modifier</button>
+            @if (superAdmin()) {
+              <button type="button" class="bouton discret petit" (click)="modifierPays(p)">Modifier</button>
+            }
           </p>
+          @if (superAdmin()) {
+            <h3>Administrateurs du pays</h3>
+            <p class="doux">
+              Ils gèrent les ministères, les directions et les établissements de {{ p.nom }} (création, rattachement,
+              suspension, modules, dépannage, exports, adoption). La résiliation reste réservée au super administrateur.
+            </p>
+            @if (nomme(); as n) {
+              <app-mot-de-passe-temporaire [titre]="n.titre" [telephone]="n.telephone" [motDePasse]="n.motDePasse" (fermer)="nomme.set(null)" />
+            }
+            <ul class="liste">
+              @for (a of administrateurs(); track a.utilisateurId) {
+                <li>
+                  <span>
+                    <strong>{{ a.nom }} {{ a.prenoms }}</strong> · {{ a.telephone }}
+                    @if (!a.actif) { <span class="pastille">retiré</span> }
+                    @if (a.actif && a.motDePasseProvisoire) { <span class="pastille">mot de passe provisoire</span> }
+                    @if (a.verrouilleJusqua) { <span class="pastille absent">verrouillé</span> }
+                  </span>
+                  @if (a.actif) {
+                    <span class="actions-ligne">
+                      @if (confirmationAdmin()?.id === a.utilisateurId) {
+                        <button type="button" class="bouton danger petit" [disabled]="action.enCours()" (click)="confirmerAdmin(a.utilisateurId)">
+                          {{ confirmationAdmin()?.action === 'retirer' ? 'Confirmer le retrait' : 'Confirmer la réinitialisation' }}
+                        </button>
+                        <button type="button" class="bouton discret petit" (click)="confirmationAdmin.set(null)">Annuler</button>
+                      } @else {
+                        <button type="button" class="bouton discret petit" (click)="confirmationAdmin.set({ id: a.utilisateurId, action: 'reinitialiser' })">Réinitialiser le mot de passe</button>
+                        <button type="button" class="bouton discret petit" (click)="confirmationAdmin.set({ id: a.utilisateurId, action: 'retirer' })">Retirer</button>
+                      }
+                    </span>
+                  }
+                </li>
+              } @empty {
+                <li class="doux">Aucun administrateur pour ce pays.</li>
+              }
+            </ul>
+            <form class="nommer" (ngSubmit)="nommer()">
+              <div class="grille-champs">
+                <div class="champ"><label for="ap-tel">Téléphone</label><input id="ap-tel" name="tel" type="tel" inputmode="tel" required [(ngModel)]="adminTelephone" /></div>
+                <div class="champ"><label for="ap-nom">Nom</label><input id="ap-nom" name="nom" required maxlength="80" [(ngModel)]="adminNom" /></div>
+                <div class="champ"><label for="ap-prenoms">Prénoms</label><input id="ap-prenoms" name="prenoms" required maxlength="120" [(ngModel)]="adminPrenoms" /></div>
+              </div>
+              <button type="submit" class="bouton petit" [disabled]="action.enCours() || !adminTelephone().trim() || !adminNom().trim() || !adminPrenoms().trim()">Nommer un administrateur</button>
+            </form>
+          }
         }
         @if (formPays(); as f) {
           <form class="formulaire" (ngSubmit)="enregistrerPays()">
@@ -253,6 +304,9 @@ const PAYS_VIDE: DonneesPays = {
       gap: 0.4rem;
       margin: 0.75rem 0 0.5rem;
     }
+    .nommer {
+      margin-top: 0.5rem;
+    }
     .formulaire {
       border-top: 1px solid var(--bordure);
       margin-top: 0.75rem;
@@ -317,6 +371,16 @@ const PAYS_VIDE: DonneesPays = {
 })
 export class TerritoirePage implements OnInit {
   private readonly api = inject(TerritoireApi);
+  private readonly session = inject(SessionService);
+
+  /** Le super administrateur gère les pays et leurs administrateurs ; l'administrateur pays, son pays. */
+  protected readonly superAdmin = computed(() => this.session.profil()?.superAdmin === true);
+  protected readonly administrateurs = signal<AdministrateurPaysVue[]>([]);
+  protected readonly nomme = signal<{ titre: string; telephone: string; motDePasse: string } | null>(null);
+  protected readonly confirmationAdmin = signal<{ id: string; action: 'retirer' | 'reinitialiser' } | null>(null);
+  protected readonly adminTelephone = signal('');
+  protected readonly adminNom = signal('');
+  protected readonly adminPrenoms = signal('');
 
   protected readonly action = new Action();
   protected readonly message = signal<string | null>(null);
@@ -373,7 +437,65 @@ export class TerritoirePage implements OnInit {
     this.ministereId.set(null);
     this.directions.set([]);
     this.formMinistere.set(null);
+    this.nomme.set(null);
     await this.chargerMinisteres();
+    await this.chargerAdministrateurs();
+  }
+
+  // ---------- Administrateurs pays (super administrateur)
+
+  private async chargerAdministrateurs(): Promise<void> {
+    const paysId = this.paysId();
+    if (!paysId || !this.superAdmin()) {
+      return;
+    }
+    const l = await this.action.executer(() => this.api.administrateursPays(paysId));
+    if (l) {
+      this.administrateurs.set(l);
+    }
+  }
+
+  protected async nommer(): Promise<void> {
+    const paysId = this.paysId();
+    if (!paysId) {
+      return;
+    }
+    const telephone = this.adminTelephone().trim();
+    const r = await this.action.executer(() =>
+      this.api.nommerAdministrateurPays(paysId, { telephone, nom: this.adminNom().trim(), prenoms: this.adminPrenoms().trim() }),
+    );
+    if (r) {
+      this.nomme.set({
+        titre: `${r.administrateur.nom} ${r.administrateur.prenoms} est administrateur du pays.`,
+        telephone: r.administrateur.telephone,
+        motDePasse: r.motDePasseTemporaire ?? '(compte existant : son mot de passe actuel)',
+      });
+      for (const s of [this.adminTelephone, this.adminNom, this.adminPrenoms]) {
+        s.set('');
+      }
+      await this.chargerAdministrateurs();
+    }
+  }
+
+  protected async confirmerAdmin(utilisateurId: string): Promise<void> {
+    const paysId = this.paysId();
+    const c = this.confirmationAdmin();
+    this.confirmationAdmin.set(null);
+    if (!paysId || !c) {
+      return;
+    }
+    if (c.action === 'retirer') {
+      if (await this.action.reussit(() => this.api.retirerAdministrateurPays(paysId, utilisateurId))) {
+        this.message.set('Administrateur retiré : ses sessions sont fermées.');
+        await this.chargerAdministrateurs();
+      }
+      return;
+    }
+    const r = await this.action.executer(() => this.api.reinitialiserAdministrateurPays(paysId, utilisateurId));
+    if (r) {
+      this.nomme.set({ titre: `Mot de passe de ${r.nom} ${r.prenoms} réinitialisé.`, telephone: r.telephone, motDePasse: r.motDePasseTemporaire });
+      await this.chargerAdministrateurs();
+    }
   }
 
   protected nouveauPays(): void {

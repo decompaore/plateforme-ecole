@@ -8,6 +8,7 @@ import { AdminApi } from '../admin-api.service';
 import { AdoptionPlateforme, EtablissementAdoption, LIBELLE_ALERTE_ADOPTION } from '../modeles-admin';
 import { DirectionChemin } from '../modeles-territoire';
 import { PlateformeNavComponent } from '../plateforme-nav.component';
+import { SessionService } from '../../core/session.service';
 import { TerritoireApi } from '../territoire-api.service';
 
 /** Colonnes d'actions affichées dans le tableau (le détail montre toutes les autres). */
@@ -41,7 +42,9 @@ const COLONNES = ['APPELS', 'NOTES', 'CAHIER', 'PAIEMENTS', 'SMS'];
           <option value="">Toute la plateforme</option>
           @for (d of directions(); track d.id) { <option [value]="d.id" [selected]="d.id === direction()">{{ d.chemin }}</option> }
         </select>
-        <button type="button" class="bouton discret petit" [disabled]="action.enCours()" (click)="recalculer()">Recalculer la période</button>
+        @if (superAdmin) {
+          <button type="button" class="bouton discret petit" [disabled]="action.enCours()" (click)="recalculer()">Recalculer la période</button>
+        }
       </div>
 
       @if (vue(); as v) {
@@ -214,6 +217,7 @@ const COLONNES = ['APPELS', 'NOTES', 'CAHIER', 'PAIEMENTS', 'SMS'];
 export class AdoptionPlateformePage implements OnInit {
   private readonly api = inject(AdminApi);
   private readonly territoire = inject(TerritoireApi);
+  protected readonly superAdmin = inject(SessionService).profil()?.superAdmin === true;
 
   protected readonly periodes = [7, 30, 90];
   protected readonly colonnes = COLONNES;

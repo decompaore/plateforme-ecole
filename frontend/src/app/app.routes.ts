@@ -31,8 +31,9 @@ const selectionOuConnecte: CanActivateFn = () => {
   return (!session.horsConnexion() && session.plusieursEtablissements()) || inject(Router).parseUrl('/');
 };
 
+/** Super administrateur ou administrateur pays (v0.36) ; le serveur limite ce dernier à son pays. */
 const superAdmin: CanActivateFn = () =>
-  inject(SessionService).profil()?.superAdmin === true || inject(Router).parseUrl('/');
+  inject(SessionService).administrePlateforme() || inject(Router).parseUrl('/');
 
 const profilPresent: CanActivateFn = () =>
   inject(SessionService).profil() !== null || inject(Router).parseUrl('/connexion');

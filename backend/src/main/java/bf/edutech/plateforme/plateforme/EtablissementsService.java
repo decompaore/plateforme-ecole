@@ -20,6 +20,8 @@ import bf.edutech.plateforme.socle.securite.UtilisateurConnecte;
 import bf.edutech.plateforme.socle.erreurs.RegleMetierException;
 import bf.edutech.plateforme.socle.erreurs.RessourceIntrouvableException;
 import bf.edutech.plateforme.socle.tenant.TenantContext;
+import bf.edutech.plateforme.socle.securite.Portee;
+import bf.edutech.plateforme.territoire.PorteeTerritoire;
 import bf.edutech.plateforme.territoire.TerritoireService;
 import bf.edutech.plateforme.utilisateurs.ComptesService;
 import bf.edutech.plateforme.utilisateurs.ComptesService.CompteVue;
@@ -57,9 +59,11 @@ public class EtablissementsService {
     private final TransactionTemplate transaction;
     private final ModulesEtablissement modules;
     private final TerritoireService territoire;
+    private final PorteeTerritoire portee;
 
     EtablissementsService(TenantRepository tenants, MembresService membres, ComptesService comptes, AuditService audit,
-            PlatformTransactionManager gestionnaireTransactions, ModulesEtablissement modules, TerritoireService territoire) {
+            PlatformTransactionManager gestionnaireTransactions, ModulesEtablissement modules, TerritoireService territoire, PorteeTerritoire portee) {
+        this.portee = portee;
         this.modules = modules;
         this.territoire = territoire;
         this.tenants = tenants;
@@ -78,9 +82,12 @@ public class EtablissementsService {
     @Transactional(readOnly = true)
     public List<EtablissementVue> lister(UUID direction) {
         Set<UUID> sousDirection = direction == null ? null : Set.copyOf(territoire.descendantes(direction));
+        // Administrateur pays : seulement les établissements rattachés à son pays
+        java.util.Optional<UUID> pays = portee.pays();
         Map<UUID, String> chemins = new java.util.HashMap<>();
         return tenants.findAllByOrderByNomAsc().stream()
                 .filter(t -> sousDirection == null || (t.getDirectionId() != null && sousDirection.contains(t.getDirectionId())))
+                .filter(t -> pays.isEmpty() || pays.get().equals(portee.paysEtablissement(t.getId())))
                 .map(t -> vue(t, chemins)).toList();
     }
 
@@ -98,6 +105,8 @@ public class EtablissementsService {
     /** Rattache l'établissement à une direction du dernier niveau (ex. direction provinciale). */
     @Transactional
     public EtablissementVue rattacher(UUID id, UUID direction) {
+        portee.verifierEtablissement(id);
+        portee.verifierDirection(direction);
         Tenant tenant = tenants.findById(id)
                 .orElseThrow(() -> new RessourceIntrouvableException("Établissement introuvable"));
         territoire.verifierRattachement(direction);
@@ -133,7 +142,11 @@ public class EtablissementsService {
         if (tenants.existsByCode(code)) {
             throw new RegleMetierException("CODE_EXISTANT", "Ce code d'établissement est déjà utilisé");
         }
+        if (direction == null && portee.pays().isPresent()) {
+            throw new IllegalArgumentException("Choisissez la direction de rattachement de l'établissement");
+        }
         if (direction != null) {
+            portee.verifierDirection(direction);
             territoire.verifierRattachement(direction);
         }
         UUID id = UUID.randomUUID();
@@ -152,18 +165,21 @@ public class EtablissementsService {
     /** Administrateurs d'un établissement (pour les dépanner en cas d'oubli du mot de passe). */
     public List<CompteVue> administrateurs(UUID id) {
         exister(id);
+        portee.verifierEtablissement(id);
         return TenantContext.executerPour(id, comptes::administrateurs);
     }
 
     /** Réinitialise le mot de passe d'un administrateur d'établissement ; renvoie le mot de passe provisoire. */
     public ResultatReinitialisation reinitialiserAdministrateur(UUID id, UUID utilisateurId) {
         exister(id);
+        portee.verifierEtablissement(id);
         return TenantContext.executerPour(id, () -> comptes.reinitialiserAdministrateur(utilisateurId));
     }
 
     /** Modules de l'établissement : actifs ou désactivés par le super administrateur. */
     public List<ModuleVue> modules(UUID id) {
         exister(id);
+        portee.verifierEtablissement(id);
         Set<Module> fermes = modules.desactives(List.of(id)).getOrDefault(id, Set.of());
         return java.util.Arrays.stream(Module.values())
                 .map(m -> new ModuleVue(m, m.libelle(), m.description(), m.requis(), !fermes.contains(m))).toList();
@@ -171,6 +187,7 @@ public class EtablissementsService {
 
     /** Active ou désactive des modules ; désactiver un module désactive ceux qui en dépendent. */
     public List<ModuleVue> definirModules(UUID id, Set<Module> actifs) {
+        portee.verifierEtablissement(id);
         Tenant tenant = tenants.findById(id)
                 .orElseThrow(() -> new RessourceIntrouvableException("Établissement introuvable"));
         Set<Module> fermes = java.util.EnumSet.allOf(Module.class);
@@ -191,7 +208,13 @@ public class EtablissementsService {
     public EtablissementVue changerStatut(UUID id, StatutTenant statut) {
         Tenant tenant = tenants.findById(id)
                 .orElseThrow(() -> new RessourceIntrouvableException("Établissement introuvable"));
+        portee.verifierEtablissement(id);
         StatutTenant ancien = tenant.getStatut();
+        if ((statut == StatutTenant.RESILIE || ancien == StatutTenant.RESILIE) && !Portee.superAdmin()
+                && portee.pays().isPresent()) {
+            throw new bf.edutech.plateforme.socle.erreurs.AccesRefuseException(
+                    "La résiliation d'un établissement est réservée au super administrateur");
+        }
         tenant.changerStatut(statut);
         audit.enregistrer("ETABLISSEMENT_STATUT", tenant.getCode(), Map.of("ancien", ancien, "nouveau", statut));
         return vue(tenant);

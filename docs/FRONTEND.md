@@ -1,4 +1,4 @@
-# Application web (v0.35)
+# Application web (v0.36)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -254,6 +254,15 @@ Mise en place d'un établissement, dans l'ordre :
 Comptes créés (administrateur d'un établissement, enseignant, personnel) : le **mot de passe provisoire** s'affiche
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
+
+## Administrateurs pays (v0.36)
+
+- **Territoire** (super administrateur) : sous les informations du pays, « Administrateurs du pays » : nommer
+  (téléphone, nom, prénoms ; mot de passe provisoire affiché une fois), réinitialiser le mot de passe, retirer (avec
+  confirmation).
+- **Administrateur pays** : mêmes pages que le super administrateur (Établissements, Territoire, Adoption), avec la
+  mention « Administration du pays : … », limitées à son pays ; ni création de pays, ni administrateurs pays, ni
+  recalcul de l'adoption ; le rattachement est obligatoire à la création d'un établissement.
 
 ## Territoire et documents officiels (v0.35)
 

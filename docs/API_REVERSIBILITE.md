@@ -16,7 +16,7 @@ ouverts, pour la conserver ou la reprendre dans un autre logiciel. Migration `V2
 
 Le super administrateur fait de même depuis **Établissements → Données**, y compris pour un établissement
 **suspendu ou résilié** (un établissement qui quitte la plateforme récupère ainsi ses données). L'établissement voit
-ces exports dans sa propre liste, avec la mention « Plateforme (super administrateur) », et dans son journal d'audit.
+ces exports dans sa propre liste, avec la mention « Plateforme (nom de la personne) », et dans son journal d'audit.
 
 ## Points d'accès
 

@@ -67,11 +67,18 @@ const TUILES: Tuile[] = [
 
       <app-invitations />
 
-      @if (session.profil()?.superAdmin) {
+      @if (session.administrePlateforme()) {
+        @if (session.profil()?.adminPays; as p) {
+          <p class="doux">Administration du pays : <strong>{{ p.nom }}</strong></p>
+        }
         <div class="grille">
           <a class="tuile active" routerLink="/plateforme">
             <strong>Établissements</strong>
             <span>Créer, suivre, suspendre</span>
+          </a>
+          <a class="tuile active" routerLink="/plateforme/territoire">
+            <strong>Territoire</strong>
+            <span>{{ session.profil()?.superAdmin ? 'Pays, ministères, directions, administrateurs pays' : 'Ministères et directions' }}</span>
           </a>
           <a class="tuile active" routerLink="/plateforme/adoption">
             <strong>Adoption</strong>

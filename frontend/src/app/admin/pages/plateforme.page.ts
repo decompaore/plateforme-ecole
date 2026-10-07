@@ -12,6 +12,7 @@ import { ExportsDonneesComponent } from '../exports-donnees.component';
 import { MotDePasseTemporaireComponent } from '../mot-de-passe-temporaire.component';
 import { DirectionChemin } from '../modeles-territoire';
 import { PlateformeNavComponent } from '../plateforme-nav.component';
+import { SessionService } from '../../core/session.service';
 import { TerritoireApi } from '../territoire-api.service';
 
 
@@ -88,7 +89,7 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
             <div class="champ">
               <label for="rattachement">Rattachement (pays, ministère, directions)</label>
               <select id="rattachement" name="rattachement" [(ngModel)]="directionCreation">
-                <option [ngValue]="null">Sans rattachement pour l'instant</option>
+                @if (superAdmin()) { <option [ngValue]="null">Sans rattachement pour l'instant</option> }
                 @for (d of terminales(); track d.id) { <option [ngValue]="d.id">{{ d.chemin }}</option> }
               </select>
               <span class="doux">Il figure sur les documents officiels et donne l'indicatif téléphonique du pays.
@@ -341,6 +342,9 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
 export class PlateformePage implements OnInit {
   private readonly api = inject(AdminApi);
   private readonly territoire = inject(TerritoireApi);
+  /** L'administrateur pays rattache obligatoirement l'établissement (v0.36). */
+  private readonly session = inject(SessionService);
+  protected readonly superAdmin = computed(() => this.session.profil()?.superAdmin === true);
 
   protected readonly libelleStatut = LIBELLE_STATUT;
   protected readonly etablissements = signal<EtablissementVue[]>([]);

@@ -3,7 +3,9 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { API } from '../core/session.service';
+import { ResultatReinitialisation } from './modeles-admin';
 import {
+  AdministrateurPaysVue,
   DirectionChemin,
   DirectionVue,
   DonneesDirection,
@@ -13,6 +15,7 @@ import {
   MinistereVue,
   PaysVue,
   RapportImportDirections,
+  ResultatNomination,
 } from './modeles-territoire';
 
 
@@ -66,6 +69,26 @@ export class TerritoireApi {
   /** Toutes les directions avec leur chemin complet (filtres, choix du rattachement). */
   directionsAvecChemin(): Promise<DirectionChemin[]> {
     return firstValueFrom(this.http.get<DirectionChemin[]>(`${API}/plateforme/territoire/directions`));
+  }
+
+  // ---------- Administrateurs pays (super administrateur, v0.36)
+
+  administrateursPays(paysId: string): Promise<AdministrateurPaysVue[]> {
+    return firstValueFrom(this.http.get<AdministrateurPaysVue[]>(`${API}/plateforme/territoire/pays/${paysId}/administrateurs`));
+  }
+
+  nommerAdministrateurPays(paysId: string, d: { telephone: string; nom: string; prenoms: string }): Promise<ResultatNomination> {
+    return firstValueFrom(this.http.post<ResultatNomination>(`${API}/plateforme/territoire/pays/${paysId}/administrateurs`, d));
+  }
+
+  retirerAdministrateurPays(paysId: string, utilisateurId: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${API}/plateforme/territoire/pays/${paysId}/administrateurs/${utilisateurId}`));
+  }
+
+  reinitialiserAdministrateurPays(paysId: string, utilisateurId: string): Promise<ResultatReinitialisation> {
+    return firstValueFrom(
+      this.http.post<ResultatReinitialisation>(`${API}/plateforme/territoire/pays/${paysId}/administrateurs/${utilisateurId}/reinitialisation`, null),
+    );
   }
 
   // ---------- Identité de l'établissement (administrateur)

@@ -27,3 +27,4 @@ V23__sessions_appareils.sql 1387814758
 V24__exports_donnees.sql 94380584
 V25__mesure_adoption.sql -327566621
 V26__territoire_et_documents.sql 2131129117
+V27__administrateurs_pays.sql -610719226

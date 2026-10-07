@@ -53,16 +53,24 @@ public class TerritoireService {
 
     private final JdbcTemplate jdbc;
     private final AuditService audit;
+    private final PorteeTerritoire portee;
 
-    TerritoireService(JdbcTemplate jdbc, AuditService audit) {
+    TerritoireService(JdbcTemplate jdbc, AuditService audit, PorteeTerritoire portee) {
         this.jdbc = jdbc;
         this.audit = audit;
+        this.portee = portee;
     }
 
     // ================================================================== Pays
 
+    /** Tous les pays (super administrateur) ou le sien (administrateur pays). */
     @Transactional(readOnly = true)
     public List<PaysVue> pays() {
+        java.util.Optional<UUID> limite = portee.pays();
+        return tousLesPays().stream().filter(p -> limite.isEmpty() || limite.get().equals(p.id())).toList();
+    }
+
+    private List<PaysVue> tousLesPays() {
         return jdbc.query("""
                 select p.*, (select count(*) from ministere m where m.pays_id = p.id) as ministeres,
                        (select count(*) from tenant t join direction d on d.id = t.direction_id
@@ -75,6 +83,7 @@ public class TerritoireService {
 
     @Transactional
     public PaysVue creerPays(DonneesPays d) {
+        bf.edutech.plateforme.socle.securite.Portee.exigerSuperAdmin();
         verifierFuseau(d.fuseauHoraire());
         UUID id = UUID.randomUUID();
         try {
@@ -92,6 +101,7 @@ public class TerritoireService {
 
     @Transactional
     public PaysVue modifierPays(UUID id, DonneesPays d) {
+        bf.edutech.plateforme.socle.securite.Portee.exigerSuperAdmin();
         unPays(id);
         verifierFuseau(d.fuseauHoraire());
         try {
@@ -108,7 +118,7 @@ public class TerritoireService {
     }
 
     private PaysVue unPays(UUID id) {
-        return pays().stream().filter(p -> p.id().equals(id)).findFirst()
+        return tousLesPays().stream().filter(p -> p.id().equals(id)).findFirst()
                 .orElseThrow(() -> new RessourceIntrouvableException("Pays introuvable"));
     }
 
@@ -116,6 +126,7 @@ public class TerritoireService {
 
     @Transactional(readOnly = true)
     public List<MinistereVue> ministeres(UUID paysId) {
+        portee.verifierPays(paysId);
         Map<UUID, List<String>> niveaux = new HashMap<>();
         jdbc.query("""
                 select n.ministere_id, n.libelle from niveau_direction n join ministere m on m.id = n.ministere_id
@@ -137,6 +148,7 @@ public class TerritoireService {
 
     @Transactional
     public MinistereVue creerMinistere(UUID paysId, DonneesMinistere d) {
+        portee.verifierPays(paysId);
         unPays(paysId);
         UUID id = UUID.randomUUID();
         try {
@@ -152,6 +164,7 @@ public class TerritoireService {
 
     @Transactional
     public MinistereVue modifierMinistere(UUID id, DonneesMinistere d) {
+        portee.verifierMinistere(id);
         MinistereVue avant = unMinistere(id);
         if (avant.directions() > 0 && d.niveaux().size() != avant.niveaux().size()) {
             throw new RegleMetierException("NIVEAUX_FIGES", "Ce ministère a déjà des directions : le nombre de niveaux ("
@@ -187,6 +200,7 @@ public class TerritoireService {
     /** Toutes les directions d'un ministère (arbre à plat, trié par niveau puis par nom). */
     @Transactional(readOnly = true)
     public List<DirectionVue> directions(UUID ministereId) {
+        portee.verifierMinistere(ministereId);
         unMinistere(ministereId);
         return jdbc.query("""
                 select d.id, d.parent_id, d.rang, d.code, d.nom, d.actif,
@@ -200,6 +214,7 @@ public class TerritoireService {
 
     @Transactional
     public DirectionVue creerDirection(UUID ministereId, DonneesDirection d) {
+        portee.verifierMinistere(ministereId);
         MinistereVue m = unMinistere(ministereId);
         int rang = rangSous(m, d.parentId());
         UUID id = UUID.randomUUID();
@@ -215,6 +230,7 @@ public class TerritoireService {
 
     @Transactional
     public DirectionVue modifierDirection(UUID id, DonneesDirection d) {
+        portee.verifierDirection(id);
         UUID ministereId = ministereDe(id);
         MinistereVue m = unMinistere(ministereId);
         DirectionVue avant = uneDirection(ministereId, id);
@@ -266,6 +282,11 @@ public class TerritoireService {
     /** Toutes les directions de tous les ministères, avec leur chemin complet, triées par chemin. */
     @Transactional(readOnly = true)
     public List<DirectionChemin> directionsAvecChemin() {
+        java.util.Optional<UUID> limite = portee.pays();
+        return toutesLesDirections().stream().filter(d -> limite.isEmpty() || limite.get().equals(d.paysId())).toList();
+    }
+
+    private List<DirectionChemin> toutesLesDirections() {
         return jdbc.query("""
                 select d.id, m.pays_id, m.id as ministere_id, d.rang,
                        d.rang = (select max(n.rang) from niveau_direction n where n.ministere_id = m.id) as terminale,
@@ -326,6 +347,7 @@ public class TerritoireService {
      */
     @Transactional
     public RapportImport importer(UUID ministereId, String contenu, boolean simulation) {
+        portee.verifierMinistere(ministereId);
         MinistereVue m = unMinistere(ministereId);
         List<ErreurImport> erreurs = new ArrayList<>();
         List<LigneImport> lignes = lire(contenu, erreurs);

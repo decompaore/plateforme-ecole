@@ -182,9 +182,22 @@ public class AdoptionService {
                         .put(rs.getString(2), rs.getLong(3));
             }, debut, fin);
             Map<UUID, String[]> etablissements = new LinkedHashMap<>();
-            String filtre = direction == null ? ""
-                    : " where direction_id in (select directions_descendantes(?))";
-            Object[] parametres = direction == null ? new Object[0] : new Object[] { direction };
+            // Filtre par direction, et pour un administrateur pays, par son pays (v0.36)
+            java.util.List<String> conditions = new ArrayList<>();
+            java.util.List<Object> valeurs = new ArrayList<>();
+            if (direction != null) {
+                conditions.add("direction_id in (select directions_descendantes(?))");
+                valeurs.add(direction);
+            }
+            bf.edutech.plateforme.socle.securite.Portee.pays().ifPresent(p -> {
+                conditions.add("""
+                        direction_id in (select d.id from direction d join ministere m on m.id = d.ministere_id
+                                         where m.pays_id = ?)""");
+                valeurs.add(p);
+            });
+            boolean limite = !conditions.isEmpty();
+            String filtre = limite ? " where " + String.join(" and ", conditions) : "";
+            Object[] parametres = valeurs.toArray();
             jdbc.query("""
                     select id, code, nom, statut, direction_id::text,
                            case when direction_id is null then null else chemin_direction(direction_id) end
@@ -213,7 +226,7 @@ public class AdoptionService {
 
             List<JourActif> quotidien = new ArrayList<>();
             Map<LocalDate, Integer> parJour = new HashMap<>();
-            if (direction == null) {
+            if (!limite) {
                 jdbc.query("select jour, actifs from adoption_quotidienne(?, ?)", (ResultSet rs) -> {
                     parJour.put(rs.getObject(1, LocalDate.class), rs.getInt(2));
                 }, debut, fin);

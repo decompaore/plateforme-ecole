@@ -81,3 +81,21 @@ export interface IdentiteVue {
   rattache: boolean;
   logo: { type: string; taille: number; modifieLe: string } | null;
 }
+
+/** Administrateur pays (v0.36), vu par le super administrateur. */
+export interface AdministrateurPaysVue {
+  utilisateurId: string;
+  nom: string;
+  prenoms: string;
+  telephone: string;
+  actif: boolean;
+  nommeLe: string;
+  derniereConnexion: string | null;
+  verrouilleJusqua: string | null;
+  motDePasseProvisoire: boolean;
+}
+
+export interface ResultatNomination {
+  administrateur: AdministrateurPaysVue;
+  motDePasseTemporaire: string | null;
+}

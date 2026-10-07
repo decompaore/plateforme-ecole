@@ -168,7 +168,7 @@ class ExportsIntegrationTest {
                 .andExpect(jsonPath("$.parPlateforme").value(true));
         mvc.perform(get("/api/v1/exports").with(b.jeton()))
                 .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].demandePar").value("Plateforme (super administrateur)"));
+                .andExpect(jsonPath("$[0].demandePar").value("Plateforme (ADMIN Export)"));
         mvc.perform(get("/api/v1/plateforme/etablissements/{id}/exports", UUID.randomUUID()).with(superAdmin))
                 .andExpect(status().isNotFound());
     }

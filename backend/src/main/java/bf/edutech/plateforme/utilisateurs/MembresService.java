@@ -36,9 +36,11 @@ public class MembresService {
     private final PasswordEncoder encodeur;
     private final AuditService audit;
     private final Indicatifs indicatifs;
+    private final AdministrateursPays administrateursPays;
 
     MembresService(MembreEtablissementRepository membres, UtilisateurRepository utilisateurs,
-            PasswordEncoder encodeur, AuditService audit, Indicatifs indicatifs) {
+            PasswordEncoder encodeur, AuditService audit, Indicatifs indicatifs, AdministrateursPays administrateursPays) {
+        this.administrateursPays = administrateursPays;
         this.membres = membres;
         this.utilisateurs = utilisateurs;
         this.encodeur = encodeur;
@@ -78,7 +80,7 @@ public class MembresService {
             motDePasseTemporaire = GenerateurMotDePasse.temporaire();
             utilisateur = utilisateurs.save(new Utilisateur(telephone, nom.trim().toUpperCase(), prenoms.trim(),
                     encodeur.encode(motDePasseTemporaire), false));
-        } else if (utilisateur.isSuperAdmin()) {
+        } else if (utilisateur.isSuperAdmin() || administrateursPays.de(utilisateur.getId()).isPresent()) {
             throw new RegleMetierException("COMPTE_PLATEFORME",
                     "Un compte d'administration de la plateforme ne peut pas être membre d'un établissement");
         }

@@ -18,6 +18,7 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.JwtEncoderParameters;
 import org.springframework.stereotype.Service;
 
+import bf.edutech.plateforme.socle.securite.Portee;
 import bf.edutech.plateforme.socle.securite.SecuriteConfig;
 import bf.edutech.plateforme.socle.securite.SecuriteProperties;
 import bf.edutech.plateforme.socle.tenant.TenantFilter;
@@ -40,9 +41,11 @@ class ServiceJetons {
     private final SecuriteProperties proprietes;
     private final JetonRafraichissementRepository depot;
     private final Clock horloge;
+    private final AdministrateursPays administrateursPays;
 
     ServiceJetons(JwtEncoder encodeur, SecuriteProperties proprietes, JetonRafraichissementRepository depot,
-            Clock horloge) {
+            Clock horloge, AdministrateursPays administrateursPays) {
+        this.administrateursPays = administrateursPays;
         this.encodeur = encodeur;
         this.proprietes = proprietes;
         this.depot = depot;
@@ -67,7 +70,12 @@ class ServiceJetons {
                     .claim(TenantFilter.CLAIM_TENANT_CODE, etablissement.code())
                     .claim(SecuriteConfig.CLAIM_ROLES, etablissement.roles());
         } else if (utilisateur.isSuperAdmin()) {
-            revendications.claim(SecuriteConfig.CLAIM_ROLES, List.of("SUPER_ADMIN"));
+            revendications.claim(SecuriteConfig.CLAIM_ROLES, List.of(Portee.SUPER_ADMIN));
+        } else {
+            // Administrateur pays (v0.36) : son pays dans le jeton, jamais d'établissement
+            administrateursPays.de(utilisateur.getId()).ifPresent(p -> revendications
+                    .claim(SecuriteConfig.CLAIM_ROLES, List.of(Portee.ADMIN_PAYS))
+                    .claim(Portee.CLAIM_PAYS, p.id().toString()));
         }
         return encoder(revendications.build());
     }

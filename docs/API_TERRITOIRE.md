@@ -1,4 +1,4 @@
-# Territoire et documents officiels (v0.35)
+# Territoire et documents officiels (v0.35), administrateurs pays (v0.36)
 
 Module `territoire` et en-tête officiel commun (`socle.documents`). Chaque établissement est rattaché à la chaîne
 administrative de son ministère de tutelle, qui figure sur ses documents officiels avec son logo. Migration
@@ -14,6 +14,30 @@ Pays (Burkina Faso : indicatif +226, numéros à 8 chiffres, Africa/Ouagadougou,
 
 Le nombre de niveaux et leurs noms sont propres à chaque ministère : un autre pays peut n'avoir qu'un niveau, ou
 trois. Le référentiel n'est pas figé dans le code : le super administrateur le saisit ou l'importe.
+
+## Qui fait quoi (v0.36)
+
+| | Super administrateur | Administrateur pays | Administrateur d'établissement |
+|---|---|---|---|
+| Pays (création, indicatif, fuseau, monnaie, devise) | oui | lecture de son pays | — |
+| Administrateurs pays (nommer, réinitialiser, retirer) | oui | — | — |
+| Ministères, niveaux, directions, import CSV | tous les pays | son pays | — |
+| Établissements : création (rattachement **obligatoire**), rattachement, suspension, réactivation | tous | ceux de son pays | — |
+| Résiliation d'un établissement | oui | **non** | — |
+| Modules, dépannage des administrateurs, export complet | tous | son pays | export de son établissement |
+| Adoption | tout, recalcul | son pays, sans recalcul | son établissement |
+| Logo | — | — | oui |
+
+Un administrateur pays a un **compte dédié** : un compte administre au plus un pays, n'est ni super administrateur ni
+membre d'un établissement (un numéro déjà membre d'un établissement est refusé, et inversement). Plusieurs
+administrateurs par pays sont possibles. À la connexion, il obtient une session sans établissement ; son jeton porte
+le rôle `ADMIN_PAYS` et le pays (`pays_id`). Chaque service vérifie la portée (`PorteeTerritoire`) : tout ce qui est
+hors de son pays répond `403`. Un établissement **non rattaché** n'a pas de pays : seul le super administrateur le voit.
+
+Points d'accès (super administrateur) : `GET / POST /api/v1/plateforme/territoire/pays/{paysId}/administrateurs`
+(`{ telephone, nom, prenoms }` ; le mot de passe provisoire s'affiche une seule fois ; le numéro reçoit l'indicatif du
+pays), `POST …/{utilisateurId}/reinitialisation`, `DELETE …/{utilisateurId}` (droits retirés, sessions fermées).
+Migration `V27__administrateurs_pays.sql`.
 
 ## Règles
 

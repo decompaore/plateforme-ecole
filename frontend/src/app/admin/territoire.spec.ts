@@ -70,6 +70,8 @@ describe('Territoire et documents officiels (v0.35)', () => {
     await attendre();
     http.expectOne('/api/v1/plateforme/territoire/pays/bf/ministeres').flush([MESFPT]);
     await attendre();
+    http.expectOne('/api/v1/plateforme/territoire/pays/bf/administrateurs').flush([]);
+    await attendre();
     expect(texte(f)).toContain('Indicatif +226 (8 chiffres)');
     expect(texte(f)).toContain('Direction régionale › Direction provinciale');
 
@@ -119,6 +121,8 @@ describe('Territoire et documents officiels (v0.35)', () => {
     http.expectOne('/api/v1/plateforme/territoire/pays').flush([BF]);
     await attendre();
     http.expectOne('/api/v1/plateforme/territoire/pays/bf/ministeres').flush([MESFPT]);
+    await attendre();
+    http.expectOne('/api/v1/plateforme/territoire/pays/bf/administrateurs').flush([]);
     await attendre();
     bouton(f, 'Directions').click();
     await attendre();
@@ -276,5 +280,103 @@ describe('Territoire et documents officiels (v0.35)', () => {
     http.expectOne('/api/v1/identite').flush({ nom: 'Lycée technique', pays: null, devise: null, autorites: [], rattache: false, logo: null });
     await attendre();
     expect(texte(f)).toContain('pas encore rattaché');
+  });
+
+  it('super administrateur : nomme un administrateur pays (mot de passe affiché une fois), puis le retire', async () => {
+    await session(http, null, true);
+    const f = TestBed.createComponent(TerritoirePage);
+    f.detectChanges();
+    await attendre();
+    http.expectOne('/api/v1/plateforme/territoire/pays').flush([BF]);
+    await attendre();
+    http.expectOne('/api/v1/plateforme/territoire/pays/bf/ministeres').flush([]);
+    await attendre();
+    http.expectOne('/api/v1/plateforme/territoire/pays/bf/administrateurs').flush([]);
+    await attendre();
+    expect(texte(f)).toContain('Aucun administrateur pour ce pays.');
+    const saisir = (sel: string, v: string) => {
+      const c = (f.nativeElement as HTMLElement).querySelector<HTMLInputElement>(sel)!;
+      c.value = v;
+      c.dispatchEvent(new Event('input'));
+    };
+    saisir('#ap-tel', '70 11 22 33');
+    saisir('#ap-nom', 'Ouedraogo');
+    saisir('#ap-prenoms', 'Awa');
+    f.detectChanges();
+    bouton(f, 'Nommer un administrateur').click();
+    await attendre();
+    const n = http.expectOne((r) => r.url === '/api/v1/plateforme/territoire/pays/bf/administrateurs' && r.method === 'POST');
+    expect(n.request.body).toEqual({ telephone: '70 11 22 33', nom: 'Ouedraogo', prenoms: 'Awa' });
+    const awa = { utilisateurId: 'u9', nom: 'OUEDRAOGO', prenoms: 'Awa', telephone: '+22670112233', actif: true, nommeLe: '2026-10-07T10:00:00Z',
+      derniereConnexion: null, verrouilleJusqua: null, motDePasseProvisoire: true };
+    n.flush({ administrateur: awa, motDePasseTemporaire: 'Kp4-z9Qa' });
+    await attendre();
+    http.expectOne('/api/v1/plateforme/territoire/pays/bf/administrateurs').flush([awa]);
+    await attendre();
+    let t = texte(f);
+    expect(t).toContain('OUEDRAOGO Awa est administrateur du pays.');
+    expect(t).toContain('Kp4-z9Qa');
+    expect(t).toContain('mot de passe provisoire');
+
+    bouton(f, 'Retirer').click();
+    f.detectChanges();
+    bouton(f, 'Confirmer le retrait').click();
+    await attendre();
+    http.expectOne((r) => r.url === '/api/v1/plateforme/territoire/pays/bf/administrateurs/u9' && r.method === 'DELETE').flush(null);
+    await attendre();
+    http.expectOne('/api/v1/plateforme/territoire/pays/bf/administrateurs').flush([{ ...awa, actif: false }]);
+    await attendre();
+    t = texte(f);
+    expect(t).toContain('Administrateur retiré');
+    expect(t).toContain('retiré');
+  });
+
+  it('administrateur pays : son pays seulement, sans création de pays ni gestion des administrateurs', async () => {
+    const connexion = TestBed.inject(SessionService).connexion('70000001', 'secret123');
+    http.expectOne('/api/v1/auth/connexion').flush(reponse('u1', 1, { etablissementActif: null, etablissements: [], superAdmin: false,
+      adminPays: { id: 'bf', code: 'BF', nom: 'Burkina Faso' } }));
+    await attendre();
+    http.expectOne('/api/v1/moi').flush({ nom: 'OUEDRAOGO', prenoms: 'Awa' });
+    await connexion;
+    const session = TestBed.inject(SessionService);
+    expect(session.administrePlateforme()).toBe(true);
+    expect(session.profil()?.adminPays?.nom).toBe('Burkina Faso');
+
+    const f = TestBed.createComponent(TerritoirePage);
+    f.detectChanges();
+    await attendre();
+    http.expectOne('/api/v1/plateforme/territoire/pays').flush([BF]);
+    await attendre();
+    http.expectOne('/api/v1/plateforme/territoire/pays/bf/ministeres').flush([MESFPT]);
+    await attendre();
+    const t = texte(f);
+    expect(t).toContain('Administration du pays : Burkina Faso');
+    expect(bouton(f, 'Nouveau pays')).toBeUndefined();
+    expect(t).not.toContain('Administrateurs du pays');
+    expect(bouton(f, 'Nouveau ministère')).toBeDefined();
+
+    // Adoption : pas de recalcul ; établissements : rattachement obligatoire
+    const a = TestBed.createComponent(AdoptionPlateformePage);
+    a.detectChanges();
+    await attendre();
+    http.expectOne((r) => r.url === '/api/v1/plateforme/adoption').flush({ debut: '2026-09-08', fin: '2026-10-07', calculeLe: '', indicateurs: [],
+      etablissements: 0, etablissementsActifs: 0, comptes: 0, actifs: 0, enseignants: { total: 0, actifs: 0 }, parents: { total: 0, actifs: 0 },
+      actions: {}, quotidien: [], details: [] });
+    await attendre();
+    expect(bouton(a, 'Recalculer la période')).toBeUndefined();
+
+    const p = TestBed.createComponent(PlateformePage);
+    p.detectChanges();
+    await attendre();
+    http.expectOne('/api/v1/plateforme/etablissements').flush([]);
+    await attendre();
+    bouton(p, 'Nouvel établissement').click();
+    p.detectChanges();
+    await attendre();
+    http.expectOne('/api/v1/plateforme/territoire/directions').flush([]);
+    await attendre();
+    p.detectChanges();
+    const options = [...(p.nativeElement as HTMLElement).querySelectorAll<HTMLOptionElement>('#rattachement option')];
+    expect(options.length).toBe(0);
   });
 });
