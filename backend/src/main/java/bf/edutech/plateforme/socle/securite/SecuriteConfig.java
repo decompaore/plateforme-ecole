@@ -139,6 +139,9 @@ public class SecuriteConfig {
                 // Super administrateur et administrateurs pays (v0.36) ; la portée (pays) est vérifiée
                 // par chaque service, les actions réservées au super administrateur par @PreAuthorize
                 .requestMatchers("/api/v1/plateforme/**").hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN_PAYS")
+                // Pilotage (v0.37) : nombres agrégés ; la portée (pays, direction) est vérifiée par le service
+                .requestMatchers("/api/v1/pilotage/**")
+                    .hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN_PAYS", "ROLE_DIRECTION")
                 .anyRequest().hasAuthority("TYPE_" + TYPE_ACCES))
             .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(convertisseurJwt())))
             .addFilterAfter(new TenantFilter(proprietes.verifierSousDomaine()), BearerTokenAuthenticationFilter.class)

@@ -42,10 +42,12 @@ class ServiceJetons {
     private final JetonRafraichissementRepository depot;
     private final Clock horloge;
     private final AdministrateursPays administrateursPays;
+    private final AdministrateursDirection administrateursDirection;
 
     ServiceJetons(JwtEncoder encodeur, SecuriteProperties proprietes, JetonRafraichissementRepository depot,
-            Clock horloge, AdministrateursPays administrateursPays) {
+            Clock horloge, AdministrateursPays administrateursPays, AdministrateursDirection administrateursDirection) {
         this.administrateursPays = administrateursPays;
+        this.administrateursDirection = administrateursDirection;
         this.encodeur = encodeur;
         this.proprietes = proprietes;
         this.depot = depot;
@@ -72,10 +74,14 @@ class ServiceJetons {
         } else if (utilisateur.isSuperAdmin()) {
             revendications.claim(SecuriteConfig.CLAIM_ROLES, List.of(Portee.SUPER_ADMIN));
         } else {
-            // Administrateur pays (v0.36) : son pays dans le jeton, jamais d'établissement
-            administrateursPays.de(utilisateur.getId()).ifPresent(p -> revendications
+            // Administrateur pays (v0.36) : son pays dans le jeton, jamais d'établissement ;
+            // compte de direction (v0.37) : sa direction, pour des nombres seulement
+            administrateursPays.de(utilisateur.getId()).ifPresentOrElse(p -> revendications
                     .claim(SecuriteConfig.CLAIM_ROLES, List.of(Portee.ADMIN_PAYS))
-                    .claim(Portee.CLAIM_PAYS, p.id().toString()));
+                    .claim(Portee.CLAIM_PAYS, p.id().toString()),
+                    () -> administrateursDirection.de(utilisateur.getId()).ifPresent(d -> revendications
+                            .claim(SecuriteConfig.CLAIM_ROLES, List.of(Portee.DIRECTION))
+                            .claim(Portee.CLAIM_DIRECTION, d.id().toString())));
         }
         return encoder(revendications.build());
     }

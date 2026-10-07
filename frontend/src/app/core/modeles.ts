@@ -43,6 +43,8 @@ export interface ReponseConnexion {
   motifChangementMotDePasse?: MotifChangementMotDePasse | null;
   /** Pays administré (administrateur pays, v0.36) ; absent sinon. */
   adminPays?: PaysAdministre | null;
+  /** Direction d'un compte de direction (v0.37) ; absent sinon. */
+  direction?: DirectionAdministree | null;
 }
 
 /** Pays d'un administrateur pays. */
@@ -50,6 +52,15 @@ export interface PaysAdministre {
   id: string;
   code: string;
   nom: string;
+}
+
+/** Direction (régionale, provinciale…) d'un compte de direction, avec son rattachement complet. */
+export interface DirectionAdministree {
+  id: string;
+  code: string;
+  nom: string;
+  chemin: string;
+  paysId: string;
 }
 
 export type MotifChangementMotDePasse = 'PROVISOIRE' | 'RENOUVELLEMENT';

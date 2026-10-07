@@ -6,6 +6,7 @@ import { API } from '../core/session.service';
 import { ResultatReinitialisation } from './modeles-admin';
 import {
   AdministrateurPaysVue,
+  CompteDirectionVue,
   DirectionChemin,
   DirectionVue,
   DonneesDirection,
@@ -16,6 +17,7 @@ import {
   PaysVue,
   RapportImportDirections,
   ResultatNomination,
+  ResultatNominationDirection,
 } from './modeles-territoire';
 
 
@@ -88,6 +90,26 @@ export class TerritoireApi {
   reinitialiserAdministrateurPays(paysId: string, utilisateurId: string): Promise<ResultatReinitialisation> {
     return firstValueFrom(
       this.http.post<ResultatReinitialisation>(`${API}/plateforme/territoire/pays/${paysId}/administrateurs/${utilisateurId}/reinitialisation`, null),
+    );
+  }
+
+  // ---------- Comptes des directions (administrateur pays et super administrateur, v0.37)
+
+  comptesDirection(directionId: string): Promise<CompteDirectionVue[]> {
+    return firstValueFrom(this.http.get<CompteDirectionVue[]>(`${API}/plateforme/territoire/directions/${directionId}/comptes`));
+  }
+
+  nommerCompteDirection(directionId: string, d: { telephone: string; nom: string; prenoms: string }): Promise<ResultatNominationDirection> {
+    return firstValueFrom(this.http.post<ResultatNominationDirection>(`${API}/plateforme/territoire/directions/${directionId}/comptes`, d));
+  }
+
+  retirerCompteDirection(directionId: string, utilisateurId: string): Promise<void> {
+    return firstValueFrom(this.http.delete<void>(`${API}/plateforme/territoire/directions/${directionId}/comptes/${utilisateurId}`));
+  }
+
+  reinitialiserCompteDirection(directionId: string, utilisateurId: string): Promise<ResultatReinitialisation> {
+    return firstValueFrom(
+      this.http.post<ResultatReinitialisation>(`${API}/plateforme/territoire/directions/${directionId}/comptes/${utilisateurId}/reinitialisation`, null),
     );
   }
 

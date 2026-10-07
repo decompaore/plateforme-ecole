@@ -13,6 +13,7 @@ import { SessionService } from '../core/session.service';
       <a routerLink="/plateforme" routerLinkActive="actif" [routerLinkActiveOptions]="{ exact: true }">Établissements</a>
       <a routerLink="/plateforme/territoire" routerLinkActive="actif">Territoire</a>
       <a routerLink="/plateforme/adoption" routerLinkActive="actif">Adoption</a>
+      <a routerLink="/pilotage" routerLinkActive="actif">Pilotage</a>
     </nav>
   `,
 })

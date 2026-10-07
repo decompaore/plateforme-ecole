@@ -3,7 +3,9 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
 import { Action } from '../action';
-import { AdministrateurPaysVue, DirectionVue, DonneesPays, MinistereVue, PaysVue, RapportImportDirections } from '../modeles-territoire';
+import { RouterLink } from '@angular/router';
+
+import { AdministrateurPaysVue, CompteDirectionVue, DirectionVue, DonneesPays, MinistereVue, PaysVue, RapportImportDirections } from '../modeles-territoire';
 import { SessionService } from '../../core/session.service';
 import { MotDePasseTemporaireComponent } from '../mot-de-passe-temporaire.component';
 import { PlateformeNavComponent } from '../plateforme-nav.component';
@@ -49,7 +51,7 @@ const PAYS_VIDE: DonneesPays = {
  */
 @Component({
   selector: 'app-territoire',
-  imports: [FormsModule, LowerCasePipe, PlateformeNavComponent, MotDePasseTemporaireComponent],
+  imports: [FormsModule, LowerCasePipe, RouterLink, PlateformeNavComponent, MotDePasseTemporaireComponent],
   template: `
     <div class="page large">
       <h1>Territoire</h1>
@@ -251,8 +253,59 @@ const PAYS_VIDE: DonneesPays = {
                     <button type="button" class="bouton discret petit" (click)="nouvelleDirection(d)">Ajouter dessous</button>
                   }
                   <button type="button" class="bouton discret petit" (click)="modifierDirection(d)">Modifier</button>
+                  <button type="button" class="bouton discret petit" [attr.aria-expanded]="directionComptes()?.id === d.id" (click)="ouvrirComptes(d)">Comptes</button>
+                  <a class="bouton discret petit" routerLink="/pilotage" [queryParams]="{ direction: d.id }">Tableau de bord</a>
                 </span>
               </li>
+              @if (directionComptes()?.id === d.id) {
+                <li class="comptes" [style.padding-left.rem]="0.5 + d.profondeur * 1.5">
+                  <div>
+                    <h3>Comptes de « {{ d.nom }} »</h3>
+                    <p class="doux">
+                      Ils voient uniquement des nombres : ceux de chaque établissement qui dépend de cette direction, et leurs cumuls
+                      (effectifs, enseignants, résultats de fin d'année, examens, moyennes, utilisation). Aucune donnée d'élève.
+                    </p>
+                    @if (nommeDirection(); as n) {
+                      <app-mot-de-passe-temporaire [titre]="n.titre" [telephone]="n.telephone" [motDePasse]="n.motDePasse" (fermer)="nommeDirection.set(null)" />
+                    }
+                    <ul class="liste">
+                      @for (c of comptesDirection(); track c.utilisateurId) {
+                        <li>
+                          <span>
+                            <strong>{{ c.nom }} {{ c.prenoms }}</strong> · {{ c.telephone }}
+                            @if (!c.actif) { <span class="pastille">retiré</span> }
+                            @if (c.actif && c.motDePasseProvisoire) { <span class="pastille">mot de passe provisoire</span> }
+                            @if (c.verrouilleJusqua) { <span class="pastille absent">verrouillé</span> }
+                          </span>
+                          @if (c.actif) {
+                            <span class="actions-ligne">
+                              @if (confirmationCompte()?.id === c.utilisateurId) {
+                                <button type="button" class="bouton danger petit" [disabled]="action.enCours()" (click)="confirmerCompte(c.utilisateurId)">
+                                  {{ confirmationCompte()?.action === 'retirer' ? 'Confirmer le retrait' : 'Confirmer la réinitialisation' }}
+                                </button>
+                                <button type="button" class="bouton discret petit" (click)="confirmationCompte.set(null)">Annuler</button>
+                              } @else {
+                                <button type="button" class="bouton discret petit" (click)="confirmationCompte.set({ id: c.utilisateurId, action: 'reinitialiser' })">Réinitialiser le mot de passe</button>
+                                <button type="button" class="bouton discret petit" (click)="confirmationCompte.set({ id: c.utilisateurId, action: 'retirer' })">Retirer</button>
+                              }
+                            </span>
+                          }
+                        </li>
+                      } @empty {
+                        <li class="doux">Aucun compte pour cette direction.</li>
+                      }
+                    </ul>
+                    <form class="nommer" (ngSubmit)="nommerCompte()">
+                      <div class="grille-champs">
+                        <div class="champ"><label for="dc-tel">Téléphone</label><input id="dc-tel" name="dctel" type="tel" inputmode="tel" required [(ngModel)]="compteTelephone" /></div>
+                        <div class="champ"><label for="dc-nom">Nom</label><input id="dc-nom" name="dcnom" required maxlength="80" [(ngModel)]="compteNom" /></div>
+                        <div class="champ"><label for="dc-prenoms">Prénoms</label><input id="dc-prenoms" name="dcprenoms" required maxlength="120" [(ngModel)]="comptePrenoms" /></div>
+                      </div>
+                      <button type="submit" class="bouton petit" [disabled]="action.enCours() || !compteTelephone().trim() || !compteNom().trim() || !comptePrenoms().trim()">Créer un compte pour cette direction</button>
+                    </form>
+                  </div>
+                </li>
+              }
             } @empty {
               <li class="doux">Aucune direction : créez-les une à une ou importez un fichier.</li>
             }
@@ -351,6 +404,13 @@ const PAYS_VIDE: DonneesPays = {
       align-items: center;
       gap: 0.4rem;
     }
+    li.comptes {
+      display: block;
+      background: var(--surface);
+      > div {
+        padding: 0.25rem 0 0.5rem;
+      }
+    }
     li.choisi {
       background: var(--surface);
     }
@@ -381,6 +441,15 @@ export class TerritoirePage implements OnInit {
   protected readonly adminTelephone = signal('');
   protected readonly adminNom = signal('');
   protected readonly adminPrenoms = signal('');
+
+  /** Comptes de la direction ouverte dans l'arbre (v0.37). */
+  protected readonly directionComptes = signal<DirectionVue | null>(null);
+  protected readonly comptesDirection = signal<CompteDirectionVue[]>([]);
+  protected readonly nommeDirection = signal<{ titre: string; telephone: string; motDePasse: string } | null>(null);
+  protected readonly confirmationCompte = signal<{ id: string; action: 'retirer' | 'reinitialiser' } | null>(null);
+  protected readonly compteTelephone = signal('');
+  protected readonly compteNom = signal('');
+  protected readonly comptePrenoms = signal('');
 
   protected readonly action = new Action();
   protected readonly message = signal<string | null>(null);
@@ -538,6 +607,7 @@ export class TerritoirePage implements OnInit {
 
   protected async choisirMinistere(id: string): Promise<void> {
     this.ministereId.set(id);
+    this.directionComptes.set(null);
     this.formDirection.set(null);
     this.rapport.set(null);
     await this.chargerDirections();
@@ -609,6 +679,77 @@ export class TerritoirePage implements OnInit {
       this.message.set(`« ${r.nom} » enregistrée.`);
       await this.chargerDirections();
       await this.chargerMinisteres();
+    }
+  }
+
+  // ---------- Comptes des directions (v0.37)
+
+  protected async ouvrirComptes(d: DirectionVue): Promise<void> {
+    if (this.directionComptes()?.id === d.id) {
+      this.directionComptes.set(null);
+      return;
+    }
+    this.directionComptes.set(d);
+    this.comptesDirection.set([]);
+    this.nommeDirection.set(null);
+    this.confirmationCompte.set(null);
+    await this.chargerComptes();
+  }
+
+  private async chargerComptes(): Promise<void> {
+    const d = this.directionComptes();
+    if (!d) {
+      return;
+    }
+    const l = await this.action.executer(() => this.api.comptesDirection(d.id));
+    if (l) {
+      this.comptesDirection.set(l);
+    }
+  }
+
+  protected async nommerCompte(): Promise<void> {
+    const d = this.directionComptes();
+    if (!d) {
+      return;
+    }
+    const r = await this.action.executer(() =>
+      this.api.nommerCompteDirection(d.id, {
+        telephone: this.compteTelephone().trim(),
+        nom: this.compteNom().trim(),
+        prenoms: this.comptePrenoms().trim(),
+      }),
+    );
+    if (r) {
+      this.nommeDirection.set({
+        titre: `${r.compte.nom} ${r.compte.prenoms} a un compte pour « ${d.nom} ».`,
+        telephone: r.compte.telephone,
+        motDePasse: r.motDePasseTemporaire ?? '(compte existant : son mot de passe actuel)',
+      });
+      for (const s of [this.compteTelephone, this.compteNom, this.comptePrenoms]) {
+        s.set('');
+      }
+      await this.chargerComptes();
+    }
+  }
+
+  protected async confirmerCompte(utilisateurId: string): Promise<void> {
+    const d = this.directionComptes();
+    const c = this.confirmationCompte();
+    this.confirmationCompte.set(null);
+    if (!d || !c) {
+      return;
+    }
+    if (c.action === 'retirer') {
+      if (await this.action.reussit(() => this.api.retirerCompteDirection(d.id, utilisateurId))) {
+        this.message.set('Compte retiré : ses sessions sont fermées.');
+        await this.chargerComptes();
+      }
+      return;
+    }
+    const r = await this.action.executer(() => this.api.reinitialiserCompteDirection(d.id, utilisateurId));
+    if (r) {
+      this.nommeDirection.set({ titre: `Mot de passe de ${r.nom} ${r.prenoms} réinitialisé.`, telephone: r.telephone, motDePasse: r.motDePasseTemporaire });
+      await this.chargerComptes();
     }
   }
 
