@@ -84,6 +84,18 @@ const TUILES: Tuile[] = [
             <strong>Adoption</strong>
             <span>Qui utilise l'application, et quoi</span>
           </a>
+          <a class="tuile active" routerLink="/pilotage">
+            <strong>Pilotage</strong>
+            <span>Effectifs, résultats et examens par direction et par établissement</span>
+          </a>
+        </div>
+      } @else if (session.profil()?.direction; as d) {
+        <p class="doux">{{ d.chemin }}</p>
+        <div class="grille">
+          <a class="tuile active" routerLink="/pilotage">
+            <strong>Tableau de bord</strong>
+            <span>Effectifs, résultats et examens de chaque établissement de votre ressort</span>
+          </a>
         </div>
       } @else if (!session.profil()?.etablissement) {
         <div class="carte">

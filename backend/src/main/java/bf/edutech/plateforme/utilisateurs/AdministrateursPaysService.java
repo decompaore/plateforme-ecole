@@ -94,6 +94,10 @@ public class AdministrateursPaysService {
                 throw new RegleMetierException("COMPTE_ETABLISSEMENT",
                         "Ce numéro a déjà un compte dans un établissement : un administrateur pays a un compte dédié");
             }
+            if (jdbc.queryForObject("select count(*) from administrateur_direction where utilisateur_id = ? and actif",
+                    Integer.class, u.getId()) > 0) {
+                throw new RegleMetierException("COMPTE_DIRECTION", "Ce numéro est celui d'un compte de direction");
+            }
             List<UUID> autre = jdbc.queryForList(
                     "select pays_id from administrateur_pays where utilisateur_id = ? and actif and pays_id <> ?",
                     UUID.class, u.getId(), paysId);

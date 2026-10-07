@@ -35,6 +35,9 @@ const selectionOuConnecte: CanActivateFn = () => {
 const superAdmin: CanActivateFn = () =>
   inject(SessionService).administrePlateforme() || inject(Router).parseUrl('/');
 
+/** Comptes de direction, administrateurs pays et super administrateur (v0.37). */
+const pilote: CanActivateFn = () => inject(SessionService).pilote() || inject(Router).parseUrl('/');
+
 const profilPresent: CanActivateFn = () =>
   inject(SessionService).profil() !== null || inject(Router).parseUrl('/connexion');
 
@@ -114,6 +117,12 @@ export const routes: Routes = [
         path: 'appareils',
         title: 'Mes appareils',
         loadComponent: () => import('./pages/appareils.page').then((m) => m.AppareilsPage),
+      },
+      {
+        path: 'pilotage',
+        canActivate: [pilote],
+        title: 'Pilotage',
+        loadComponent: () => import('./pilotage/pilotage.page').then((m) => m.PilotagePage),
       },
       {
         path: 'plateforme/territoire',

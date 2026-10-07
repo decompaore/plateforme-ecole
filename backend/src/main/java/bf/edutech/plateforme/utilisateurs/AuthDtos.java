@@ -45,12 +45,14 @@ public final class AuthDtos {
             /** PROVISOIRE ou RENOUVELLEMENT (nouvelle période) ; null si aucun changement n'est demandé. */
             String motifChangementMotDePasse,
             /** Pays administré (administrateur pays, v0.36) ; null sinon. */
-            PaysAdministre adminPays) {
+            PaysAdministre adminPays,
+            /** Direction du compte de direction (v0.37) ; null sinon. */
+            DirectionAdministree direction) {
 
         static ReponseConnexion depuis(AuthService.ResultatConnexion r) {
             return new ReponseConnexion(r.jetonAcces(), r.jetonSelection(), r.expireDansSecondes(),
                     r.jetonSelection() != null, r.etablissementActif(), r.etablissements(), r.superAdmin(),
-                    r.doitChangerMotDePasse(), r.motifChangementMotDePasse(), r.adminPays());
+                    r.doitChangerMotDePasse(), r.motifChangementMotDePasse(), r.adminPays(), r.direction());
         }
     }
 

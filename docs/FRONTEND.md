@@ -1,4 +1,4 @@
-# Application web (v0.36)
+# Application web (v0.37)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -254,6 +254,22 @@ Mise en place d'un établissement, dans l'ordre :
 Comptes créés (administrateur d'un établissement, enseignant, personnel) : le **mot de passe provisoire** s'affiche
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
+
+## Pilotage des directions (v0.37)
+
+- **Comptes des directions** (Territoire, administrateur pays ou super administrateur) : bouton « Comptes » sur chaque
+  direction de l'arbre : créer un compte (téléphone, nom, prénoms ; mot de passe provisoire affiché une fois),
+  réinitialiser le mot de passe, retirer (avec confirmation). Bouton « Tableau de bord » : le pilotage de cette
+  direction.
+- **Pilotage** (`/pilotage`, menu et accueil ; onglet des pages Plateforme) : choix de l'année scolaire (et du pays
+  pour le super administrateur) ; chiffres clés (établissements, élèves et part des filles, enseignants et élèves par
+  enseignant, admission en fin d'année, réussite à chaque examen, utilisation) ; tableaux des examens de fin
+  d'études (garçons, filles), des moyennes par période et des niveaux ; directions du niveau inférieur (« Ouvrir »
+  pour descendre, « ↑ … » pour remonter, jamais au-dessus de la direction du compte) ; établissements avec recherche,
+  filtre par direction et « Détail » ; exports Excel et PDF.
+- **Compte de direction** : à la connexion, accueil avec son rattachement et la tuile « Tableau de bord » ; aucun
+  accès aux pages d'établissement ni de plateforme.
+- Détails : [API_PILOTAGE.md](API_PILOTAGE.md).
 
 ## Administrateurs pays (v0.36)
 

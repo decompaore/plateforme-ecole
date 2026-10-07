@@ -4,7 +4,16 @@ import { firstValueFrom, Observable, timeout } from 'rxjs';
 
 import { STOCKAGE } from '../hors-ligne/stockage';
 import { estErreurReseau } from './erreurs';
-import { EtablissementAccessible, Module, MotifChangementMotDePasse, PaysAdministre, ProfilConnecte, ReponseConnexion, Role } from './modeles';
+import {
+  DirectionAdministree,
+  EtablissementAccessible,
+  Module,
+  MotifChangementMotDePasse,
+  PaysAdministre,
+  ProfilConnecte,
+  ReponseConnexion,
+  Role,
+} from './modeles';
 
 export const API = '/api/v1';
 
@@ -22,6 +31,8 @@ export interface ProfilLocal {
   superAdmin: boolean;
   /** Administrateur pays (v0.36) : gère les établissements de ce pays. */
   adminPays?: PaysAdministre | null;
+  /** Compte de direction (v0.37) : tableau de bord de pilotage de cette direction. */
+  direction?: DirectionAdministree | null;
   etablissement: EtablissementAccessible | null;
   doitChangerMotDePasse: boolean;
   /** Pourquoi un nouveau mot de passe est demandé (message de la page « Mot de passe »). */
@@ -275,6 +286,7 @@ export class SessionService {
       prenoms: memeUtilisateur ? precedent.prenoms : '',
       superAdmin: reponse.superAdmin,
       adminPays: reponse.adminPays ?? null,
+      direction: reponse.direction ?? null,
       etablissement: reponse.etablissementActif,
       doitChangerMotDePasse: reponse.doitChangerMotDePasse,
       motifChangementMotDePasse: reponse.motifChangementMotDePasse ?? null,
@@ -305,7 +317,7 @@ export class SessionService {
         // Le nom n'est qu'un affichage : on continue sans
       }
     }
-    if (profil.nombreEtablissements === undefined && !profil.superAdmin && !profil.adminPays) {
+    if (profil.nombreEtablissements === undefined && !profil.superAdmin && !profil.adminPays && !profil.direction) {
       try {
         const etablissements = await firstValueFrom(
           this.limite(this.http.get<EtablissementAccessible[]>(`${API}/moi/etablissements`)),
@@ -322,6 +334,12 @@ export class SessionService {
   administrePlateforme(): boolean {
     const p = this.profilSignal();
     return !!p && (p.superAdmin || !!p.adminPays);
+  }
+
+  /** Tableau de bord de pilotage (v0.37) : comptes de direction et administration de la plateforme. */
+  pilote(): boolean {
+    const p = this.profilSignal();
+    return !!p && (p.superAdmin || !!p.adminPays || !!p.direction);
   }
 
   /** Relit le nombre d'établissements du compte (après l'acceptation d'une invitation, par exemple). */

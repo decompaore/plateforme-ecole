@@ -11,7 +11,8 @@ import bf.edutech.plateforme.socle.erreurs.AccesRefuseException;
 
 /**
  * Portée de l'administration de la plateforme : le super administrateur voit tout ; un
- * administrateur pays (v0.36) ne voit que son pays, désigné dans son jeton d'accès.
+ * administrateur pays (v0.36) ne voit que son pays, désigné dans son jeton d'accès ; un compte de
+ * direction (v0.37) ne voit que les nombres de sa direction.
  */
 public final class Portee {
 
@@ -19,6 +20,9 @@ public final class Portee {
     public static final String CLAIM_PAYS = "pays_id";
     public static final String SUPER_ADMIN = "SUPER_ADMIN";
     public static final String ADMIN_PAYS = "ADMIN_PAYS";
+    /** Revendication du jeton : direction (régionale, provinciale…) d'un compte de direction (v0.37). */
+    public static final String CLAIM_DIRECTION = "direction_id";
+    public static final String DIRECTION = "DIRECTION";
 
     private Portee() {
     }
@@ -46,6 +50,22 @@ public final class Portee {
             throw new AccesRefuseException("Aucun pays administré");
         }
         return Optional.of(UUID.fromString(pays));
+    }
+
+    /**
+     * Direction d'un compte de direction (v0.37) : il ne voit que les nombres de cette direction
+     * et de ce qui en dépend. Vide pour tout autre compte.
+     */
+    public static Optional<UUID> direction() {
+        if (!UtilisateurConnecte.aUnRole(DIRECTION)) {
+            return Optional.empty();
+        }
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String direction = auth instanceof JwtAuthenticationToken jwt ? jwt.getToken().getClaimAsString(CLAIM_DIRECTION) : null;
+        if (direction == null) {
+            throw new AccesRefuseException("Aucune direction associée à ce compte");
+        }
+        return Optional.of(UUID.fromString(direction));
     }
 
     public static void exigerSuperAdmin() {

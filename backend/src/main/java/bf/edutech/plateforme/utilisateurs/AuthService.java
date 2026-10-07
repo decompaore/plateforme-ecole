@@ -34,7 +34,7 @@ public class AuthService {
     public record ResultatConnexion(String jetonAcces, String jetonSelection, String jetonRafraichissement,
             long expireDansSecondes, EtablissementAccessible etablissementActif,
             List<EtablissementAccessible> etablissements, boolean superAdmin, boolean doitChangerMotDePasse,
-            String motifChangementMotDePasse, PaysAdministre adminPays) {
+            String motifChangementMotDePasse, PaysAdministre adminPays, DirectionAdministree direction) {
     }
 
     private static final java.time.ZoneId FUSEAU = java.time.ZoneId.of("Africa/Ouagadougou");
@@ -52,13 +52,15 @@ public class AuthService {
     private final Clock horloge;
     private final SessionsAppareils sessions;
     private final AdministrateursPays administrateursPays;
+    private final AdministrateursDirection administrateursDirection;
     private final String hacheFactice;
 
     AuthService(UtilisateurRepository utilisateurs, JetonRafraichissementRepository jetonsRafraichissement,
             AccesEtablissements acces, ServiceJetons jetons, PasswordEncoder encodeur, AuditService audit,
             SecuriteProperties securite, ParametresPlateforme parametres, Clock horloge, SessionsAppareils sessions,
-            AdministrateursPays administrateursPays) {
+            AdministrateursPays administrateursPays, AdministrateursDirection administrateursDirection) {
         this.administrateursPays = administrateursPays;
+        this.administrateursDirection = administrateursDirection;
         this.sessions = sessions;
         this.utilisateurs = utilisateurs;
         this.jetonsRafraichissement = jetonsRafraichissement;
@@ -114,6 +116,12 @@ public class AuthService {
             audit.enregistrerPour(utilisateur.getId(), "CONNEXION", "pays " + pays.get().code(), null);
             return sessionComplete(utilisateur, null, List.of(), null);
         }
+        Optional<DirectionAdministree> direction = administrateursDirection.de(utilisateur.getId());
+        if (direction.isPresent()) {
+            // Compte de direction (v0.37) : session sans établissement, tableau de bord de pilotage
+            audit.enregistrerPour(utilisateur.getId(), "CONNEXION", "direction " + direction.get().code(), null);
+            return sessionComplete(utilisateur, null, List.of(), null);
+        }
         List<EtablissementAccessible> etablissements = acces.pour(utilisateur.getId());
         if (etablissements.isEmpty() && acces.aDesInvitations(utilisateur.getId())) {
             // Enseignant invité sans autre établissement : session sans établissement,
@@ -135,7 +143,7 @@ public class AuthService {
                 Map.of("etablissements", etablissements.size()));
         return new ResultatConnexion(null, jetons.jetonSelection(utilisateur), null,
                 securite.dureeJetonSelection().toSeconds(), null, etablissements, false,
-                utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement(), null);
+                utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement(), null, null);
     }
 
     /**
@@ -230,7 +238,8 @@ public class AuthService {
         return new ResultatConnexion(jetons.jetonAcces(utilisateur, etablissement), null, nouveau.valeur(),
                 jetons.dureeAccesEnSecondes(), etablissement, List.of(), utilisateur.isSuperAdmin(),
                 utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement(),
-                etablissement == null ? administrateursPays.de(utilisateur.getId()).orElse(null) : null);
+                etablissement == null ? administrateursPays.de(utilisateur.getId()).orElse(null) : null,
+                etablissement == null ? administrateursDirection.de(utilisateur.getId()).orElse(null) : null);
     }
 
     @Transactional
@@ -353,7 +362,8 @@ public class AuthService {
         return new ResultatConnexion(jetons.jetonAcces(utilisateur, etablissement), null, rafraichissement,
                 jetons.dureeAccesEnSecondes(), etablissement, etablissements, utilisateur.isSuperAdmin(),
                 utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement(),
-                etablissement == null ? administrateursPays.de(utilisateur.getId()).orElse(null) : null);
+                etablissement == null ? administrateursPays.de(utilisateur.getId()).orElse(null) : null,
+                etablissement == null ? administrateursDirection.de(utilisateur.getId()).orElse(null) : null);
     }
 
     /** Audit rattaché à l'établissement (la Row-Level Security l'exige pour l'écriture). */

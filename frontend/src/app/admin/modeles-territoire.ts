@@ -99,3 +99,11 @@ export interface ResultatNomination {
   administrateur: AdministrateurPaysVue;
   motDePasseTemporaire: string | null;
 }
+
+/** Compte d'une direction (v0.37) : mêmes informations qu'un administrateur pays. */
+export type CompteDirectionVue = AdministrateurPaysVue;
+
+export interface ResultatNominationDirection {
+  compte: CompteDirectionVue;
+  motDePasseTemporaire: string | null;
+}

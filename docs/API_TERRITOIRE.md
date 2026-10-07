@@ -15,18 +15,20 @@ Pays (Burkina Faso : indicatif +226, numéros à 8 chiffres, Africa/Ouagadougou,
 Le nombre de niveaux et leurs noms sont propres à chaque ministère : un autre pays peut n'avoir qu'un niveau, ou
 trois. Le référentiel n'est pas figé dans le code : le super administrateur le saisit ou l'importe.
 
-## Qui fait quoi (v0.36)
+## Qui fait quoi (v0.37)
 
-| | Super administrateur | Administrateur pays | Administrateur d'établissement |
-|---|---|---|---|
-| Pays (création, indicatif, fuseau, monnaie, devise) | oui | lecture de son pays | — |
-| Administrateurs pays (nommer, réinitialiser, retirer) | oui | — | — |
-| Ministères, niveaux, directions, import CSV | tous les pays | son pays | — |
-| Établissements : création (rattachement **obligatoire**), rattachement, suspension, réactivation | tous | ceux de son pays | — |
-| Résiliation d'un établissement | oui | **non** | — |
-| Modules, dépannage des administrateurs, export complet | tous | son pays | export de son établissement |
-| Adoption | tout, recalcul | son pays, sans recalcul | son établissement |
-| Logo | — | — | oui |
+| | Super administrateur | Administrateur pays | Compte de direction | Administrateur d'établissement |
+|---|---|---|---|---|
+| Pays (création, indicatif, fuseau, monnaie, devise) | oui | lecture de son pays | — | — |
+| Administrateurs pays (nommer, réinitialiser, retirer) | oui | — | — | — |
+| Comptes des directions (créer, réinitialiser, retirer) | oui | son pays | — | — |
+| Ministères, niveaux, directions, import CSV | tous les pays | son pays | — | — |
+| Établissements : création (rattachement **obligatoire**), rattachement, suspension, réactivation | tous | ceux de son pays | — | — |
+| Résiliation d'un établissement | oui | **non** | — | — |
+| Modules, dépannage des administrateurs, export complet | tous | son pays | — | export de son établissement |
+| Adoption | tout, recalcul | son pays, sans recalcul | — | son établissement |
+| Pilotage (nombres agrégés, v0.37) | tout pays | son pays | sa direction et ce qui en dépend | — |
+| Logo | — | — | — | oui |
 
 Un administrateur pays a un **compte dédié** : un compte administre au plus un pays, n'est ni super administrateur ni
 membre d'un établissement (un numéro déjà membre d'un établissement est refusé, et inversement). Plusieurs
