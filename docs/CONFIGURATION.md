@@ -27,6 +27,10 @@ Le fichier `application.yml` contient la configuration commune. Les valeurs `${V
 | `EXPORTS_REPERTOIRE` | non | Dossier des archives d'export complet (défaut dans l'image : `/var/lib/plateforme/exports`, volume `exports` **partagé par les deux instances**). Voir [API_REVERSIBILITE.md](API_REVERSIBILITE.md) |
 | `RELANCES_AUTOMATIQUES` | non | `false` pour couper les relances SMS automatiques du lundi sur tout le serveur (défaut `true`) |
 
+L'indicatif `app.plateforme.indicatif-telephone` (+226) ne sert plus qu'à la connexion et aux établissements non
+rattachés : un établissement rattaché utilise l'indicatif et la longueur des numéros de son pays (v0.35, voir
+[API_TERRITOIRE.md](API_TERRITOIRE.md)).
+
 ## Rôles PostgreSQL en production
 
 À créer par l'exploitant (superutilisateur), avec des mots de passe forts :
@@ -59,6 +63,7 @@ Pourquoi deux rôles ? Le propriétaire des tables contourne la Row-Level Securi
 | Relances des familles en retard | lundi 7 h 30 | `app.scolarite.cron-relances` ; chaque école peut les désactiver |
 | Clôture des engagements échus (fins programmées, contrats de vacataires) | chaque nuit à 0 h 15 | `app.enseignants.cron-fins` |
 | Effacement des archives d'export expirées (7 jours) | chaque heure | `app.exports.duree-conservation`, `purge-automatique` |
+| Mesure de l'adoption (actions de la veille et de l'avant-veille) | chaque nuit à 0 h 20 ; au démarrage, les jours jamais calculés | `app.adoption.cron`, `calcul-automatique`, `historique-jours` |
 
 Chaque tâche est idempotente : plusieurs instances de l'API peuvent tourner sans doublon.
 L'agrégateur `SIMULATEUR` n'est accepté que si `app.mobile-money.simulateur-autorise=true` (profils `dev` et `test`) :

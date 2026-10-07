@@ -34,7 +34,7 @@ public class AuthService {
     public record ResultatConnexion(String jetonAcces, String jetonSelection, String jetonRafraichissement,
             long expireDansSecondes, EtablissementAccessible etablissementActif,
             List<EtablissementAccessible> etablissements, boolean superAdmin, boolean doitChangerMotDePasse,
-            String motifChangementMotDePasse) {
+            String motifChangementMotDePasse, PaysAdministre adminPays) {
     }
 
     private static final java.time.ZoneId FUSEAU = java.time.ZoneId.of("Africa/Ouagadougou");
@@ -51,11 +51,14 @@ public class AuthService {
     private final ParametresPlateforme parametres;
     private final Clock horloge;
     private final SessionsAppareils sessions;
+    private final AdministrateursPays administrateursPays;
     private final String hacheFactice;
 
     AuthService(UtilisateurRepository utilisateurs, JetonRafraichissementRepository jetonsRafraichissement,
             AccesEtablissements acces, ServiceJetons jetons, PasswordEncoder encodeur, AuditService audit,
-            SecuriteProperties securite, ParametresPlateforme parametres, Clock horloge, SessionsAppareils sessions) {
+            SecuriteProperties securite, ParametresPlateforme parametres, Clock horloge, SessionsAppareils sessions,
+            AdministrateursPays administrateursPays) {
+        this.administrateursPays = administrateursPays;
         this.sessions = sessions;
         this.utilisateurs = utilisateurs;
         this.jetonsRafraichissement = jetonsRafraichissement;
@@ -105,6 +108,12 @@ public class AuthService {
             audit.enregistrerPour(utilisateur.getId(), "CONNEXION", "plateforme", null);
             return sessionComplete(utilisateur, null, List.of(), null);
         }
+        Optional<PaysAdministre> pays = administrateursPays.de(utilisateur.getId());
+        if (pays.isPresent()) {
+            // Administrateur pays (v0.36) : session sans établissement, limitée à son pays
+            audit.enregistrerPour(utilisateur.getId(), "CONNEXION", "pays " + pays.get().code(), null);
+            return sessionComplete(utilisateur, null, List.of(), null);
+        }
         List<EtablissementAccessible> etablissements = acces.pour(utilisateur.getId());
         if (etablissements.isEmpty() && acces.aDesInvitations(utilisateur.getId())) {
             // Enseignant invité sans autre établissement : session sans établissement,
@@ -126,7 +135,7 @@ public class AuthService {
                 Map.of("etablissements", etablissements.size()));
         return new ResultatConnexion(null, jetons.jetonSelection(utilisateur), null,
                 securite.dureeJetonSelection().toSeconds(), null, etablissements, false,
-                utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement());
+                utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement(), null);
     }
 
     /**
@@ -220,7 +229,8 @@ public class AuthService {
         sessions.utiliser(jeton.getFamille());
         return new ResultatConnexion(jetons.jetonAcces(utilisateur, etablissement), null, nouveau.valeur(),
                 jetons.dureeAccesEnSecondes(), etablissement, List.of(), utilisateur.isSuperAdmin(),
-                utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement());
+                utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement(),
+                etablissement == null ? administrateursPays.de(utilisateur.getId()).orElse(null) : null);
     }
 
     @Transactional
@@ -342,7 +352,8 @@ public class AuthService {
         String rafraichissement = emis.valeur();
         return new ResultatConnexion(jetons.jetonAcces(utilisateur, etablissement), null, rafraichissement,
                 jetons.dureeAccesEnSecondes(), etablissement, etablissements, utilisateur.isSuperAdmin(),
-                utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement());
+                utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement(),
+                etablissement == null ? administrateursPays.de(utilisateur.getId()).orElse(null) : null);
     }
 
     /** Audit rattaché à l'établissement (la Row-Level Security l'exige pour l'écriture). */

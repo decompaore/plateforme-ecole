@@ -41,6 +41,15 @@ export interface ReponseConnexion {
   doitChangerMotDePasse: boolean;
   /** PROVISOIRE (création, réinitialisation) ou RENOUVELLEMENT (nouvelle période) ; absent sinon. */
   motifChangementMotDePasse?: MotifChangementMotDePasse | null;
+  /** Pays administré (administrateur pays, v0.36) ; absent sinon. */
+  adminPays?: PaysAdministre | null;
+}
+
+/** Pays d'un administrateur pays. */
+export interface PaysAdministre {
+  id: string;
+  code: string;
+  nom: string;
 }
 
 export type MotifChangementMotDePasse = 'PROVISOIRE' | 'RENOUVELLEMENT';

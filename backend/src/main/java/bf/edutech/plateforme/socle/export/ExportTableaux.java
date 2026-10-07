@@ -36,6 +36,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
+import bf.edutech.plateforme.socle.documents.EnteteOfficiel;
 import bf.edutech.plateforme.socle.export.Tableau.Colonne;
 import bf.edutech.plateforme.socle.export.Tableau.Image;
 import bf.edutech.plateforme.socle.export.Tableau.Montant;
@@ -73,7 +74,12 @@ public final class ExportTableaux {
 
     /** Réponse HTTP : fichier « nom.xlsx » ou « nom.pdf ». */
     public static ResponseEntity<byte[]> reponse(String etablissement, String nom, Format format, Tableau... tableaux) {
-        byte[] contenu = format == Format.PDF ? pdf(etablissement, tableaux) : excel(etablissement, tableaux);
+        return reponse(EnteteOfficiel.simple(etablissement), nom, format, tableaux);
+    }
+
+    /** Réponse HTTP avec l'en-tête officiel de l'établissement (rattachement et logo). */
+    public static ResponseEntity<byte[]> reponse(EnteteOfficiel entete, String nom, Format format, Tableau... tableaux) {
+        byte[] contenu = format == Format.PDF ? pdf(entete, tableaux) : excel(entete, tableaux);
         String fichier = nom + (format == Format.PDF ? ".pdf" : ".xlsx");
         return ResponseEntity.ok()
                 .contentType(format == Format.PDF ? MediaType.APPLICATION_PDF : EXCEL)
@@ -85,6 +91,10 @@ public final class ExportTableaux {
     // ================================================================== Excel
 
     public static byte[] excel(String etablissement, Tableau... tableaux) {
+        return excel(EnteteOfficiel.simple(etablissement), tableaux);
+    }
+
+    public static byte[] excel(EnteteOfficiel enTete, Tableau... tableaux) {
         try (XSSFWorkbook classeur = new XSSFWorkbook(); ByteArrayOutputStream sortie = new ByteArrayOutputStream()) {
             Font grasPolice = classeur.createFont();
             grasPolice.setBold(true);
@@ -120,7 +130,10 @@ public final class ExportTableaux {
                 noms.add(nomFeuille);
                 Sheet feuille = classeur.createSheet(nomFeuille);
                 int n = 0;
-                ecrire(feuille.createRow(n++), 0, etablissement, gras);
+                ecrire(feuille.createRow(n++), 0, enTete.etablissement(), gras);
+                if (enTete.officiel()) {
+                    ecrire(feuille.createRow(n++), 0, enTete.rattachement(), null);
+                }
                 ecrire(feuille.createRow(n++), 0, t.titre(), titre);
                 if (t.sousTitre() != null) {
                     ecrire(feuille.createRow(n++), 0, t.sousTitre(), null);
@@ -222,8 +235,13 @@ public final class ExportTableaux {
     private static final Color GRIS = new Color(232, 236, 234);
 
     public static byte[] pdf(String etablissement, Tableau... tableaux) {
+        return pdf(EnteteOfficiel.simple(etablissement), tableaux);
+    }
+
+    /** PDF avec l'en-tête officiel complet sur la première page, le nom de l'établissement ensuite. */
+    public static byte[] pdf(EnteteOfficiel enTete, Tableau... tableaux) {
         try (PDDocument doc = new PDDocument(); ByteArrayOutputStream sortie = new ByteArrayOutputStream()) {
-            Rendu rendu = new Rendu(doc, etablissement);
+            Rendu rendu = new Rendu(doc, enTete);
             for (Tableau t : tableaux) {
                 rendu.tableau(t);
             }
@@ -237,7 +255,9 @@ public final class ExportTableaux {
 
     private static final class Rendu {
         private final PDDocument doc;
+        private final EnteteOfficiel enTete;
         private final String etablissement;
+        private boolean premiere = true;
         private final PDFont normal = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
         private final PDFont gras = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
         private final String date = LocalDate.now(FUSEAU).format(JOUR);
@@ -247,9 +267,10 @@ public final class ExportTableaux {
         private float[] largeurs;
         private Tableau courant;
 
-        Rendu(PDDocument doc, String etablissement) {
+        Rendu(PDDocument doc, EnteteOfficiel enTete) {
             this.doc = doc;
-            this.etablissement = etablissement;
+            this.enTete = enTete;
+            this.etablissement = enTete.etablissement();
         }
 
         void tableau(Tableau t) throws IOException {
@@ -322,8 +343,18 @@ public final class ExportTableaux {
             flux = new PDPageContentStream(doc, page);
             flux.setLineWidth(0.5f);
             y = format.getHeight() - MARGE;
-            texte(gras, 10, etablissement, MARGE, y);
-            y -= 16;
+            if (premiere && (enTete.officiel() || enTete.logo() != null)) {
+                // Première page : en-tête officiel (pays, tutelle, logo)
+                y = EntetePdf.dessiner(doc, flux, enTete, MARGE, y, format.getWidth() - 2 * MARGE, List.of()) - 6;
+                flux.moveTo(MARGE, y + 4);
+                flux.lineTo(format.getWidth() - MARGE, y + 4);
+                flux.stroke();
+                y -= 12;
+            } else {
+                texte(gras, 10, etablissement, MARGE, y);
+                y -= 16;
+            }
+            premiere = false;
             if (entetePrincipal) {
                 for (String l : couper(gras, 13, courant.titre(), format.getWidth() - 2 * MARGE)) {
                     texte(gras, 13, l, MARGE, y);

@@ -43,12 +43,14 @@ public final class AuthDtos {
             boolean superAdmin,
             boolean doitChangerMotDePasse,
             /** PROVISOIRE ou RENOUVELLEMENT (nouvelle période) ; null si aucun changement n'est demandé. */
-            String motifChangementMotDePasse) {
+            String motifChangementMotDePasse,
+            /** Pays administré (administrateur pays, v0.36) ; null sinon. */
+            PaysAdministre adminPays) {
 
         static ReponseConnexion depuis(AuthService.ResultatConnexion r) {
             return new ReponseConnexion(r.jetonAcces(), r.jetonSelection(), r.expireDansSecondes(),
                     r.jetonSelection() != null, r.etablissementActif(), r.etablissements(), r.superAdmin(),
-                    r.doitChangerMotDePasse(), r.motifChangementMotDePasse());
+                    r.doitChangerMotDePasse(), r.motifChangementMotDePasse(), r.adminPays());
         }
     }
 

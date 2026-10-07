@@ -136,7 +136,9 @@ public class SecuriteConfig {
                 .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/mobile-money/*").permitAll()
                 .requestMatchers("/api/v1/auth/etablissement")
                     .hasAnyAuthority("TYPE_" + TYPE_SELECTION, "TYPE_" + TYPE_ACCES)
-                .requestMatchers("/api/v1/plateforme/**").hasAuthority("ROLE_SUPER_ADMIN")
+                // Super administrateur et administrateurs pays (v0.36) ; la portée (pays) est vérifiée
+                // par chaque service, les actions réservées au super administrateur par @PreAuthorize
+                .requestMatchers("/api/v1/plateforme/**").hasAnyAuthority("ROLE_SUPER_ADMIN", "ROLE_ADMIN_PAYS")
                 .anyRequest().hasAuthority("TYPE_" + TYPE_ACCES))
             .oauth2ResourceServer(o -> o.jwt(j -> j.jwtAuthenticationConverter(convertisseurJwt())))
             .addFilterAfter(new TenantFilter(proprietes.verifierSousDomaine()), BearerTokenAuthenticationFilter.class)

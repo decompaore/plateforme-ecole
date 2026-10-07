@@ -4,7 +4,7 @@ import { firstValueFrom, Observable, timeout } from 'rxjs';
 
 import { STOCKAGE } from '../hors-ligne/stockage';
 import { estErreurReseau } from './erreurs';
-import { EtablissementAccessible, Module, MotifChangementMotDePasse, ProfilConnecte, ReponseConnexion, Role } from './modeles';
+import { EtablissementAccessible, Module, MotifChangementMotDePasse, PaysAdministre, ProfilConnecte, ReponseConnexion, Role } from './modeles';
 
 export const API = '/api/v1';
 
@@ -20,6 +20,8 @@ export interface ProfilLocal {
   nom: string;
   prenoms: string;
   superAdmin: boolean;
+  /** Administrateur pays (v0.36) : gère les établissements de ce pays. */
+  adminPays?: PaysAdministre | null;
   etablissement: EtablissementAccessible | null;
   doitChangerMotDePasse: boolean;
   /** Pourquoi un nouveau mot de passe est demandé (message de la page « Mot de passe »). */
@@ -272,6 +274,7 @@ export class SessionService {
       nom: memeUtilisateur ? precedent.nom : '',
       prenoms: memeUtilisateur ? precedent.prenoms : '',
       superAdmin: reponse.superAdmin,
+      adminPays: reponse.adminPays ?? null,
       etablissement: reponse.etablissementActif,
       doitChangerMotDePasse: reponse.doitChangerMotDePasse,
       motifChangementMotDePasse: reponse.motifChangementMotDePasse ?? null,
@@ -302,7 +305,7 @@ export class SessionService {
         // Le nom n'est qu'un affichage : on continue sans
       }
     }
-    if (profil.nombreEtablissements === undefined && !profil.superAdmin) {
+    if (profil.nombreEtablissements === undefined && !profil.superAdmin && !profil.adminPays) {
       try {
         const etablissements = await firstValueFrom(
           this.limite(this.http.get<EtablissementAccessible[]>(`${API}/moi/etablissements`)),
@@ -313,6 +316,12 @@ export class SessionService {
       }
     }
     await this.sansEchec(() => this.stockage.ecrire(CLE_PROFIL, this.profilSignal()));
+  }
+
+  /** Super administrateur ou administrateur pays : accès aux pages « Plateforme ». */
+  administrePlateforme(): boolean {
+    const p = this.profilSignal();
+    return !!p && (p.superAdmin || !!p.adminPays);
   }
 
   /** Relit le nombre d'établissements du compte (après l'acceptation d'une invitation, par exemple). */

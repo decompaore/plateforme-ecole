@@ -35,8 +35,10 @@
         <a routerLink="/notes">Saisie des notes</a>
         <a routerLink="/envois">Mes envois</a>
       }
-      @if (session.profil()?.superAdmin) {
+      @if (session.administrePlateforme()) {
         <a routerLink="/plateforme">Établissements</a>
+        <a routerLink="/plateforme/territoire">Territoire</a>
+        <a routerLink="/plateforme/adoption">Adoption</a>
       }
       @if (session.aLeRole('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')) {
         <a routerLink="/admin/classes">Classes</a>

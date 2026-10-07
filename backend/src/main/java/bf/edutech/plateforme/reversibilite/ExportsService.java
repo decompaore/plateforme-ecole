@@ -79,6 +79,7 @@ public class ExportsService {
     private final AuthService auth;
     private final AuditService audit;
     private final LiensTelechargement liens;
+    private final bf.edutech.plateforme.territoire.PorteeTerritoire portee;
     private final ExportsProperties proprietes;
     private final Clock horloge;
     private final String versionApplication;
@@ -90,7 +91,9 @@ public class ExportsService {
 
     ExportsService(ExportDonneesRepository depot, JdbcTemplate jdbc, PlatformTransactionManager gestionnaire,
             AuthService auth, AuditService audit, LiensTelechargement liens, ExportsProperties proprietes,
-            Clock horloge, @Value("${info.application.version:inconnue}") String versionApplication) {
+            Clock horloge, @Value("${info.application.version:inconnue}") String versionApplication,
+            bf.edutech.plateforme.territoire.PorteeTerritoire portee) {
+        this.portee = portee;
         this.depot = depot;
         this.jdbc = jdbc;
         this.ecriture = new TransactionTemplate(gestionnaire);
@@ -116,6 +119,7 @@ public class ExportsService {
         if (n == null || n == 0) {
             throw new RessourceIntrouvableException("Établissement introuvable");
         }
+        portee.verifierEtablissement(etablissementId);
         return TenantContext.executerPour(etablissementId, action);
     }
 
@@ -351,7 +355,8 @@ public class ExportsService {
 
     private ExportVue vue(ExportDonnees e, Map<UUID, String> noms, Instant maintenant) {
         StatutExport etat = e.etat(maintenant, proprietes.dureeMax());
-        String par = e.isParPlateforme() ? "Plateforme (super administrateur)" : noms.get(e.getDemandePar());
+        String par = e.isParPlateforme() ? "Plateforme (" + noms.getOrDefault(e.getDemandePar(), "administration") + ")"
+                : noms.get(e.getDemandePar());
         return new ExportVue(e.getId(), etat, e.getDemandeLe(), par, e.isParPlateforme(), e.getTermineLe(),
                 e.getExpireLe(), e.getTaille(), e.getEmpreinte(), e.getNombreTables(), e.getNombreLignes(),
                 etat == StatutExport.INTERROMPU ? "Préparation interrompue (redémarrage du serveur)" : e.getErreur(),

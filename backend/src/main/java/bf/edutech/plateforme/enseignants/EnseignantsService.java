@@ -28,12 +28,11 @@ import bf.edutech.plateforme.etablissement.Vues.AffectationVue;
 import bf.edutech.plateforme.etablissement.Vues.AnneeVue;
 import bf.edutech.plateforme.etablissement.Vues.MatiereDeClasseVue;
 import bf.edutech.plateforme.socle.audit.AuditService;
-import bf.edutech.plateforme.socle.config.ParametresPlateforme;
+import bf.edutech.plateforme.socle.telephone.Indicatifs;
 import bf.edutech.plateforme.socle.erreurs.RegleMetierException;
 import bf.edutech.plateforme.socle.erreurs.RessourceIntrouvableException;
 import bf.edutech.plateforme.socle.referentiel.Sexe;
 import bf.edutech.plateforme.socle.securite.UtilisateurConnecte;
-import bf.edutech.plateforme.socle.telephone.NumeroTelephone;
 import bf.edutech.plateforme.utilisateurs.MembresService;
 import bf.edutech.plateforme.utilisateurs.MembresService.ResultatAjout;
 import bf.edutech.plateforme.utilisateurs.Role;
@@ -63,20 +62,20 @@ public class EnseignantsService {
     private final MembresService membres;
     private final ClassesService classes;
     private final AnneesService annees;
-    private final ParametresPlateforme parametres;
+    private final Indicatifs indicatifs;
     private final AuditService audit;
     private final Clock horloge;
 
     EnseignantsService(EnseignantRepository enseignants, EngagementRepository engagements,
             IdentitesPlateforme plateforme, MembresService membres, ClassesService classes, AnneesService annees,
-            ParametresPlateforme parametres, AuditService audit, Clock horloge) {
+            Indicatifs indicatifs, AuditService audit, Clock horloge) {
         this.enseignants = enseignants;
         this.engagements = engagements;
         this.plateforme = plateforme;
         this.membres = membres;
         this.classes = classes;
         this.annees = annees;
-        this.parametres = parametres;
+        this.indicatifs = indicatifs;
         this.audit = audit;
         this.horloge = horloge;
     }
@@ -397,7 +396,7 @@ public class EnseignantsService {
     }
 
     private String telephone(String saisie) {
-        return NumeroTelephone.normaliser(saisie, parametres.indicatifTelephone());
+        return indicatifs.normaliser(saisie);
     }
 
     private static boolean vide(String valeur) {

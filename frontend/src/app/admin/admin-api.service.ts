@@ -5,6 +5,8 @@ import { firstValueFrom } from 'rxjs';
 import { Module, Role } from '../core/modeles';
 import { API } from '../core/session.service';
 import {
+  AdoptionEtablissement,
+  AdoptionPlateforme,
   AnneeVue,
   ClasseVue,
   CompteVue,
@@ -68,8 +70,13 @@ export class AdminApi {
 
   // ---------- Plateforme (super administrateur)
 
-  etablissements(): Promise<EtablissementVue[]> {
-    return this.get('/plateforme/etablissements');
+  /** Tous les établissements, ou ceux qui dépendent d'une direction (à tout niveau). */
+  etablissements(direction?: string | null): Promise<EtablissementVue[]> {
+    return this.get('/plateforme/etablissements', direction ? { direction } : undefined);
+  }
+
+  rattacherEtablissement(id: string, directionId: string): Promise<EtablissementVue> {
+    return this.put(`/plateforme/etablissements/${id}/rattachement`, { directionId });
   }
 
   creerEtablissement(d: {
@@ -78,6 +85,7 @@ export class AdminApi {
     telephoneAdministrateur: string;
     nomAdministrateur: string;
     prenomsAdministrateur: string;
+    directionId?: string | null;
   }): Promise<ResultatCreationEtablissement> {
     return this.post('/plateforme/etablissements', d);
   }
@@ -145,6 +153,21 @@ export class AdminApi {
 
   definirModules(etablissementId: string, actifs: Module[]): Promise<ModuleEtablissementVue[]> {
     return firstValueFrom(this.http.put<ModuleEtablissementVue[]>(`${API}/plateforme/etablissements/${etablissementId}/modules`, { actifs }));
+  }
+
+  // ---------------- Mesure de l'adoption (v0.34)
+
+  adoption(jours: number): Promise<AdoptionEtablissement> {
+    return this.get('/adoption', { jours });
+  }
+
+  adoptionPlateforme(jours: number, direction?: string | null): Promise<AdoptionPlateforme> {
+    return this.get('/plateforme/adoption', direction ? { jours, direction } : { jours });
+  }
+
+  recalculerAdoption(jours: number, direction?: string | null): Promise<AdoptionPlateforme> {
+    const params: Record<string, string | number> = direction ? { jours, direction } : { jours };
+    return firstValueFrom(this.http.post<AdoptionPlateforme>(`${API}/plateforme/adoption/calcul`, null, { params }));
   }
 
   // ---------------- Export complet des données (v0.33)

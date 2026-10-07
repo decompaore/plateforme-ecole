@@ -13,10 +13,9 @@ import bf.edutech.plateforme.eleves.Donnees.DonneesEleve;
 import bf.edutech.plateforme.eleves.Donnees.DonneesResponsable;
 import bf.edutech.plateforme.eleves.Eleve.IdentiteEleve;
 import bf.edutech.plateforme.socle.compteurs.Compteurs;
-import bf.edutech.plateforme.socle.config.ParametresPlateforme;
+import bf.edutech.plateforme.socle.telephone.Indicatifs;
 import bf.edutech.plateforme.socle.erreurs.RegleMetierException;
 import bf.edutech.plateforme.socle.erreurs.RessourceIntrouvableException;
-import bf.edutech.plateforme.socle.telephone.NumeroTelephone;
 
 /**
  * Règles de création des dossiers d'élèves et de rattachement des responsables,
@@ -35,16 +34,16 @@ class RegistreEleves {
     private final ResponsableRepository responsables;
     private final LienResponsableEleveRepository liens;
     private final Compteurs compteurs;
-    private final ParametresPlateforme parametres;
+    private final Indicatifs indicatifs;
     private final Clock horloge;
 
     RegistreEleves(EleveRepository eleves, ResponsableRepository responsables, LienResponsableEleveRepository liens,
-            Compteurs compteurs, ParametresPlateforme parametres, Clock horloge) {
+            Compteurs compteurs, Indicatifs indicatifs, Clock horloge) {
         this.eleves = eleves;
         this.responsables = responsables;
         this.liens = liens;
         this.compteurs = compteurs;
-        this.parametres = parametres;
+        this.indicatifs = indicatifs;
         this.horloge = horloge;
     }
 
@@ -61,7 +60,7 @@ class RegistreEleves {
             throw new IllegalArgumentException("Date de naissance invalide : " + naissance);
         }
         String telephone = vide(d.telephone()) ? null
-                : NumeroTelephone.normaliser(d.telephone(), parametres.indicatifTelephone());
+                : indicatifs.normaliser(d.telephone());
         return new IdentiteEleve(obligatoire(d.nom(), "Le nom", 80).toUpperCase(Locale.ROOT),
                 obligatoire(d.prenoms(), "Les prénoms", 120), d.sexe(), naissance,
                 facultatif(d.lieuNaissance(), "Le lieu de naissance", 80), telephone,
@@ -115,7 +114,7 @@ class RegistreEleves {
     }
 
     String telephone(String saisie) {
-        return NumeroTelephone.normaliser(saisie, parametres.indicatifTelephone());
+        return indicatifs.normaliser(saisie);
     }
 
     /**

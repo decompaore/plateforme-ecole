@@ -23,6 +23,10 @@ import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.stereotype.Component;
 
 import bf.edutech.plateforme.pedagogie.CodeModele;
+import bf.edutech.plateforme.socle.documents.EnteteOfficiel;
+import bf.edutech.plateforme.socle.documents.EntetesOfficiels;
+import bf.edutech.plateforme.socle.export.EntetePdf;
+import bf.edutech.plateforme.socle.tenant.TenantContext;
 
 /**
  * Mise en page PDF des bulletins (A4, noir et blanc pour la photocopie).
@@ -45,13 +49,20 @@ class RenduPdf {
     private static final float LIGNE = 14;
     private static final DateTimeFormatter JOUR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
 
+    private final EntetesOfficiels entetes;
+
+    RenduPdf(EntetesOfficiels entetes) {
+        this.entetes = entetes;
+    }
+
     /** Un ou plusieurs bulletins dans un même document (un bulletin commence toujours une page). */
     byte[] rendre(List<DonneesBulletin> bulletins) {
         try (PDDocument doc = new PDDocument(); ByteArrayOutputStream sortie = new ByteArrayOutputStream()) {
             Plume plume = new Plume(doc);
+            EnteteOfficiel officiel = TenantContext.courant().isPresent() ? entetes.courant() : null;
             for (DonneesBulletin b : bulletins) {
                 plume.nouvellePage();
-                dessiner(plume, b);
+                dessiner(plume, b, officiel);
             }
             plume.fermer();
             doc.save(sortie);
@@ -88,8 +99,8 @@ class RenduPdf {
 
     // ------------------------------------------------------------------
 
-    private void dessiner(Plume p, DonneesBulletin b) throws IOException {
-        entete(p, b);
+    private void dessiner(Plume p, DonneesBulletin b, EnteteOfficiel officiel) throws IOException {
+        entete(p, b, officiel);
         boolean competences = b.modele() == CodeModele.COMPETENCES;
         String titre = (competences ? "RELEVÉ DE COMPÉTENCES" : "BULLETIN DE NOTES") + " — " + b.periode();
         p.texteCentre(p.y, p.gras, 13, titre);
@@ -107,31 +118,29 @@ class RenduPdf {
         pied(p, b);
     }
 
-    private void entete(Plume p, DonneesBulletin b) throws IOException {
-        float haut = p.y;
+    /**
+     * En-tête officiel : d'après le rattachement de l'établissement (pays, ministère, directions)
+     * et son logo ; sans rattachement, d'après les réglages des bulletins de l'établissement.
+     */
+    private void entete(Plume p, DonneesBulletin b, EnteteOfficiel officiel) throws IOException {
         var e = b.parametres();
-        float y = haut;
-        p.texte(MARGE, y, p.gras, 10, e.entetePays());
-        y -= 11;
-        if (e.enteteDevise() != null) {
-            p.texte(MARGE, y, p.italique, 8, e.enteteDevise());
-            y -= 11;
+        EnteteOfficiel en = officiel != null ? officiel : EnteteOfficiel.simple(b.etablissement());
+        if (!en.officiel()) {
+            List<String> autorites = new ArrayList<>();
+            if (e.enteteMinistere() != null) {
+                autorites.add(e.enteteMinistere());
+            }
+            if (e.enteteDirection() != null) {
+                autorites.add(e.enteteDirection());
+            }
+            en = en.avec(e.entetePays(), e.enteteDevise(), autorites);
         }
-        if (e.enteteMinistere() != null) {
-            y = p.paragraphe(MARGE, y, 250, p.normal, 8, e.enteteMinistere());
-        }
-        if (e.enteteDirection() != null) {
-            y = p.paragraphe(MARGE, y, 250, p.normal, 8, e.enteteDirection());
-        }
-        float yd = haut;
-        float xd = MARGE + UTILE / 2 + 20;
-        yd = p.paragraphe(xd, yd, UTILE / 2 - 20, p.gras, 10, b.etablissement());
+        List<String> complements = new ArrayList<>();
         if (e.adresse() != null) {
-            yd = p.paragraphe(xd, yd, UTILE / 2 - 20, p.normal, 8, e.adresse());
+            complements.add(e.adresse());
         }
-        p.texte(xd, yd, p.normal, 8, "Année scolaire " + b.annee());
-        yd -= 11;
-        p.y = Math.min(y, yd) - 4;
+        complements.add("Année scolaire " + b.annee());
+        p.y = EntetePdf.dessiner(p.doc, p.flux, en, MARGE, p.y, UTILE, complements) - 4;
         p.trait(MARGE, p.y, LARGEUR - MARGE, p.y);
         p.y -= 18;
     }

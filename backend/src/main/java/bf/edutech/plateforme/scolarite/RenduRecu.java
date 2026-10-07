@@ -19,6 +19,11 @@ import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.springframework.stereotype.Component;
 
+import bf.edutech.plateforme.socle.documents.EnteteOfficiel;
+import bf.edutech.plateforme.socle.documents.EntetesOfficiels;
+import bf.edutech.plateforme.socle.export.EntetePdf;
+import bf.edutech.plateforme.socle.tenant.TenantContext;
+
 /** Reçu de paiement au format A5 (PDFBox, police Helvetica standard). */
 @Component
 class RenduRecu {
@@ -33,6 +38,17 @@ class RenduRecu {
     private static final DateTimeFormatter JOUR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final float MARGE = 32;
 
+    private final EntetesOfficiels entetes;
+
+    RenduRecu(EntetesOfficiels entetes) {
+        this.entetes = entetes;
+    }
+
+    /** En-tête officiel de l'établissement (rattachement, logo), sinon son seul nom. */
+    private EnteteOfficiel entete(DonneesRecu d) {
+        return TenantContext.courant().isPresent() ? entetes.courant() : EnteteOfficiel.simple(d.etablissement());
+    }
+
     byte[] rendre(DonneesRecu d) {
         PDRectangle format = PDRectangle.A5;
         float largeur = format.getWidth();
@@ -46,9 +62,8 @@ class RenduRecu {
             try (PDPageContentStream f = new PDPageContentStream(doc, page)) {
                 f.setLineWidth(0.6f);
                 float y = format.getHeight() - MARGE;
-                y = paragraphe(f, gras, 12, d.etablissement(), MARGE, y, utile) - 2;
-                texte(f, normal, 9, "Année scolaire " + d.annee(), MARGE, y);
-                y -= 10;
+                y = EntetePdf.dessiner(doc, f, entete(d), MARGE, y, utile, List.of("Année scolaire " + d.annee()));
+                y -= 2;
                 trait(f, MARGE, y, largeur - MARGE);
                 y -= 26;
                 centre(f, gras, 15, "REÇU N° " + d.numero(), largeur, y);

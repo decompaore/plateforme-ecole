@@ -75,7 +75,7 @@ export class InvitationsComponent implements OnInit {
   async ngOnInit(): Promise<void> {
     const profil = this.session.profil();
     // Hors connexion, super administrateur ou mot de passe provisoire : rien à demander au serveur
-    if (!this.session.jeton() || !profil || profil.superAdmin || profil.doitChangerMotDePasse) {
+    if (!this.session.jeton() || !profil || profil.superAdmin || profil.adminPays || profil.doitChangerMotDePasse) {
       return;
     }
     try {
