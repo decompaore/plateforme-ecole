@@ -54,7 +54,7 @@ final class ArchiveEtablissement {
     record Resultat(int tables, long lignes) {
     }
 
-    record Etablissement(UUID id, String code, String nom, String statut, Instant creeLe) {
+    record Etablissement(UUID id, String code, String nom, String statut, Instant creeLe, String rattachement) {
     }
 
     private record Colonne(String nom, String type, String typeCourt, boolean obligatoire) {
@@ -78,9 +78,12 @@ final class ArchiveEtablissement {
     Resultat ecrire(UUID tenantId, OutputStream sortie) throws IOException {
         verifierCloisonnement();
         Etablissement etab = jdbc.queryForObject(
-                "select id, code, nom, statut, cree_le from tenant where id = ?",
+                """
+                select id, code, nom, statut, cree_le,
+                       case when direction_id is null then null else chemin_direction(direction_id) end
+                from tenant where id = ?""",
                 (rs, n) -> new Etablissement(rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
-                        rs.getString(4), rs.getObject(5, OffsetDateTime.class).toInstant()),
+                        rs.getString(4), rs.getObject(5, OffsetDateTime.class).toInstant(), rs.getString(6)),
                 tenantId);
 
         ZipOutputStream zip = new ZipOutputStream(sortie, StandardCharsets.UTF_8);
@@ -158,8 +161,10 @@ final class ArchiveEtablissement {
         List<String> cle = clePrimaire(table);
         boolean aTenant = toutes.stream().anyMatch(c -> c.nom().equals("tenant_id"));
         List<Colonne> binaires = gardees.stream().filter(c -> c.typeCourt().equals("bytea")).toList();
-        // Les fichiers joints sont nommés d'après l'identifiant de la ligne
-        boolean joignables = !binaires.isEmpty() && gardees.stream().anyMatch(c -> c.nom().equals("id"));
+        // Les fichiers joints sont nommés d'après l'identifiant de la ligne (id, sinon clé primaire simple)
+        String colonneId = gardees.stream().anyMatch(c -> c.nom().equals("id")) ? "id"
+                : cle.size() == 1 && gardees.stream().anyMatch(c -> c.nom().equals(cle.get(0))) ? cle.get(0) : null;
+        boolean joignables = !binaires.isEmpty() && colonneId != null;
         String filtre = aTenant ? " where tenant_id = ?" : "";
         String tri = cle.isEmpty() ? "" : " order by " + cle.stream().map(c -> q(c)).collect(Collectors.joining(", "));
 
@@ -176,7 +181,7 @@ final class ArchiveEtablissement {
             w.write('\uFEFF');
             w.write(gardees.stream().map(c -> csv(c.nom())).collect(Collectors.joining(SEPARATEUR)));
             w.write(FIN_LIGNE);
-            int indexId = gardees.stream().map(Colonne::nom).toList().indexOf("id") + 1;
+            int indexId = gardees.stream().map(Colonne::nom).toList().indexOf(colonneId) + 1;
             jdbc.query(con -> {
                 var ps = con.prepareStatement(sql);
                 ps.setFetchSize(500);
@@ -217,7 +222,7 @@ final class ArchiveEtablissement {
         // 2e passage : chaque fichier joint, une ligne à la fois (jamais tous en mémoire)
         if (joignables) {
             for (Colonne c : binaires) {
-                String sqlBinaire = "select id::text, " + q(c.nom()) + " from " + q(table) + filtre
+                String sqlBinaire = "select " + q(colonneId) + "::text, " + q(c.nom()) + " from " + q(table) + filtre
                         + (filtre.isEmpty() ? " where " : " and ") + q(c.nom()) + " is not null" + tri;
                 jdbc.query(con -> {
                     var ps = con.prepareStatement(sqlBinaire);
@@ -411,7 +416,8 @@ final class ArchiveEtablissement {
                 .append(", \"code\": ").append(json(e.code()))
                 .append(", \"nom\": ").append(json(e.nom()))
                 .append(", \"statut\": ").append(json(e.statut()))
-                .append(", \"creeLe\": ").append(json(e.creeLe().toString())).append("},\n");
+                .append(", \"creeLe\": ").append(json(e.creeLe().toString()))
+                .append(", \"rattachement\": ").append(json(e.rattachement())).append("},\n");
         j.append("  \"csv\": {\"encodage\": \"UTF-8\", \"bom\": true, \"separateur\": \";\", \"guillemet\": \"\\\"\", ")
                 .append("\"finDeLigne\": \"\\r\\n\", \"valeurAbsente\": \"\", \"instants\": \"ISO 8601 UTC\"},\n");
         j.append("  \"comptes\": {\"fichier\": \"comptes/utilisateurs.csv\", \"lignes\": ").append(comptes).append("},\n");

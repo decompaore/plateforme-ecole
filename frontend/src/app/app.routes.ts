@@ -115,6 +115,18 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/appareils.page').then((m) => m.AppareilsPage),
       },
       {
+        path: 'plateforme/territoire',
+        canActivate: [superAdmin],
+        title: 'Territoire',
+        loadComponent: () => import('./admin/pages/territoire.page').then((m) => m.TerritoirePage),
+      },
+      {
+        path: 'plateforme/adoption',
+        canActivate: [superAdmin],
+        title: 'Adoption',
+        loadComponent: () => import('./admin/pages/adoption-plateforme.page').then((m) => m.AdoptionPlateformePage),
+      },
+      {
         path: 'plateforme',
         canActivate: [superAdmin],
         title: 'Établissements',
@@ -171,6 +183,18 @@ export const routes: Routes = [
             canActivate: [role('ADMIN_ECOLE')],
             title: 'Comptes et mots de passe',
             loadComponent: () => import('./admin/pages/comptes.page').then((m) => m.ComptesPage),
+          },
+          {
+            path: 'identite',
+            canActivate: [role('ADMIN_ECOLE')],
+            title: 'Identité de l’établissement',
+            loadComponent: () => import('./admin/pages/identite.page').then((m) => m.IdentitePage),
+          },
+          {
+            path: 'utilisation',
+            canActivate: [role('ADMIN_ECOLE')],
+            title: 'Utilisation de l’application',
+            loadComponent: () => import('./admin/pages/utilisation.page').then((m) => m.UtilisationPage),
           },
           {
             path: 'donnees',

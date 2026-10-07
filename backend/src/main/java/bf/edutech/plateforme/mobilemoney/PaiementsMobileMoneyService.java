@@ -29,14 +29,13 @@ import bf.edutech.plateforme.scolarite.SituationsService;
 import bf.edutech.plateforme.scolarite.Vues.PaiementVue;
 import bf.edutech.plateforme.socle.audit.AuditService;
 import bf.edutech.plateforme.socle.compteurs.Compteurs;
-import bf.edutech.plateforme.socle.config.ParametresPlateforme;
+import bf.edutech.plateforme.socle.telephone.Indicatifs;
 import bf.edutech.plateforme.socle.erreurs.AccesRefuseException;
 import bf.edutech.plateforme.socle.erreurs.AuthentificationException;
 import bf.edutech.plateforme.socle.erreurs.RegleMetierException;
 import bf.edutech.plateforme.socle.erreurs.RessourceIntrouvableException;
 import bf.edutech.plateforme.socle.erreurs.ServiceIndisponibleException;
 import bf.edutech.plateforme.socle.securite.UtilisateurConnecte;
-import bf.edutech.plateforme.socle.telephone.NumeroTelephone;
 import bf.edutech.plateforme.socle.tenant.TenantContext;
 
 /**
@@ -74,7 +73,7 @@ public class PaiementsMobileMoneyService {
     private final EspaceParentService espaceParent;
     private final Compteurs compteurs;
     private final AuditService audit;
-    private final ParametresPlateforme plateforme;
+    private final Indicatifs indicatifs;
     private final MobileMoneyProperties proprietes;
     private final JdbcTemplate jdbc;
     private final Clock horloge;
@@ -84,7 +83,7 @@ public class PaiementsMobileMoneyService {
     PaiementsMobileMoneyService(TransactionRepository transactions, ConfigurationMobileMoneyService configuration,
             EncaissementsService encaissements, SituationsService situations, InscriptionsService inscriptions,
             EspaceParentService espaceParent, Compteurs compteurs, AuditService audit,
-            ParametresPlateforme plateforme, MobileMoneyProperties proprietes, JdbcTemplate jdbc, Clock horloge,
+            Indicatifs indicatifs, MobileMoneyProperties proprietes, JdbcTemplate jdbc, Clock horloge,
             PlatformTransactionManager gestionnaire) {
         this.transactions = transactions;
         this.configuration = configuration;
@@ -94,7 +93,7 @@ public class PaiementsMobileMoneyService {
         this.espaceParent = espaceParent;
         this.compteurs = compteurs;
         this.audit = audit;
-        this.plateforme = plateforme;
+        this.indicatifs = indicatifs;
         this.proprietes = proprietes;
         this.jdbc = jdbc;
         this.horloge = horloge;
@@ -172,7 +171,7 @@ public class PaiementsMobileMoneyService {
         if (montant == null || montant < MONTANT_MIN || montant > MONTANT_MAX) {
             throw new IllegalArgumentException("Le montant est compris entre 100 et 2 000 000 FCFA");
         }
-        String telephone = NumeroTelephone.normaliser(telephoneSaisi, plateforme.indicatifTelephone());
+        String telephone = indicatifs.normaliser(telephoneSaisi);
         Instant maintenant = horloge.instant();
         boolean enCours = transactions.findByInscriptionIdOrderByCreeLeDesc(inscriptionId).stream()
                 .anyMatch(t -> t.getStatut().enCours() && t.getExpireLe().isAfter(maintenant));

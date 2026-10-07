@@ -10,16 +10,21 @@ import { AdminApi } from '../admin-api.service';
 import { CompteVue, EtablissementVue, ModuleEtablissementVue, ResultatReinitialisation, StatutTenant } from '../modeles-admin';
 import { ExportsDonneesComponent } from '../exports-donnees.component';
 import { MotDePasseTemporaireComponent } from '../mot-de-passe-temporaire.component';
+import { DirectionChemin } from '../modeles-territoire';
+import { PlateformeNavComponent } from '../plateforme-nav.component';
+import { TerritoireApi } from '../territoire-api.service';
+
 
 const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU: 'Suspendu', RESILIE: 'Résilié' };
 
 /** Super administrateur : établissements de la plateforme. */
 @Component({
   selector: 'app-plateforme',
-  imports: [FormsModule, DatePipe, MotDePasseTemporaireComponent, RechercheComponent, ExportsDonneesComponent],
+  imports: [FormsModule, DatePipe, MotDePasseTemporaireComponent, RechercheComponent, ExportsDonneesComponent, PlateformeNavComponent],
   template: `
     <div class="page large">
       <h1>Établissements</h1>
+      <app-plateforme-nav />
 
       @if (cree(); as c) {
         <app-mot-de-passe-temporaire
@@ -44,7 +49,7 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
       <section class="carte">
         <div class="entete-section">
           <h2>{{ etablissements().length }} établissement(s)</h2>
-          <button type="button" class="bouton" (click)="formulaire.set(!formulaire())">
+          <button type="button" class="bouton" (click)="formulaire.set(!formulaire()); chargerDirections()">
             {{ formulaire() ? 'Annuler' : 'Nouvel établissement' }}
           </button>
         </div>
@@ -80,6 +85,15 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
                 <input id="prenomsAdmin" name="prenomsAdmin" required [(ngModel)]="prenomsAdmin" />
               </div>
             </div>
+            <div class="champ">
+              <label for="rattachement">Rattachement (pays, ministère, directions)</label>
+              <select id="rattachement" name="rattachement" [(ngModel)]="directionCreation">
+                <option [ngValue]="null">Sans rattachement pour l'instant</option>
+                @for (d of terminales(); track d.id) { <option [ngValue]="d.id">{{ d.chemin }}</option> }
+              </select>
+              <span class="doux">Il figure sur les documents officiels et donne l'indicatif téléphonique du pays.
+                Le référentiel se gère dans l'onglet Territoire.</span>
+            </div>
             <button type="submit" class="bouton" [disabled]="creation.enCours()">
               {{ creation.enCours() ? 'Création…' : 'Créer l’établissement' }}
             </button>
@@ -100,6 +114,11 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
             <option value="SUSPENDU">Suspendus</option>
             <option value="RESILIE">Résiliés</option>
           </select>
+          <label class="visuellement-cache" for="filtreDirection">Direction</label>
+          <select id="filtreDirection" (focus)="chargerDirections()" [ngModel]="filtreDirection()" (ngModelChange)="filtrerDirection($event)">
+            <option [ngValue]="null">Toutes les directions</option>
+            @for (d of directions(); track d.id) { <option [ngValue]="d.id">{{ d.chemin }}</option> }
+          </select>
         </div>
         <div class="tableau-defilant">
           <table class="tableau">
@@ -110,7 +129,15 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
               @for (e of affiches(); track e.id) {
                 <tr>
                   <td><strong>{{ e.code }}</strong></td>
-                  <td>{{ e.nom }}</td>
+                  <td>
+                    {{ e.nom }}
+                    <br />
+                    @if (e.rattachement) {
+                      <span class="doux petit-texte">{{ e.rattachement }}</span>
+                    } @else {
+                      <span class="pastille">non rattaché</span>
+                    }
+                  </td>
                   <td>{{ e.creeLe | date: 'dd/MM/yyyy' }}</td>
                   <td>
                     <span class="pastille" [class.present]="e.statut === 'ACTIF'" [class.absent]="e.statut !== 'ACTIF'">
@@ -121,6 +148,7 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
                     <button type="button" class="bouton secondaire petit" [attr.aria-expanded]="ouvert() === e.id" (click)="basculerAdmins(e)">Administrateurs</button>
                     <button type="button" class="bouton secondaire petit" [attr.aria-expanded]="ouvertModules() === e.id" (click)="basculerModules(e)">Modules</button>
                     <button type="button" class="bouton secondaire petit" [attr.aria-expanded]="ouvertExports() === e.id" (click)="basculerExports(e)">Données</button>
+                    <button type="button" class="bouton secondaire petit" [attr.aria-expanded]="ouvertRattachement() === e.id" (click)="basculerRattachement(e)">Rattachement</button>
                     @if (e.statut === 'ACTIF') {
                       <button type="button" class="bouton danger petit" (click)="statut(e, 'SUSPENDU')">Suspendre</button>
                     } @else if (e.statut === 'SUSPENDU') {
@@ -128,6 +156,25 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
                     }
                   </td>
                 </tr>
+                @if (ouvertRattachement() === e.id) {
+                  <tr class="admins">
+                    <td colspan="5">
+                      @if (actionRattachement.erreur()) { <div class="alerte erreur" role="alert">{{ actionRattachement.erreur() }}</div> }
+                      <div class="rattacher">
+                        <label [for]="'ratt-' + e.id">Direction de rattachement</label>
+                        <select [id]="'ratt-' + e.id" [ngModel]="choixRattachement()" (ngModelChange)="choixRattachement.set($event)">
+                          <option [ngValue]="null" disabled>Choisir…</option>
+                          @for (d of terminales(); track d.id) { <option [ngValue]="d.id">{{ d.chemin }}</option> }
+                        </select>
+                        <button type="button" class="bouton petit" [disabled]="!choixRattachement() || choixRattachement() === e.directionId || actionRattachement.enCours()"
+                          (click)="rattacher(e)">Enregistrer</button>
+                      </div>
+                      @if (!terminales().length) {
+                        <p class="doux">Aucune direction disponible : créez le ministère et ses directions dans l'onglet Territoire.</p>
+                      }
+                    </td>
+                  </tr>
+                }
                 @if (ouvertExports() === e.id) {
                   <tr class="admins">
                     <td colspan="5">
@@ -250,6 +297,19 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
     .admins td {
       background: var(--surface);
     }
+    .petit-texte {
+      font-size: 0.8rem;
+    }
+    .rattacher {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      select {
+        flex: 1 1 20rem;
+        min-width: 0;
+      }
+    }
     .admins li {
       display: flex;
       flex-wrap: wrap;
@@ -280,6 +340,7 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
 })
 export class PlateformePage implements OnInit {
   private readonly api = inject(AdminApi);
+  private readonly territoire = inject(TerritoireApi);
 
   protected readonly libelleStatut = LIBELLE_STATUT;
   protected readonly etablissements = signal<EtablissementVue[]>([]);
@@ -319,6 +380,15 @@ export class PlateformePage implements OnInit {
   protected readonly telephone = signal('');
   protected readonly nomAdmin = signal('');
   protected readonly prenomsAdmin = signal('');
+  // Rattachement territorial (v0.35)
+  protected readonly directions = signal<DirectionChemin[]>([]);
+  protected readonly terminales = computed(() => this.directions().filter((d) => d.terminale && d.actif));
+  protected readonly directionCreation = signal<string | null>(null);
+  protected readonly filtreDirection = signal<string | null>(null);
+  protected readonly ouvertRattachement = signal<string | null>(null);
+  protected readonly choixRattachement = signal<string | null>(null);
+  protected readonly actionRattachement = new Action();
+  private directionsChargees = false;
 
   async ngOnInit(): Promise<void> {
     await this.recharger();
@@ -405,8 +475,49 @@ export class PlateformePage implements OnInit {
     }
   }
 
+  /** Directions avec leur chemin : chargées au premier besoin (filtre, création, rattachement). */
+  protected async chargerDirections(): Promise<void> {
+    if (this.directionsChargees) {
+      return;
+    }
+    this.directionsChargees = true;
+    const l = await this.liste.executer(() => this.territoire.directionsAvecChemin());
+    if (l) {
+      this.directions.set(l);
+    } else {
+      this.directionsChargees = false;
+    }
+  }
+
+  protected async filtrerDirection(id: string | null): Promise<void> {
+    this.filtreDirection.set(id);
+    await this.recharger();
+  }
+
+  protected async basculerRattachement(e: EtablissementVue): Promise<void> {
+    if (this.ouvertRattachement() === e.id) {
+      this.ouvertRattachement.set(null);
+      return;
+    }
+    this.ouvertRattachement.set(e.id);
+    this.choixRattachement.set(e.directionId);
+    await this.chargerDirections();
+  }
+
+  protected async rattacher(e: EtablissementVue): Promise<void> {
+    const direction = this.choixRattachement();
+    if (!direction) {
+      return;
+    }
+    const r = await this.actionRattachement.executer(() => this.api.rattacherEtablissement(e.id, direction));
+    if (r) {
+      this.etablissements.update((l) => l.map((x) => (x.id === r.id ? r : x)));
+      this.ouvertRattachement.set(null);
+    }
+  }
+
   private async recharger(): Promise<void> {
-    const liste = await this.liste.executer(() => this.api.etablissements());
+    const liste = await this.liste.executer(() => this.api.etablissements(this.filtreDirection()));
     if (liste) {
       this.etablissements.set([...liste].sort((a, b) => a.nom.localeCompare(b.nom)));
     }
@@ -420,6 +531,7 @@ export class PlateformePage implements OnInit {
         telephoneAdministrateur: this.telephone().trim(),
         nomAdministrateur: this.nomAdmin().trim(),
         prenomsAdministrateur: this.prenomsAdmin().trim(),
+        directionId: this.directionCreation(),
       }),
     );
     if (!r) {
@@ -433,6 +545,7 @@ export class PlateformePage implements OnInit {
     for (const s of [this.code, this.nom, this.telephone, this.nomAdmin, this.prenomsAdmin]) {
       s.set('');
     }
+    this.directionCreation.set(null);
     this.formulaire.set(false);
     await this.recharger();
   }

@@ -38,7 +38,12 @@ public class EtablissementsController {
             @NotBlank @Size(max = 200) String nom,
             @NotBlank String telephoneAdministrateur,
             @NotBlank @Size(max = 80) String nomAdministrateur,
-            @NotBlank @Size(max = 120) String prenomsAdministrateur) {
+            @NotBlank @Size(max = 120) String prenomsAdministrateur,
+            UUID directionId) {
+    }
+
+    /** Direction du dernier niveau (ex. direction provinciale). */
+    public record DemandeRattachement(@NotNull UUID directionId) {
     }
 
     public record DemandeStatut(@NotNull StatutTenant statut) {
@@ -50,16 +55,22 @@ public class EtablissementsController {
         this.service = service;
     }
 
+    /** Tous les établissements, ou ceux qui dépendent d'une direction ({@code ?direction=}, à tout niveau). */
     @GetMapping
-    public List<EtablissementVue> lister() {
-        return service.lister();
+    public List<EtablissementVue> lister(@org.springframework.web.bind.annotation.RequestParam(required = false) UUID direction) {
+        return service.lister(direction);
+    }
+
+    @PutMapping("/{id}/rattachement")
+    public EtablissementVue rattacher(@PathVariable UUID id, @Valid @RequestBody DemandeRattachement d) {
+        return service.rattacher(id, d.directionId());
     }
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ResultatCreation creer(@Valid @RequestBody DemandeCreation d) {
         return service.creer(d.code(), d.nom(), d.telephoneAdministrateur(), d.nomAdministrateur(),
-                d.prenomsAdministrateur());
+                d.prenomsAdministrateur(), d.directionId());
     }
 
     @GetMapping("/{id}/administrateurs")

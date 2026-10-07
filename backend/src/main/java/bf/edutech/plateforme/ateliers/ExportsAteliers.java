@@ -36,7 +36,7 @@ import bf.edutech.plateforme.ateliers.VuesBesoins.LigneConsolideeVue;
 import bf.edutech.plateforme.ateliers.VuesBesoins.LigneLivraisonVue;
 import bf.edutech.plateforme.ateliers.VuesBesoins.LivraisonVue;
 import bf.edutech.plateforme.ateliers.VuesBesoins.PartAtelierVue;
-import bf.edutech.plateforme.notifications.NotificationsService;
+import bf.edutech.plateforme.socle.documents.EntetesOfficiels;
 import bf.edutech.plateforme.socle.export.ExportTableaux;
 import bf.edutech.plateforme.socle.export.ExportTableaux.Format;
 import bf.edutech.plateforme.socle.export.Tableau;
@@ -70,11 +70,11 @@ public class ExportsAteliers {
     private final InventairesService inventaires;
     private final BesoinsService besoins;
     private final CommandesService commandes;
-    private final NotificationsService notifications;
+    private final EntetesOfficiels entetes;
 
     ExportsAteliers(AteliersService ateliers, CatalogueService catalogue, EquipementsService equipements, StockService stock,
             InventairesService inventaires, BesoinsService besoins, CommandesService commandes,
-            NotificationsService notifications) {
+            EntetesOfficiels entetes) {
         this.ateliers = ateliers;
         this.catalogue = catalogue;
         this.equipements = equipements;
@@ -82,11 +82,11 @@ public class ExportsAteliers {
         this.inventaires = inventaires;
         this.besoins = besoins;
         this.commandes = commandes;
-        this.notifications = notifications;
+        this.entetes = entetes;
     }
 
     private ResponseEntity<byte[]> fichier(String nom, Format format, Tableau... tableaux) {
-        return ExportTableaux.reponse(notifications.nomEtablissement(), nom + "-" + LocalDate.now(FUSEAU), format, tableaux);
+        return ExportTableaux.reponse(entetes.courant(), nom + "-" + LocalDate.now(FUSEAU), format, tableaux);
     }
 
     private static String jour(LocalDate d) {

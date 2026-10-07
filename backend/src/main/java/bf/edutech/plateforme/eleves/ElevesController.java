@@ -29,7 +29,7 @@ import bf.edutech.plateforme.eleves.Vues.DossierEleveVue;
 import bf.edutech.plateforme.eleves.Vues.EleveVue;
 import bf.edutech.plateforme.eleves.EspaceParentService.AccesParent;
 import bf.edutech.plateforme.eleves.Vues.EspaceParentVue;
-import bf.edutech.plateforme.notifications.NotificationsService;
+import bf.edutech.plateforme.socle.documents.EntetesOfficiels;
 import bf.edutech.plateforme.socle.export.ExportTableaux;
 import bf.edutech.plateforme.socle.export.Tableau;
 import bf.edutech.plateforme.socle.export.Tableau.Colonne;
@@ -84,12 +84,12 @@ public class ElevesController {
 
     private final ElevesService service;
     private final EspaceParentService espaceParent;
-    private final NotificationsService notifications;
+    private final EntetesOfficiels entetes;
 
-    ElevesController(ElevesService service, EspaceParentService espaceParent, NotificationsService notifications) {
+    ElevesController(ElevesService service, EspaceParentService espaceParent, EntetesOfficiels entetes) {
         this.service = service;
         this.espaceParent = espaceParent;
-        this.notifications = notifications;
+        this.entetes = entetes;
     }
 
     /** Recherche par matricule, nom ou prénoms, page par page (20 élèves par défaut, 100 au plus). */
@@ -179,6 +179,6 @@ public class ElevesController {
                 + "de passe est demandé à la première connexion. Mot de passe oublié : s'adresser à l'administration.");
         t.note("Document confidentiel : remettre à chaque parent sa ligne (découpée) ou lui communiquer en personne, "
                 + "puis détruire ce document. Les mots de passe provisoires ne seront plus affichés.");
-        return ExportTableaux.reponse(notifications.nomEtablissement(), "acces-parents-" + classe.replaceAll("[^A-Za-z0-9]+", "-"), f, t);
+        return ExportTableaux.reponse(entetes.courant(), "acces-parents-" + classe.replaceAll("[^A-Za-z0-9]+", "-"), f, t);
     }
 }
