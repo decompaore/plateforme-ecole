@@ -22,15 +22,21 @@ public final class Vues {
      */
     public record EnseignantVue(UUID engagementId, UUID enseignantId, String nom, String prenoms, String telephone,
             Sexe sexe, String matriculeFp, String specialite, TypeEngagement type, StatutEngagement statut,
-            LocalDate debut, LocalDate fin, BigDecimal tauxHoraire, String motifFin, boolean finProgrammee) {
+            LocalDate debut, LocalDate fin, BigDecimal tauxHoraire, String motifFin, boolean finProgrammee,
+            CategorieEnseignant categorie, boolean suggestionTechnique) {
 
         static EnseignantVue depuis(Engagement e, Enseignant s) {
+            return depuis(e, s, false);
+        }
+
+        /** {@code suggestionTechnique} : classé GENERAL mais assure une matière technique cette année. */
+        static EnseignantVue depuis(Engagement e, Enseignant s, boolean suggestionTechnique) {
             boolean visible = e.getStatut() == StatutEngagement.ACTIF || e.getStatut() == StatutEngagement.TERMINE;
             return new EnseignantVue(e.getId(), visible ? e.getEnseignantId() : null, visible ? s.getNom() : null,
                     visible ? s.getPrenoms() : null, visible ? s.getTelephone() : null,
                     visible ? s.getSexe() : null, visible ? s.getMatriculeFp() : null,
                     visible ? s.getSpecialite() : null, e.getType(), e.getStatut(), e.getDebut(), e.getFin(),
-                    e.getTauxHoraire(), e.getMotifFin(), e.isFinProgrammee());
+                    e.getTauxHoraire(), e.getMotifFin(), e.isFinProgrammee(), e.getCategorie(), suggestionTechnique);
         }
     }
 

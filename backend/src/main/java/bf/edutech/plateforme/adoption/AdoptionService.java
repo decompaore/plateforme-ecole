@@ -185,16 +185,29 @@ public class AdoptionService {
             // Filtre par direction, et pour un administrateur pays, par son pays (v0.36)
             java.util.List<String> conditions = new ArrayList<>();
             java.util.List<Object> valeurs = new ArrayList<>();
-            if (direction != null) {
+            java.util.Optional<UUID> compteDirection = bf.edutech.plateforme.socle.securite.Portee.direction();
+            if (compteDirection.isPresent()) {
+                // Compte de direction (v0.39) : sa direction et ce qui en dépend, jamais au-dessus
+                UUID racine = compteDirection.get();
+                if (direction != null && !jdbc.queryForList("select directions_descendantes(?)", UUID.class, racine)
+                        .contains(direction)) {
+                    throw new bf.edutech.plateforme.socle.erreurs.AccesRefuseException(
+                            "Cette direction ne dépend pas de la vôtre");
+                }
                 conditions.add("direction_id in (select directions_descendantes(?))");
-                valeurs.add(direction);
+                valeurs.add(direction != null ? direction : racine);
+            } else {
+                if (direction != null) {
+                    conditions.add("direction_id in (select directions_descendantes(?))");
+                    valeurs.add(direction);
+                }
+                bf.edutech.plateforme.socle.securite.Portee.pays().ifPresent(p -> {
+                    conditions.add("""
+                            direction_id in (select d.id from direction d join ministere m on m.id = d.ministere_id
+                                             where m.pays_id = ?)""");
+                    valeurs.add(p);
+                });
             }
-            bf.edutech.plateforme.socle.securite.Portee.pays().ifPresent(p -> {
-                conditions.add("""
-                        direction_id in (select d.id from direction d join ministere m on m.id = d.ministere_id
-                                         where m.pays_id = ?)""");
-                valeurs.add(p);
-            });
             boolean limite = !conditions.isEmpty();
             String filtre = limite ? " where " + String.join(" and ", conditions) : "";
             Object[] parametres = valeurs.toArray();

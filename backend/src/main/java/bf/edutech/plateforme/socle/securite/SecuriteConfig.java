@@ -134,7 +134,7 @@ public class SecuriteConfig {
                 .requestMatchers(HttpMethod.GET, "/api/v1/telechargements/exports/*").permitAll()
                 // Notifications des agrégateurs Mobile Money : signature vérifiée par le service
                 .requestMatchers(HttpMethod.POST, "/api/v1/webhooks/mobile-money/*").permitAll()
-                .requestMatchers("/api/v1/auth/etablissement")
+                .requestMatchers("/api/v1/auth/etablissement", "/api/v1/auth/administration")
                     .hasAnyAuthority("TYPE_" + TYPE_SELECTION, "TYPE_" + TYPE_ACCES)
                 // Super administrateur et administrateurs pays (v0.36) ; la portée (pays) est vérifiée
                 // par chaque service, les actions réservées au super administrateur par @PreAuthorize

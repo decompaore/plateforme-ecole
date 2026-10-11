@@ -35,6 +35,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import com.jayway.jsonpath.JsonPath;
 
+import bf.edutech.plateforme.enseignants.CategorieEnseignant;
 import bf.edutech.plateforme.enseignants.EnseignantsService;
 import bf.edutech.plateforme.enseignants.EnseignantsService.DonneesEngagement;
 import bf.edutech.plateforme.enseignants.TypeEngagement;
@@ -108,7 +109,7 @@ class BesoinsIntegrationTest {
         dans(() -> annees.ouvrir(annee.id()));
 
         Prof sanou = enseignant("Sanou", "Paul", classe, elec);
-        Prof kabore = enseignant("Kabore", "Awa", classe, maths);
+        Prof kabore = enseignant("Kabore", "Awa", classe, maths, CategorieEnseignant.GENERAL);
         Prof traore = enseignant("Traore", "Ali", classe, tp);
         UUID chef = membre(Role.CHEF_TRAVAUX, "Ouedraogo", "Salif");
         UUID intendant = membre(Role.INTENDANT, "Kafando", "Marc");
@@ -325,9 +326,14 @@ class BesoinsIntegrationTest {
     }
 
     private Prof enseignant(String nom, String prenoms, UUID classe, UUID matiere) {
+        return enseignant(nom, prenoms, classe, matiere, CategorieEnseignant.TECHNIQUE);
+    }
+
+    /** v0.40 : seuls les enseignants classés TECHNIQUE sont rattachés aux ateliers. */
+    private Prof enseignant(String nom, String prenoms, UUID classe, UUID matiere, CategorieEnseignant categorie) {
         String tel = telephone();
         UUID engagement = dans(() -> enseignants.engager(new DonneesEngagement(tel, null, nom, prenoms, Sexe.M, null,
-                TypeEngagement.TITULAIRE, aujourdhui.minusDays(30), null, null))).enseignant().engagementId();
+                TypeEngagement.TITULAIRE, aujourdhui.minusDays(30), null, null, categorie))).enseignant().engagementId();
         dans(() -> enseignants.affecter(classe, matiere, engagement));
         return new Prof(compte(tel, Role.ENSEIGNANT), engagement);
     }

@@ -5,6 +5,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -57,6 +58,17 @@ public class AnneesService {
     @Transactional(readOnly = true)
     public AnneeVue trouver(UUID id) {
         return AnneeVue.depuis(charger(id));
+    }
+
+    /**
+     * Année active, si elle existe. À préférer à un {@code try/catch} autour de {@link #active()} :
+     * l'exception levée dans une méthode transactionnelle marque la transaction de l'appelant
+     * « rollback-only », même rattrapée (UnexpectedRollbackException au commit).
+     */
+    @Transactional(readOnly = true)
+    public Optional<AnneeVue> activeSiExiste() {
+        UtilisateurConnecte.etablissementActif();
+        return annees.findByEtat(EtatAnnee.ACTIVE).map(AnneeVue::depuis);
     }
 
     @Transactional(readOnly = true)

@@ -130,3 +130,49 @@ export function fcfa(montant: number): string {
 export function sur20(n: number | null): string {
   return n === null ? '—' : n.toFixed(2).replace('.', ',');
 }
+
+// ---------- Moyens de paiement proposés aux parents et virements déclarés (v0.38)
+
+export interface CompteBancaireParent {
+  id: string;
+  banque: string;
+  titulaire: string;
+  numero: string;
+  codeSwift: string | null;
+  agence: string | null;
+}
+
+export interface MoyensParentVue {
+  mobileMoney: boolean;
+  operateurs: Operateur[];
+  virement: boolean;
+  comptes: CompteBancaireParent[];
+  consigneVirement: string | null;
+  /** À recopier dans le motif du virement */
+  referenceAIndiquer: string;
+}
+
+export type StatutVirement = 'EN_ATTENTE' | 'VALIDE' | 'REFUSE';
+
+export interface VirementParentVue {
+  id: string;
+  compte: string;
+  montant: number;
+  dateVirement: string;
+  reference: string;
+  statut: StatutVirement;
+  montantValide: number | null;
+  motifRefus: string | null;
+  recuNumero: string | null;
+  declareLe: string;
+}
+
+export interface DeclarationVirement {
+  compteId: string;
+  montant: number;
+  dateVirement: string;
+  reference: string;
+  donneurOrdre: string;
+  cleIdempotence: string;
+  fichier: File | null;
+}

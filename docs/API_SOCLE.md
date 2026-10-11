@@ -146,3 +146,20 @@ la date de connexion et la dernière activité. Un changement d'établissement g
   `APPAREIL_EFFACE`.
 - La liste des comptes (`GET /api/v1/comptes`) donne `appareilsConnectes` pour l'établissement. La réinitialisation
   d'un mot de passe ferme toutes les sessions du compte.
+
+
+## Espaces d'un compte d'administration (v0.41)
+
+- Un compte d'administration (super administrateur, administrateur pays, compte de direction) peut avoir le rôle
+  PARENT dans des établissements (`MembresService` refuse toujours les autres rôles : `COMPTE_PLATEFORME`). Un
+  membre du personnel d'un établissement, même suspendu ou désactivé, ne peut pas devenir administrateur pays ou
+  compte de direction (`COMPTE_ETABLISSEMENT`, fonction `compte_personnel_etablissement`, migration
+  `V31__personnel_tous_etablissements.sql`) ; un parent, si.
+- `POST /api/v1/auth/connexion` : s'il est aussi parent, `selectionRequise` avec `jetonSelection`, `etablissements`
+  (rôle PARENT) et `administration { type: PLATEFORME | PAYS | DIRECTION, libelle }`.
+- `POST /api/v1/auth/administration` (jeton de sélection ou d'accès, cookie de rafraîchissement remplacé) ouvre
+  l'espace d'administration ; `POST /api/v1/auth/etablissement` ouvre un établissement, avec seulement les rôles
+  qu'il y a (PARENT) : ni `SUPER_ADMIN`, ni `pays_id`, ni `direction_id`, et `superAdmin: false`. Chaque réponse
+  porte `administration` pour que l'application propose « Changer d'espace ».
+- `/api/v1/comptes/{id}/reinitialisation`, `/deverrouillage`, `/appareils/fermeture` refusent (`403`) un compte
+  d'administration.

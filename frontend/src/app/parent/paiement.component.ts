@@ -23,7 +23,7 @@ export const SUIVI_MS = 5000;
         <h3>Payer par Mobile Money</h3>
         <fieldset class="operateurs">
           <legend>Opérateur</legend>
-          @for (o of operateurs; track o) {
+          @for (o of proposes(); track o) {
             <label class="operateur" [class.choisi]="operateur() === o">
               <input type="radio" name="operateur" [value]="o" [checked]="operateur() === o" (change)="operateur.set(o)" />
               {{ libelles[o] }}
@@ -185,13 +185,17 @@ export class PaiementComponent implements OnInit {
   private readonly api = inject(ParentApi);
 
   readonly situation = input.required<SituationVue>();
+  /** Opérateurs proposés par l'établissement (v0.38) ; tous si la liste est vide. */
+  readonly operateurs = input<Operateur[]>([]);
   /** Paiement confirmé : la situation est à relire. */
   readonly paye = output<void>();
   readonly ferme = output<void>();
 
   protected readonly fcfa = fcfa;
   protected readonly libelles = LIBELLE_OPERATEUR;
-  protected readonly operateurs: Operateur[] = ['ORANGE_MONEY', 'MOOV_MONEY', 'TELECEL_MONEY'];
+  protected readonly proposes = computed<Operateur[]>(() =>
+    this.operateurs().length ? this.operateurs() : ['ORANGE_MONEY', 'MOOV_MONEY', 'TELECEL_MONEY'],
+  );
   protected readonly dev = isDevMode();
 
   protected readonly operateur = signal<Operateur>('ORANGE_MONEY');
@@ -223,6 +227,7 @@ export class PaiementComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    this.operateur.set(this.proposes()[0]);
     const s = this.situation();
     this.montant.set(s.retardFamille > 0 ? Math.min(s.retardFamille, s.resteFamille) : s.resteFamille);
   }

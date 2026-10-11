@@ -6,6 +6,7 @@ import { STOCKAGE } from '../hors-ligne/stockage';
 import { estErreurReseau } from './erreurs';
 import {
   DirectionAdministree,
+  EspaceAdministration,
   EtablissementAccessible,
   Module,
   MotifChangementMotDePasse,
@@ -33,6 +34,8 @@ export interface ProfilLocal {
   adminPays?: PaysAdministre | null;
   /** Compte de direction (v0.37) : tableau de bord de pilotage de cette direction. */
   direction?: DirectionAdministree | null;
+  /** Espace d'administration du compte, même pendant une session de parent (v0.41). */
+  administration?: EspaceAdministration | null;
   etablissement: EtablissementAccessible | null;
   doitChangerMotDePasse: boolean;
   /** Pourquoi un nouveau mot de passe est demandé (message de la page « Mot de passe »). */
@@ -44,6 +47,8 @@ export interface ProfilLocal {
 interface SelectionEnCours {
   jeton: string;
   etablissements: EtablissementAccessible[];
+  /** Compte d'administration qui est aussi parent (v0.41) : son espace d'administration, proposé en premier. */
+  administration?: EspaceAdministration | null;
 }
 
 const CLE_PROFIL = 'session:profil';
@@ -94,8 +99,14 @@ export class SessionService {
   /** Profil connu mais pas de jeton : serveur injoignable, ou session à rouvrir. */
   readonly horsConnexion = computed(() => this.profilSignal() !== null && this.jetonSignal() === null);
   readonly roles = computed<Role[]>(() => this.profilSignal()?.etablissement?.roles ?? []);
-  /** Vrai si le compte appartient à plusieurs établissements (enseignant vacataire, parent, réseau d'écoles). */
-  readonly plusieursEtablissements = computed(() => (this.profilSignal()?.nombreEtablissements ?? 0) > 1);
+  /**
+   * Vrai si le compte a plusieurs espaces : plusieurs établissements (enseignant vacataire, parent, réseau
+   * d'écoles), ou un espace d'administration et au moins un établissement où il est parent (v0.41).
+   */
+  readonly plusieursEtablissements = computed(() => {
+    const p = this.profilSignal();
+    return (p?.nombreEtablissements ?? 0) + (p?.administration ? 1 : 0) > 1;
+  });
 
   /** Le module est-il utilisé par l'établissement actif ? */
   moduleActif(module: Module): boolean {
@@ -155,7 +166,7 @@ export class SessionService {
       this.http.post<ReponseConnexion>(`${API}/auth/connexion`, { telephone, motDePasse }),
     );
     if (reponse.selectionRequise && reponse.jetonSelection) {
-      this.selectionSignal.set({ jeton: reponse.jetonSelection, etablissements: reponse.etablissements });
+      this.selectionSignal.set({ jeton: reponse.jetonSelection, etablissements: reponse.etablissements, administration: reponse.administration ?? null });
       return 'selection';
     }
     await this.ouvrir(reponse);
@@ -176,6 +187,26 @@ export class SessionService {
       reponse = await envoyer();
     } catch (e) {
       // Jeton d'accès expiré (changement d'établissement en cours de journée) : on le renouvelle une fois
+      if (!(e instanceof HttpErrorResponse && e.status === 401) || this.selectionSignal() || !(await this.rafraichir())) {
+        throw e;
+      }
+      reponse = await envoyer();
+    }
+    this.selectionSignal.set(null);
+    await this.ouvrir(reponse);
+  }
+
+  /** Ouvre l'espace d'administration (après la connexion, ou depuis un établissement où l'on est parent). */
+  async choisirAdministration(): Promise<void> {
+    const envoyer = () => {
+      const jeton = this.selectionSignal()?.jeton ?? this.jetonSignal();
+      const headers = jeton ? new HttpHeaders({ Authorization: `Bearer ${jeton}` }) : undefined;
+      return firstValueFrom(this.http.post<ReponseConnexion>(`${API}/auth/administration`, null, { headers }));
+    };
+    let reponse: ReponseConnexion;
+    try {
+      reponse = await envoyer();
+    } catch (e) {
       if (!(e instanceof HttpErrorResponse && e.status === 401) || this.selectionSignal() || !(await this.rafraichir())) {
         throw e;
       }
@@ -287,6 +318,7 @@ export class SessionService {
       superAdmin: reponse.superAdmin,
       adminPays: reponse.adminPays ?? null,
       direction: reponse.direction ?? null,
+      administration: reponse.administration ?? null,
       etablissement: reponse.etablissementActif,
       doitChangerMotDePasse: reponse.doitChangerMotDePasse,
       motifChangementMotDePasse: reponse.motifChangementMotDePasse ?? null,

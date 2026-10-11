@@ -83,10 +83,12 @@ public class MembresService {
             motDePasseTemporaire = GenerateurMotDePasse.temporaire();
             utilisateur = utilisateurs.save(new Utilisateur(telephone, nom.trim().toUpperCase(), prenoms.trim(),
                     encodeur.encode(motDePasseTemporaire), false));
-        } else if (utilisateur.isSuperAdmin() || administrateursPays.de(utilisateur.getId()).isPresent()
-                || administrateursDirection.de(utilisateur.getId()).isPresent()) {
+        } else if (role != Role.PARENT && (utilisateur.isSuperAdmin()
+                || administrateursPays.de(utilisateur.getId()).isPresent()
+                || administrateursDirection.de(utilisateur.getId()).isPresent())) {
+            // Un compte d'administration peut être parent d'élève (v0.41), jamais personnel d'un établissement
             throw new RegleMetierException("COMPTE_PLATEFORME",
-                    "Un compte d'administration de la plateforme ne peut pas être membre d'un établissement");
+                    "Un compte d'administration de la plateforme ne peut être que parent dans un établissement");
         }
 
         Optional<MembreEtablissement> existant = membres.findByUtilisateurIdAndRole(utilisateur.getId(), role);

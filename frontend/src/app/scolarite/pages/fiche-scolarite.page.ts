@@ -74,7 +74,8 @@ export class FicheScolaritePage implements OnInit {
   protected readonly fcfa = fcfa;
   protected readonly dateCourte = dateCourte;
   protected readonly dateHeureCourte = dateHeureCourte;
-  protected readonly moyens = MOYENS;
+  /** Moyens acceptés au guichet par l'établissement (v0.38) ; tous tant qu'ils ne sont pas lus. */
+  protected readonly moyens = signal<MoyenPaiement[]>(MOYENS);
   protected readonly libelleMoyen = LIBELLE_MOYEN;
   protected readonly libelleBourse = LIBELLE_BOURSE;
   protected readonly aujourdhui = dateLocale();
@@ -160,6 +161,9 @@ export class FicheScolaritePage implements OnInit {
   );
 
   async ngOnInit(): Promise<void> {
+    if (this.gestion()) {
+      void this.chargerMoyens();
+    }
     const demandee = this.depuisInscription();
     const d = await this.action.executer(async () => {
       const eleveId = this.eleveId() ?? (demandee ? (await this.api.situation(demandee)).eleveId : undefined);
@@ -211,11 +215,25 @@ export class FicheScolaritePage implements OnInit {
     });
   }
 
+  private async chargerMoyens(): Promise<void> {
+    try {
+      const p = await this.api.parametresPaiement();
+      if (p.moyensGuichet.length) {
+        this.moyens.set(p.moyensGuichet);
+        if (!p.moyensGuichet.includes(this.moyen())) {
+          this.moyen.set(p.moyensGuichet[0]);
+        }
+      }
+    } catch {
+      // Réglages illisibles : tous les moyens restent proposés, le serveur refusera ceux qui ne sont pas acceptés
+    }
+  }
+
   private reinitialiserSaisie(): void {
     this.montant.set('');
     this.reference.set('');
     this.deposant.set('');
-    this.moyen.set('ESPECES');
+    this.moyen.set(this.moyens().includes('ESPECES') ? 'ESPECES' : this.moyens()[0]);
     this.datePaiement.set(dateLocale());
     this.cle = nouvelIdentifiant();
   }

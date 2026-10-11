@@ -47,12 +47,18 @@ public final class AuthDtos {
             /** Pays administré (administrateur pays, v0.36) ; null sinon. */
             PaysAdministre adminPays,
             /** Direction du compte de direction (v0.37) ; null sinon. */
-            DirectionAdministree direction) {
+            DirectionAdministree direction,
+            /**
+             * Espace d'administration du compte (v0.41), même pendant une session de parent dans un
+             * établissement : l'application propose alors « Changer d'espace ». Null pour les autres comptes.
+             */
+            EspaceAdministration administration) {
 
         static ReponseConnexion depuis(AuthService.ResultatConnexion r) {
             return new ReponseConnexion(r.jetonAcces(), r.jetonSelection(), r.expireDansSecondes(),
                     r.jetonSelection() != null, r.etablissementActif(), r.etablissements(), r.superAdmin(),
-                    r.doitChangerMotDePasse(), r.motifChangementMotDePasse(), r.adminPays(), r.direction());
+                    r.doitChangerMotDePasse(), r.motifChangementMotDePasse(), r.adminPays(), r.direction(),
+                    r.administration());
         }
     }
 

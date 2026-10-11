@@ -6,7 +6,7 @@ import { TerritoirePage } from '../admin/pages/territoire.page';
 import { SessionService } from '../core/session.service';
 import { attendre, configurer, reponse } from '../testing/outils-test';
 import { Compte, Indicateurs, TableauPilotage } from './modeles-pilotage';
-import { nomsExamens, partFilles, PilotagePage, pourcent, tauxExamen } from './pilotage.page';
+import { cumul, nomsExamens, partFilles, PilotagePage, pourcent, tauxExamen } from './pilotage.page';
 
 function texte<T>(f: ComponentFixture<T>): string {
   f.detectChanges();
@@ -66,8 +66,8 @@ const TABLEAU: TableauPilotage = {
     { id: 'dp2', code: 'DP2', nom: 'DP du Bazèga', indicateurs: LYCEE_B },
   ],
   etablissements: [
-    { id: 'a', code: 'lycee-a', nom: 'Lycée A', statut: 'ACTIF', directionId: 'dp1', direction: 'DP du Kadiogo', sousDirectionId: 'dp1', indicateurs: LYCEE_A },
-    { id: 'b', code: 'lycee-b', nom: 'Lycée B', statut: 'SUSPENDU', directionId: 'dp2', direction: 'DP du Bazèga', sousDirectionId: 'dp2', indicateurs: LYCEE_B },
+    { id: 'a', code: 'lycee-a', nom: 'Lycée A', statut: 'ACTIF', directionId: 'dp1', direction: 'DP du Kadiogo', rattachement: 'Burkina Faso · MESFPT · DR du Centre · DP du Kadiogo', sousDirectionId: 'dp1', indicateurs: LYCEE_A },
+    { id: 'b', code: 'lycee-b', nom: 'Lycée B', statut: 'SUSPENDU', directionId: 'dp2', direction: 'DP du Bazèga', rattachement: 'Burkina Faso · MESFPT · DR du Centre · DP du Bazèga', sousDirectionId: 'dp2', indicateurs: LYCEE_B },
   ],
   produitLe: '2026-10-07T10:00:00Z',
 };
@@ -103,6 +103,41 @@ describe('Pilotage des directions (v0.37)', () => {
     expect(tauxExamen(LYCEE_B, 'BEPC')).toBe('—');
   });
 
+  it('arbre (v0.39) : établissements regroupés par direction provinciale, cumuls pondérés, repli et liste', async () => {
+    const c = cumul(TABLEAU.etablissements);
+    expect(c.eleves.total).toBe(5);
+    expect(c.tauxAdmission).toBeNull();
+    expect(c.examens['BEPC']).toBe(66.7);
+    expect(c.actifs).toBe(8);
+    await connexionDirection(http);
+    const f = TestBed.createComponent(PilotagePage);
+    f.detectChanges();
+    await attendre();
+    http.expectOne('/api/v1/pilotage').flush(TABLEAU);
+    await attendre();
+    const lignes = () => {
+      f.detectChanges();
+      const tables = (f.nativeElement as HTMLElement).querySelectorAll('table');
+      return [...tables[tables.length - 1].querySelectorAll('tbody tr')].map((tr) => (tr.textContent ?? '').replace(/\s+/g, ' ').trim());
+    };
+    let t = texte(f);
+    expect(t).toContain('Burkina Faso · MESFPT · DR du Centre');
+    let l = lignes().filter((x) => x.includes('DP du') || x.includes('Lycée'));
+    expect(l.some((x) => x.startsWith('▾ DP du Bazèga · 1 établissement(s)'))).toBe(true);
+    expect(l.some((x) => x.startsWith('Lycée A'))).toBe(true);
+    // Replier la DP du Kadiogo cache le lycée A
+    const kadiogo = [...(f.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button.replier')].find((b) => b.textContent?.includes('Kadiogo'))!;
+    kadiogo.click();
+    t = texte(f);
+    expect(t).not.toContain('Lycée A');
+    bouton(f, 'Tout déplier').click();
+    expect(texte(f)).toContain('Lycée A');
+    bouton(f, 'Liste').click();
+    l = lignes();
+    expect(l.some((x) => x.startsWith('▾'))).toBe(false);
+    expect(l.length).toBe(2);
+  });
+
   it('compte de direction : session sans établissement ni administration de la plateforme', async () => {
     await connexionDirection(http);
     const session = TestBed.inject(SessionService);
@@ -130,8 +165,9 @@ describe('Pilotage des directions (v0.37)', () => {
     expect(t).toContain('Direction provinciale');
     expect(t).toContain('DP du Kadiogo');
     expect(t).toContain('Suspendu');
-    // Pas d'onglets d'administration de la plateforme pour une direction
-    expect((f.nativeElement as HTMLElement).querySelector('app-plateforme-nav')).toBeNull();
+    // Onglets d'une direction (v0.39) : Pilotage et Adoption, rien de la plateforme
+    const onglets = [...(f.nativeElement as HTMLElement).querySelectorAll('app-plateforme-nav a')].map((a) => a.textContent?.trim());
+    expect(onglets).toEqual(['Pilotage', 'Adoption']);
 
     // Filtre des établissements par direction provinciale
     const sous = (f.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('#pilotageSous')!;

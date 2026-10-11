@@ -229,3 +229,74 @@ export function lireMontant(texte: string): number | null {
   const n = Number(propre);
   return n > 0 && Number.isSafeInteger(n) ? n : null;
 }
+
+// ---------- Moyens de paiement et virements déclarés (v0.38)
+
+export const OPERATEURS_MM: MoyenPaiement[] = ['ORANGE_MONEY', 'MOOV_MONEY', 'TELECEL_MONEY'];
+
+export interface CompteBancaireVue {
+  id: string;
+  banque: string;
+  titulaire: string;
+  /** RIB ou IBAN */
+  numero: string;
+  codeSwift: string | null;
+  agence: string | null;
+  actif: boolean;
+}
+
+export type DonneesCompte = Omit<CompteBancaireVue, 'id'>;
+
+export interface ParametresPaiement {
+  moyensGuichet: MoyenPaiement[];
+  mobileMoneyParents: boolean;
+  operateurs: MoyenPaiement[];
+  virementParents: boolean;
+  consigneVirement: string | null;
+  comptes: CompteBancaireVue[];
+  /** Module Mobile Money actif et compte marchand configuré */
+  mobileMoneyDisponible: boolean;
+}
+
+export type DonneesParametresPaiement = Omit<ParametresPaiement, 'comptes' | 'mobileMoneyDisponible'>;
+
+/** Compte marchand Mobile Money de l'établissement (les clés ne sont jamais renvoyées). */
+export interface ConfigurationMobileMoney {
+  agregateur: string | null;
+  identifiantMarchand: string | null;
+  cleApiDefinie: boolean;
+  secretWebhookDefini: boolean;
+  actif: boolean;
+  urlNotification: string;
+  agregateursDisponibles: string[];
+}
+
+export type StatutVirement = 'EN_ATTENTE' | 'VALIDE' | 'REFUSE';
+
+export const LIBELLE_STATUT_VIREMENT: Record<StatutVirement, string> = {
+  EN_ATTENTE: 'À vérifier',
+  VALIDE: 'Validé',
+  REFUSE: 'Refusé',
+};
+
+export interface VirementVue {
+  id: string;
+  inscriptionId: string;
+  eleve: string;
+  matricule: string;
+  classe: string;
+  compteId: string;
+  compte: string;
+  montant: number;
+  dateVirement: string;
+  reference: string;
+  donneurOrdre: string | null;
+  preuve: boolean;
+  statut: StatutVirement;
+  montantValide: number | null;
+  motifRefus: string | null;
+  paiementId: string | null;
+  recuNumero: string | null;
+  declareLe: string;
+  traiteLe: string | null;
+}

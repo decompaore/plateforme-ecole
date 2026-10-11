@@ -6,7 +6,7 @@ import { SessionService } from '../core/session.service';
 import { StockageMemoire } from '../hors-ligne/stockage';
 import { attendre, configurer, reponse } from '../testing/outils-test';
 import { AbsenceVue } from '../vie-scolaire/modeles-vs';
-import { fcfa, SituationVue } from './modeles-parent';
+import { fcfa, MoyensParentVue, SituationVue } from './modeles-parent';
 import { EnfantPage } from './pages/enfant.page';
 import { EnfantsPage } from './pages/enfants.page';
 import { indicateurAbsences, indicateurScolarite } from './resume';
@@ -40,6 +40,16 @@ function situation(autres: Partial<SituationVue> = {}): SituationVue {
     ...autres,
   };
 }
+
+/** Moyens proposés par l'établissement (v0.38) : Mobile Money (deux opérateurs) et virement. */
+const MOYENS: MoyensParentVue = {
+  mobileMoney: true,
+  operateurs: ['ORANGE_MONEY', 'TELECEL_MONEY'],
+  virement: true,
+  comptes: [{ id: 'cb1', banque: 'Coris Bank', titulaire: 'Lycée technique', numero: 'BF042 01001 00123456789 12', codeSwift: 'COBFBFBF', agence: null }],
+  consigneVirement: 'Indiquez la référence dans le motif.',
+  referenceAIndiquer: 'SCOL 2026-00001 OUEDRAOGO',
+};
 
 async function session(http: HttpTestingController): Promise<void> {
   const connexion = TestBed.inject(SessionService).connexion('62000001', 'secret123');
@@ -201,6 +211,10 @@ describe('Espace parent', () => {
   it('scolarité : paiement Mobile Money suivi jusqu’à la confirmation, puis situation relue', async () => {
     const f = await ouvrirEnfant();
     bouton(f, 'Scolarité').click();
+    await attendre();
+    http.expectOne('/api/v1/espace-parent/inscriptions/i1/moyens-paiement').flush(MOYENS);
+    http.expectOne('/api/v1/espace-parent/inscriptions/i1/virements').flush([]);
+    await attendre();
     let t = texte(f);
     expect(t).toContain(`${fcfa(25000)} en retard`);
     expect(t).toContain('Reçu R-2026-0001');
@@ -242,5 +256,73 @@ describe('Espace parent', () => {
     // Plus aucun suivi après la confirmation
     await vi.advanceTimersByTimeAsync(20000);
     http.expectNone('/api/v1/espace-parent/mobile-money/t1');
+  });
+  it('scolarité : virement déclaré avec sa preuve, puis suivi de la vérification', async () => {
+    const f = await ouvrirEnfant();
+    bouton(f, 'Scolarité').click();
+    await attendre();
+    http.expectOne('/api/v1/espace-parent/inscriptions/i1/moyens-paiement').flush(MOYENS);
+    http.expectOne('/api/v1/espace-parent/inscriptions/i1/virements').flush([
+      { id: 'v0', compte: 'Coris Bank · BF042', montant: 10000, dateVirement: '2026-10-01', reference: 'VIR-0', statut: 'REFUSE',
+        montantValide: null, motifRefus: 'Introuvable sur le relevé', recuNumero: null, declareLe: '2026-10-01T10:00:00Z' },
+    ]);
+    await attendre();
+    let t = texte(f);
+    expect(t).toContain('Virements déclarés');
+    expect(t).toContain('Introuvable sur le relevé');
+
+    bouton(f, 'Payer par virement').click();
+    f.detectChanges();
+    await f.whenStable();
+    t = texte(f);
+    expect(t).toContain('BF042 01001 00123456789 12');
+    expect(t).toContain('SCOL 2026-00001 OUEDRAOGO');
+    expect(t).toContain('Indiquez la référence dans le motif.');
+    const page = f.nativeElement as HTMLElement;
+    expect((page.querySelector('#vir-montant') as HTMLInputElement).value).toBe('25000');
+    expect(bouton(f, 'Déclarer le virement').disabled).toBe(true);
+    const ref = page.querySelector('#vir-reference') as HTMLInputElement;
+    ref.value = 'VIR-2026-77';
+    ref.dispatchEvent(new Event('input'));
+    const preuve = page.querySelector('#vir-preuve') as HTMLInputElement;
+    const fichier = new File([new Uint8Array([0x89, 0x50, 0x4e, 0x47])], 'avis.png', { type: 'image/png' });
+    Object.defineProperty(preuve, 'files', { value: [fichier] });
+    preuve.dispatchEvent(new Event('change'));
+    f.detectChanges();
+    bouton(f, 'Déclarer le virement').click();
+    await attendre();
+    const envoi = http.expectOne((r) => r.url === '/api/v1/espace-parent/inscriptions/i1/virements' && r.method === 'POST');
+    const corps = envoi.request.body as FormData;
+    expect(corps.get('compteId')).toBe('cb1');
+    expect(corps.get('montant')).toBe('25000');
+    expect(corps.get('reference')).toBe('VIR-2026-77');
+    expect(corps.get('dateVirement')).toBe(AUJOURDHUI);
+    expect((corps.get('fichier') as File).name).toBe('avis.png');
+    envoi.flush({ id: 'v1', compte: 'Coris Bank', montant: 25000, dateVirement: AUJOURDHUI, reference: 'VIR-2026-77', statut: 'EN_ATTENTE',
+      montantValide: null, motifRefus: null, recuNumero: null, declareLe: `${AUJOURDHUI}T10:00:00Z` });
+    await attendre();
+    http.expectOne('/api/v1/espace-parent/inscriptions/i1/moyens-paiement').flush(MOYENS);
+    http.expectOne('/api/v1/espace-parent/inscriptions/i1/virements').flush([
+      { id: 'v1', compte: 'Coris Bank', montant: 25000, dateVirement: AUJOURDHUI, reference: 'VIR-2026-77', statut: 'EN_ATTENTE',
+        montantValide: null, motifRefus: null, recuNumero: null, declareLe: `${AUJOURDHUI}T10:00:00Z` },
+    ]);
+    await attendre();
+    t = texte(f);
+    expect(t).toContain('déclaré');
+    expect(t).toContain('en vérification');
+  });
+
+  it('scolarité : sans moyen en ligne proposé, paiement à l’intendance', async () => {
+    const f = await ouvrirEnfant();
+    bouton(f, 'Scolarité').click();
+    await attendre();
+    http.expectOne('/api/v1/espace-parent/inscriptions/i1/moyens-paiement')
+      .flush({ ...MOYENS, mobileMoney: false, operateurs: [], virement: false, comptes: [], consigneVirement: null });
+    http.expectOne('/api/v1/espace-parent/inscriptions/i1/virements').flush([]);
+    await attendre();
+    const t = texte(f);
+    expect(t).toContain("Le paiement se fait à l'intendance");
+    expect(t).not.toContain('Payer par Mobile Money');
+    expect(t).not.toContain('Payer par virement');
   });
 });

@@ -39,7 +39,9 @@ public class MoiController {
                 .orElseThrow(() -> new AuthentificationException("Compte introuvable"));
         String tenant = jwt.getClaimAsString(TenantFilter.CLAIM_TENANT_ID);
         List<String> roles = jwt.getClaimAsStringList(SecuriteConfig.CLAIM_ROLES);
-        return new ProfilConnecte(u.getId(), u.getNom(), u.getPrenoms(), u.getTelephone(), u.isSuperAdmin(),
+        // Droits de la session (jeton), pas du compte : un super administrateur parent d'élève n'y est que parent
+        return new ProfilConnecte(u.getId(), u.getNom(), u.getPrenoms(), u.getTelephone(),
+                u.isSuperAdmin() && roles != null && roles.contains("SUPER_ADMIN"),
                 tenant != null ? UUID.fromString(tenant) : null, jwt.getClaimAsString(TenantFilter.CLAIM_TENANT_CODE),
                 roles != null ? roles : List.of(), u.isDoitChangerMotDePasse(),
                 u.getMotifChangement());

@@ -80,9 +80,12 @@ public final class Vues {
     public record LigneDirection(UUID id, String code, String nom, Indicateurs indicateurs) {
     }
 
-    /** {@code sousDirectionId} : direction de la ligne « directions » dont dépend l'établissement. */
+    /**
+     * {@code sousDirectionId} : direction de la ligne « directions » dont dépend l'établissement ;
+     * {@code rattachement} : chemin complet (pays · ministère · directions), pour l'arbre (v0.39).
+     */
     public record LigneEtablissement(UUID id, String code, String nom, String statut, UUID directionId,
-            String direction, UUID sousDirectionId, Indicateurs indicateurs) {
+            String direction, String rattachement, UUID sousDirectionId, Indicateurs indicateurs) {
     }
 
     public record TableauPilotage(PerimetreVue perimetre, ParentVue parent, List<String> annees, String annee,

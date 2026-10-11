@@ -6,7 +6,17 @@ import { estErreurReseau } from '../core/erreurs';
 import { API, SessionService } from '../core/session.service';
 import { STOCKAGE } from '../hors-ligne/stockage';
 import { AbsenceVue, HistoriqueVue } from '../vie-scolaire/modeles-vs';
-import { BulletinEleveVue, EnfantVue, Lecture, Operateur, SituationVue, TransactionVue } from './modeles-parent';
+import {
+  BulletinEleveVue,
+  DeclarationVirement,
+  EnfantVue,
+  Lecture,
+  MoyensParentVue,
+  Operateur,
+  SituationVue,
+  TransactionVue,
+  VirementParentVue,
+} from './modeles-parent';
 
 interface EnCache<T> {
   donnees: T;
@@ -84,6 +94,32 @@ export class ParentApi {
 
   payer(inscriptionId: string, d: { montant: number; operateur: Operateur; telephone: string; cleIdempotence: string }): Promise<TransactionVue> {
     return firstValueFrom(this.http.post<TransactionVue>(`${API}/espace-parent/inscriptions/${inscriptionId}/mobile-money`, d));
+  }
+
+  /** Moyens que l'établissement propose aux parents pour cette inscription (v0.38). */
+  moyensPaiement(inscriptionId: string): Promise<MoyensParentVue> {
+    return firstValueFrom(this.http.get<MoyensParentVue>(`${API}/espace-parent/inscriptions/${inscriptionId}/moyens-paiement`));
+  }
+
+  virements(inscriptionId: string): Promise<VirementParentVue[]> {
+    return firstValueFrom(this.http.get<VirementParentVue[]>(`${API}/espace-parent/inscriptions/${inscriptionId}/virements`));
+  }
+
+  /** Déclaration d'un virement, avec sa preuve facultative (photo ou PDF de l'avis de la banque). */
+  declarerVirement(inscriptionId: string, d: DeclarationVirement): Promise<VirementParentVue> {
+    const donnees = new FormData();
+    donnees.append('compteId', d.compteId);
+    donnees.append('montant', String(d.montant));
+    donnees.append('dateVirement', d.dateVirement);
+    donnees.append('reference', d.reference);
+    if (d.donneurOrdre) {
+      donnees.append('donneurOrdre', d.donneurOrdre);
+    }
+    donnees.append('cleIdempotence', d.cleIdempotence);
+    if (d.fichier) {
+      donnees.append('fichier', d.fichier);
+    }
+    return firstValueFrom(this.http.post<VirementParentVue>(`${API}/espace-parent/inscriptions/${inscriptionId}/virements`, donnees));
   }
 
   transaction(id: string): Promise<TransactionVue> {

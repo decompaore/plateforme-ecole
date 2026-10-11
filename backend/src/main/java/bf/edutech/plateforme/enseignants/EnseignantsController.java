@@ -53,7 +53,12 @@ public class EnseignantsController {
             @NotNull(message = "Le type est obligatoire : TITULAIRE ou VACATAIRE") TypeEngagement type,
             @NotNull(message = "La date de début est obligatoire") LocalDate debut,
             LocalDate fin,
-            @DecimalMin("1") @Digits(integer = 8, fraction = 0) BigDecimal tauxHoraire) {
+            @DecimalMin("1") @Digits(integer = 8, fraction = 0) BigDecimal tauxHoraire,
+            /** GENERAL (par défaut) ou TECHNIQUE (v0.40) */
+            CategorieEnseignant categorie) {
+    }
+
+    public record DemandeCategorie(@NotNull(message = "Catégorie : GENERAL ou TECHNIQUE") CategorieEnseignant categorie) {
     }
 
     public record DemandeIdentite(
@@ -99,7 +104,7 @@ public class EnseignantsController {
     @PreAuthorize(ADMINISTRATION)
     public ResultatEngagement engager(@Valid @RequestBody DemandeEngagement d) {
         return service.engager(new DonneesEngagement(d.telephone(), d.matriculeFp(), d.nom(), d.prenoms(), d.sexe(),
-                d.specialite(), d.type(), d.debut(), d.fin(), d.tauxHoraire()));
+                d.specialite(), d.type(), d.debut(), d.fin(), d.tauxHoraire(), d.categorie()));
     }
 
     /** Fiche : engagement, matières assurées pendant l'année (active par défaut), charge hebdomadaire. */
@@ -107,6 +112,13 @@ public class EnseignantsController {
     @PreAuthorize(CONSULTATION)
     public FicheEnseignantVue fiche(@PathVariable UUID id, @RequestParam(required = false) UUID anneeId) {
         return service.fiche(id, anneeId);
+    }
+
+    /** Enseignement général ou technique et professionnel (v0.40) : seul un enseignant technique voit les ateliers. */
+    @PutMapping("/api/v1/engagements/{id}/categorie")
+    @PreAuthorize(ADMINISTRATION)
+    public EnseignantVue classer(@PathVariable UUID id, @Valid @RequestBody DemandeCategorie d) {
+        return service.classer(id, d.categorie());
     }
 
     @PutMapping("/api/v1/engagements/{id}/identite")

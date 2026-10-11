@@ -83,6 +83,8 @@ export interface LigneEtablissement {
   statut: 'ACTIF' | 'SUSPENDU';
   directionId: string;
   direction: string;
+  /** Chemin complet « Pays · Ministère · DR · DP » (arbre, v0.39) */
+  rattachement: string | null;
   /** Ligne « directions » dont dépend l'établissement */
   sousDirectionId: string | null;
   indicateurs: Indicateurs;

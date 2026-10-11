@@ -45,6 +45,14 @@ export interface ReponseConnexion {
   adminPays?: PaysAdministre | null;
   /** Direction d'un compte de direction (v0.37) ; absent sinon. */
   direction?: DirectionAdministree | null;
+  /** Espace d'administration d'un compte qui peut aussi être parent (v0.41) ; absent sinon. */
+  administration?: EspaceAdministration | null;
+}
+
+/** Espace d'administration : plateforme, pays ou direction (v0.41). */
+export interface EspaceAdministration {
+  type: 'PLATEFORME' | 'PAYS' | 'DIRECTION';
+  libelle: string;
 }
 
 /** Pays d'un administrateur pays. */

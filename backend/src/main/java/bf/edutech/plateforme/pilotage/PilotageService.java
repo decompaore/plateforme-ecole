@@ -69,7 +69,8 @@ public class PilotageService {
     }
 
     /** Établissement du périmètre : direction de rattachement et sous-direction (ligne de cumul). */
-    private record Etablissement(UUID id, String code, String nom, String statut, UUID directionId, String direction) {
+    private record Etablissement(UUID id, String code, String nom, String statut, UUID directionId, String direction,
+            String rattachement) {
     }
 
     private record Enfant(UUID id, String code, String nom) {
@@ -178,7 +179,7 @@ public class PilotageService {
         List<Enfant> enfants = jdbc.query("select id, code, nom from direction where parent_id = ? order by nom",
                 (l, n) -> new Enfant(l.getObject(1, UUID.class), l.getString(2), l.getString(3)), id);
         List<Etablissement> etablissements = jdbc.query("""
-                select t.id, t.code, t.nom, t.statut, t.direction_id, dd.nom from tenant t
+                select t.id, t.code, t.nom, t.statut, t.direction_id, dd.nom, chemin_direction(t.direction_id) from tenant t
                 join direction dd on dd.id = t.direction_id
                 where t.direction_id in (select directions_descendantes(?)) and t.statut <> 'RESILIE'
                 order by t.nom""", (l, n) -> etablissement(l), id);
@@ -208,7 +209,7 @@ public class PilotageService {
                 : jdbc.queryForList("select libelle from niveau_direction where ministere_id = ?::uuid and rang = 1",
                         String.class, ministeres.get(0)[0]).stream().findFirst().orElse("Directions");
         List<Etablissement> etablissements = jdbc.query("""
-                select t.id, t.code, t.nom, t.statut, t.direction_id, dd.nom from tenant t
+                select t.id, t.code, t.nom, t.statut, t.direction_id, dd.nom, chemin_direction(t.direction_id) from tenant t
                 join direction dd on dd.id = t.direction_id join ministere m on m.id = dd.ministere_id
                 where m.pays_id = ? and t.statut <> 'RESILIE'
                 order by t.nom""", (l, n) -> etablissement(l), id);
@@ -222,7 +223,7 @@ public class PilotageService {
 
     private static Etablissement etablissement(ResultSet l) throws java.sql.SQLException {
         return new Etablissement(l.getObject(1, UUID.class), l.getString(2), l.getString(3), l.getString(4),
-                l.getObject(5, UUID.class), l.getString(6));
+                l.getObject(5, UUID.class), l.getString(6), l.getString(7));
     }
 
     /** Pour chaque direction du périmètre : la direction « enfant » (ligne de cumul) dont elle dépend. */
@@ -375,7 +376,7 @@ public class PilotageService {
                 parEnfant.get(enfant).ajouter(c);
             }
             lignes.add(new LigneEtablissement(e.id(), e.code(), e.nom(), e.statut(), e.directionId(), e.direction(),
-                    enfant, c.vue()));
+                    e.rattachement(), enfant, c.vue()));
         }
         List<LigneDirection> directions = p.enfants().stream()
                 .map(e -> new LigneDirection(e.id(), e.code(), e.nom(), parEnfant.get(e.id()).vue())).toList();

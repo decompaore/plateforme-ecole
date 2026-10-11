@@ -25,6 +25,7 @@ import bf.edutech.plateforme.ateliers.Vues.SaisieEquipement;
 import bf.edutech.plateforme.ateliers.Vues.SaisieInventaire;
 import bf.edutech.plateforme.ateliers.Vues.SaisieMatiere;
 import bf.edutech.plateforme.etablissement.AnneesService;
+import bf.edutech.plateforme.etablissement.Vues.AnneeVue;
 import bf.edutech.plateforme.socle.audit.AuditService;
 import bf.edutech.plateforme.socle.erreurs.RegleMetierException;
 import bf.edutech.plateforme.socle.erreurs.RessourceIntrouvableException;
@@ -216,13 +217,10 @@ public class InventairesService {
     /** « 1er semestre 2026-2027 », « 2e semestre 2026-2027 » ou « Inventaire annuel 2026-2027 ». */
     String libelleParDefaut() {
         LocalDate auj = LocalDate.now(horloge.withZone(FUSEAU));
-        String annee;
-        try {
-            annee = annees.active().libelle();
-        } catch (RessourceIntrouvableException e) {
+        String annee = annees.activeSiExiste().map(AnneeVue::libelle).orElseGet(() -> {
             int debut = auj.getMonthValue() >= 8 ? auj.getYear() : auj.getYear() - 1;
-            annee = debut + "-" + (debut + 1);
-        }
+            return debut + "-" + (debut + 1);
+        });
         if (parametres.lire().frequenceInventaire() == FrequenceInventaire.ANNUELLE) {
             return "Inventaire annuel " + annee;
         }

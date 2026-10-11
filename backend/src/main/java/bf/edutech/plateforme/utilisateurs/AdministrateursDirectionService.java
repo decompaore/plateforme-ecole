@@ -100,9 +100,11 @@ public class AdministrateursDirectionService {
                 throw new RegleMetierException("COMPTE_PLATEFORME",
                         "Ce numéro est celui d'un compte d'administration de la plateforme");
             }
-            if (!acces.pour(u.getId()).isEmpty()) {
+            // Parent d'élève : permis (v0.41) ; personnel d'un établissement, même suspendu ou désactivé : jamais
+            if (Boolean.TRUE.equals(jdbc.queryForObject("select compte_personnel_etablissement(?)", Boolean.class,
+                    u.getId()))) {
                 throw new RegleMetierException("COMPTE_ETABLISSEMENT",
-                        "Ce numéro a déjà un compte dans un établissement : une direction a un compte dédié");
+                        "Ce numéro est celui d'un membre du personnel d'un établissement : une direction a un compte dédié");
             }
             List<UUID> autre = jdbc.queryForList(
                     "select direction_id from administrateur_direction where utilisateur_id = ? and actif and direction_id <> ?",

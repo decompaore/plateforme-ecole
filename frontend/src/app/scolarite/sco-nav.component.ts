@@ -12,6 +12,8 @@ const ONGLETS: { lien: string; titre: string; exact?: boolean; roles: Role[] }[]
   { lien: '/scolarite/classes', titre: 'Classes et retards', roles: ['INTENDANT', 'ADMIN_ECOLE', 'SECRETARIAT'] },
   { lien: '/scolarite/journal', titre: 'Journal de caisse', roles: GESTION_SCOLARITE },
   { lien: '/scolarite/frais', titre: 'Frais et bourses', roles: ['INTENDANT', 'ADMIN_ECOLE', 'SECRETARIAT'] },
+  { lien: '/scolarite/virements', titre: 'Virements', roles: GESTION_SCOLARITE },
+  { lien: '/scolarite/moyens', titre: 'Moyens de paiement', roles: ['INTENDANT', 'ADMIN_ECOLE', 'SECRETARIAT'] },
 ];
 
 /** Onglets de la scolarité. */

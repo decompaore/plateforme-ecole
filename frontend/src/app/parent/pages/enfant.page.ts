@@ -12,11 +12,14 @@ import {
   LIBELLE_DISTINCTION,
   LIBELLE_MOYEN,
   Lecture,
+  MoyensParentVue,
   PaiementVue,
   SituationVue,
   sur20,
+  VirementParentVue,
 } from '../modeles-parent';
 import { PaiementComponent } from '../paiement.component';
+import { VirementComponent } from '../virement.component';
 import { enregistrer, ParentApi } from '../parent-api.service';
 import { situationCourante } from '../resume';
 
@@ -31,7 +34,7 @@ interface JourAbsence {
 /** Suivi d'un enfant : absences, bulletins, vie scolaire, scolarité et paiement. */
 @Component({
   selector: 'app-enfant',
-  imports: [RouterLink, PaiementComponent],
+  imports: [RouterLink, PaiementComponent, VirementComponent],
   templateUrl: './enfant.page.html',
   styleUrl: './enfant.page.scss',
 })
@@ -71,6 +74,11 @@ export class EnfantPage implements OnInit {
   protected readonly erreurs = signal<Partial<Record<Onglet | 'enfant', string>>>({});
   protected readonly message = signal<string | null>(null);
   protected readonly paiementOuvert = signal(false);
+  /** Moyens proposés par l'établissement et virements déclarés (v0.38), lus à l'ouverture de « Scolarité ». */
+  protected readonly moyens = signal<MoyensParentVue | null>(null);
+  protected readonly virements = signal<VirementParentVue[]>([]);
+  protected readonly virementOuvert = signal(false);
+  private paiementsLusPour: string | null = null;
   protected readonly telechargement = signal<string | null>(null);
 
   /** Date de la plus ancienne copie affichée quand le serveur est injoignable. */
@@ -192,7 +200,35 @@ export class EnfantPage implements OnInit {
   }
 
   protected peutPayer(s: SituationVue | undefined): boolean {
-    return !!s && s.resteFamille > 0 && this.session.moduleActif('MOBILE_MONEY') && !this.session.horsConnexion() && !this.horsLigne();
+    return !!s && s.resteFamille > 0 && !this.session.horsConnexion() && !this.horsLigne();
+  }
+
+  protected async choisirOnglet(o: Onglet): Promise<void> {
+    this.onglet.set(o);
+    if (o === 'scolarite') {
+      await this.chargerPaiements();
+    }
+  }
+
+  /** Moyens de paiement et virements déclarés de l'inscription affichée (en ligne seulement). */
+  private async chargerPaiements(forcer = false): Promise<void> {
+    const s = this.situation();
+    if (!s || this.session.horsConnexion() || this.horsLigne() || (!forcer && this.paiementsLusPour === s.inscriptionId)) {
+      return;
+    }
+    this.paiementsLusPour = s.inscriptionId;
+    try {
+      const [moyens, virements] = await Promise.all([this.api.moyensPaiement(s.inscriptionId), this.api.virements(s.inscriptionId)]);
+      this.moyens.set(moyens);
+      this.virements.set(virements);
+    } catch {
+      // Sans ces informations, le parent paie à l'intendance ; on réessaiera à la prochaine ouverture
+      this.paiementsLusPour = null;
+    }
+  }
+
+  protected async virementDeclare(): Promise<void> {
+    await this.chargerPaiements(true);
   }
 }
 

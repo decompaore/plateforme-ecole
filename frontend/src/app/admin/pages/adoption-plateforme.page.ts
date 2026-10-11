@@ -10,6 +10,34 @@ import { DirectionChemin } from '../modeles-territoire';
 import { PlateformeNavComponent } from '../plateforme-nav.component';
 import { SessionService } from '../../core/session.service';
 import { TerritoireApi } from '../territoire-api.service';
+import { arbreTerritoire, basculer as basculerGroupe, ouvertsParDefaut } from '../../partage/arbre-territoire';
+
+/** Cumul d'un groupe d'établissements de l'arbre : comptes, taux pondérés, actions, alertes. */
+export function cumulAdoption(l: readonly EtablissementAdoption[]): {
+  comptes: number; actifs: number; enseignants: { total: number; actifs: number }; parents: { total: number; actifs: number };
+  derniere: string | null; actions: Record<string, number>; alertes: number;
+} {
+  const c = { comptes: 0, actifs: 0, enseignants: { total: 0, actifs: 0 }, parents: { total: 0, actifs: 0 }, derniere: null as string | null,
+    actions: {} as Record<string, number>, alertes: 0 };
+  for (const e of l) {
+    c.comptes += e.comptes;
+    c.actifs += e.actifs;
+    c.enseignants.total += e.enseignants.total;
+    c.enseignants.actifs += e.enseignants.actifs;
+    c.parents.total += e.parents.total;
+    c.parents.actifs += e.parents.actifs;
+    if (e.derniereActivite && (!c.derniere || e.derniereActivite > c.derniere)) {
+      c.derniere = e.derniereActivite;
+    }
+    for (const [k, v] of Object.entries(e.actions)) {
+      c.actions[k] = (c.actions[k] ?? 0) + v;
+    }
+    if (e.alertes.length) {
+      c.alertes++;
+    }
+  }
+  return c;
+}
 
 /** Colonnes d'actions affichées dans le tableau (le détail montre toutes les autres). */
 const COLONNES = ['APPELS', 'NOTES', 'CAHIER', 'PAIEMENTS', 'SMS'];
@@ -37,11 +65,13 @@ const COLONNES = ['APPELS', 'NOTES', 'CAHIER', 'PAIEMENTS', 'SMS'];
               (click)="choisir(p)">{{ p }} jours</button>
           }
         </div>
-        <label class="visuellement-cache" for="adoptionDirection">Direction</label>
-        <select id="adoptionDirection" class="direction" (focus)="chargerDirections()" [value]="direction() ?? ''" (change)="choisirDirection($any($event.target).value)">
-          <option value="">Toute la plateforme</option>
-          @for (d of directions(); track d.id) { <option [value]="d.id" [selected]="d.id === direction()">{{ d.chemin }}</option> }
-        </select>
+        @if (!compteDirection) {
+          <label class="visuellement-cache" for="adoptionDirection">Direction</label>
+          <select id="adoptionDirection" class="direction" (focus)="chargerDirections()" [value]="direction() ?? ''" (change)="choisirDirection($any($event.target).value)">
+            <option value="">Toute la plateforme</option>
+            @for (d of directions(); track d.id) { <option [value]="d.id" [selected]="d.id === direction()">{{ d.chemin }}</option> }
+          </select>
+        }
         @if (superAdmin) {
           <button type="button" class="bouton discret petit" [disabled]="action.enCours()" (click)="recalculer()">Recalculer la période</button>
         }
@@ -74,7 +104,18 @@ const COLONNES = ['APPELS', 'NOTES', 'CAHIER', 'PAIEMENTS', 'SMS'];
               <input type="checkbox" [checked]="seulementAlertes()" (change)="seulementAlertes.set(!seulementAlertes())" />
               À accompagner seulement ({{ nombreAlertes() }})
             </label>
+            <div class="vue" role="group" aria-label="Présentation">
+              <button type="button" class="bouton petit" [class.secondaire]="vueArbre() !== 'territoire'" [attr.aria-pressed]="vueArbre() === 'territoire'" (click)="vueArbre.set('territoire')">Par territoire</button>
+              <button type="button" class="bouton petit" [class.secondaire]="vueArbre() !== 'liste'" [attr.aria-pressed]="vueArbre() === 'liste'" (click)="vueArbre.set('liste')">Liste</button>
+              @if (vueArbre() === 'territoire' && arbre().cles.length) {
+                <button type="button" class="bouton discret petit" (click)="ouverts.set(toutesCles())">Tout déplier</button>
+                <button type="button" class="bouton discret petit" (click)="ouverts.set(vide)">Tout replier</button>
+              }
+            </div>
           </div>
+          @if (vueArbre() === 'territoire' && arbre().prefixe.length) {
+            <p class="doux petit-texte">{{ arbre().prefixe.join(' · ') }}</p>
+          }
           <div class="tableau-defilant">
             <table class="tableau">
               <thead>
@@ -90,9 +131,29 @@ const COLONNES = ['APPELS', 'NOTES', 'CAHIER', 'PAIEMENTS', 'SMS'];
                 </tr>
               </thead>
               <tbody>
-                @for (e of affiches(); track e.id) {
+                @for (l of lignes(); track l.cle) {
+                  @if (l.groupe; as g) {
+                    @let c = cumulAdoption(g.elements);
+                    <tr class="groupe">
+                      <td [style.padding-left.rem]="0.5 + l.profondeur * 1.25">
+                        <button type="button" class="replier" [attr.aria-expanded]="g.ouvert" (click)="replier(g.cle)">
+                          <span aria-hidden="true">{{ g.ouvert ? '▾' : '▸' }}</span>&nbsp;<strong>{{ g.nom }}</strong>
+                        </button>
+                        <span class="doux petit-texte">&nbsp;· {{ g.elements.length }} établissement(s)</span>
+                        @if (c.alertes) { <br /><span class="pastille absent">{{ c.alertes }} à accompagner</span> }
+                      </td>
+                      <td class="nombre">{{ c.actifs }} / {{ c.comptes }}</td>
+                      <td class="nombre">{{ pourcentage(c.enseignants) }}</td>
+                      <td class="nombre">{{ pourcentage(c.parents) }}</td>
+                      <td class="nombre"></td>
+                      <td>{{ c.derniere ? jourCourt(c.derniere) : 'jamais' }}</td>
+                      @for (col of colonnes; track col) { <td class="nombre">{{ c.actions[col] ?? 0 }}</td> }
+                      <td></td>
+                    </tr>
+                  } @else {
+                  @let e = l.element!;
                   <tr [class.alerte-ligne]="e.alertes.length">
-                    <td>
+                    <td [style.padding-left.rem]="0.5 + l.profondeur * 1.25">
                       <strong>{{ e.nom }}</strong> <span class="doux">{{ e.code }}</span>
                       @if (e.rattachement) { <br /><span class="doux petit-texte">{{ e.rattachement }}</span> }
                       @if (e.statut !== 'ACTIF') { <span class="pastille">{{ e.statut === 'SUSPENDU' ? 'Suspendu' : 'Résilié' }}</span> }
@@ -120,6 +181,7 @@ const COLONNES = ['APPELS', 'NOTES', 'CAHIER', 'PAIEMENTS', 'SMS'];
                         </ul>
                       </td>
                     </tr>
+                  }
                   }
                 } @empty {
                   <tr><td [attr.colspan]="7 + colonnes.length" class="doux">Aucun établissement ne correspond.</td></tr>
@@ -209,6 +271,26 @@ const COLONNES = ['APPELS', 'NOTES', 'CAHIER', 'PAIEMENTS', 'SMS'];
     .detail td {
       background: var(--surface);
     }
+    .vue {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
+    }
+    tr.groupe td {
+      background: var(--surface);
+      font-variant-numeric: tabular-nums;
+    }
+    .replier {
+      background: none;
+      border: none;
+      padding: 0;
+      min-height: 0;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      text-align: left;
+    }
     .petit-texte {
       font-size: 0.85rem;
     }
@@ -217,7 +299,14 @@ const COLONNES = ['APPELS', 'NOTES', 'CAHIER', 'PAIEMENTS', 'SMS'];
 export class AdoptionPlateformePage implements OnInit {
   private readonly api = inject(AdminApi);
   private readonly territoire = inject(TerritoireApi);
-  protected readonly superAdmin = inject(SessionService).profil()?.superAdmin === true;
+  private readonly session = inject(SessionService);
+  protected readonly superAdmin = this.session.profil()?.superAdmin === true;
+  /** Compte de direction (v0.39) : son ressort seulement, sans filtre ni recalcul. */
+  protected readonly compteDirection = !!this.session.profil()?.direction;
+  protected readonly cumulAdoption = cumulAdoption;
+  protected readonly vide = new Set<string>();
+  protected readonly vueArbre = signal<'territoire' | 'liste'>('territoire');
+  protected readonly ouverts = signal<Set<string>>(new Set());
 
   protected readonly periodes = [7, 30, 90];
   protected readonly colonnes = COLONNES;
@@ -243,6 +332,12 @@ export class AdoptionPlateformePage implements OnInit {
       (e) => [e.nom, e.code],
     ),
   );
+  protected readonly arbre = computed(() =>
+    arbreTerritoire(this.affiches(), (e) => e.rattachement, this.ouverts(), !!this.recherche().trim() || this.seulementAlertes()),
+  );
+  protected readonly lignes = computed(() =>
+    this.vueArbre() === 'liste' ? this.affiches().map((e) => ({ cle: e.id, profondeur: 0, element: e, groupe: undefined })) : this.arbre().lignes,
+  );
   protected readonly totaux = computed(() => {
     const v = this.vue();
     return v ? v.indicateurs.filter((i) => v.actions[i.code]).map((i) => ({ ...i, valeur: v.actions[i.code] })) : [];
@@ -262,6 +357,14 @@ export class AdoptionPlateformePage implements OnInit {
     if (v) {
       this.vue.set(v);
     }
+  }
+
+  protected replier(cle: string): void {
+    this.ouverts.set(basculerGroupe(this.ouverts(), cle));
+  }
+
+  protected toutesCles(): Set<string> {
+    return new Set(this.arbre().cles);
   }
 
   protected basculer(e: EtablissementAdoption): void {
@@ -291,9 +394,15 @@ export class AdoptionPlateformePage implements OnInit {
   }
 
   private async charger(): Promise<void> {
-    const v = await this.action.executer(() => this.api.adoptionPlateforme(this.jours(), this.direction()));
+    const v = await this.action.executer(() =>
+      this.compteDirection ? this.api.adoptionTerritoire(this.jours(), this.direction()) : this.api.adoptionPlateforme(this.jours(), this.direction()),
+    );
     if (v) {
+      const premiere = !this.vue();
       this.vue.set(v);
+      if (premiere) {
+        this.ouverts.set(ouvertsParDefaut(v.details, (e) => e.rattachement));
+      }
     }
   }
 }

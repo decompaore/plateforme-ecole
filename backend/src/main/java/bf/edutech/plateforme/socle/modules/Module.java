@@ -44,7 +44,9 @@ public enum Module {
             "/api/v1/espace-parent/paiements/**", "/api/v1/frais/**", "/api/v1/inscriptions/*/exonerations/**",
             "/api/v1/inscriptions/*/frais/**", "/api/v1/inscriptions/*/paiements",
             "/api/v1/inscriptions/*/prise-en-charge", "/api/v1/inscriptions/*/scolarite", "/api/v1/organismes/**",
-            "/api/v1/paiements/**", "/api/v1/parametres/scolarite", "/api/v1/scolarite/**"),
+            "/api/v1/paiements/**", "/api/v1/parametres/scolarite", "/api/v1/scolarite/**",
+            "/api/v1/parametres/paiement", "/api/v1/comptes-bancaires/**", "/api/v1/virements/**",
+            "/api/v1/espace-parent/inscriptions/*/virements", "/api/v1/espace-parent/inscriptions/*/moyens-paiement"),
 
     MOBILE_MONEY("Paiement Mobile Money",
             "Paiement des frais par les parents (Orange Money, Moov Money, Telecel Money), rapprochement quotidien",

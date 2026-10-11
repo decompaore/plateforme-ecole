@@ -116,6 +116,9 @@ describe('Scolarité et paiements', () => {
     f.componentRef.setInput('eleveId', 'e1');
     f.detectChanges();
     await attendre();
+    // Moyens acceptés au guichet (v0.38) : le chèque n'est pas proposé
+    http.expectOne('/api/v1/parametres/paiement').flush({ moyensGuichet: ['ESPECES', 'ORANGE_MONEY', 'VIREMENT'], mobileMoneyParents: false,
+      operateurs: [], virementParents: false, consigneVirement: null, comptes: [], mobileMoneyDisponible: false });
     http.expectOne('/api/v1/eleves/e1').flush({
       eleve: { id: 'e1', matricule: '2026-00012', nom: 'OUEDRAOGO', prenoms: 'Awa' },
       responsables: [],
@@ -148,6 +151,8 @@ describe('Scolarité et paiements', () => {
 
     // Le retard proposé en un clic ; une transaction Orange Money exige sa référence
     bouton(f, 'Le retard').click();
+    const options = [...(f.nativeElement as HTMLElement).querySelectorAll<HTMLOptionElement>('#moyen option')].map((o) => o.value);
+    expect(options).toEqual(['ESPECES', 'ORANGE_MONEY', 'VIREMENT']);
     await saisir(f, '#moyen', 'ORANGE_MONEY');
     expect(texte(f)).toContain('Référence de la transaction Orange Money obligatoire');
     expect(bouton(f, 'Encaisser').disabled).toBe(true);
