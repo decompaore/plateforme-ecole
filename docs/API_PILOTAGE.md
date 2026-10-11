@@ -65,6 +65,13 @@ Les établissements résiliés sont exclus ; les suspendus restent comptés (ave
 `GET /api/v1/pilotage/export?format=xlsx|pdf&direction=&pays=&annee=` : niveaux, examens, périodes, directions et
 établissements, avec l'en-tête officiel (pays, devise, ministère, directions au-dessus) et le nom du périmètre.
 
+## Adoption du ressort (v0.39)
+
+`GET /api/v1/pilotage/adoption?jours=30&direction=` : même réponse que `/api/v1/plateforme/adoption`, ouverte aux
+comptes de direction (leur direction et ce qui en dépend ; une autre direction → `403`), aux administrateurs pays
+(leur pays) et au super administrateur. Lecture seule. Chaque ligne d'établissement du tableau de pilotage porte
+aussi `rattachement` (« Pays · Ministère · DR · DP »), utilisé par l'arbre de l'interface.
+
 ## Base de données
 
 Migration `V28__pilotage_directions.sql` : table `administrateur_direction` ; fonctions `SECURITY DEFINER` qui ne

@@ -17,6 +17,8 @@ import {
   MOTIFS_FIN,
   Sexe,
   TypeEngagement,
+  CategorieEnseignant,
+  LIBELLE_CATEGORIE,
 } from '../modeles-admin';
 import { MotDePasseTemporaireComponent } from '../mot-de-passe-temporaire.component';
 
@@ -90,6 +92,8 @@ export class PersonnelPage implements OnInit {
   protected readonly eSexe = signal<Sexe>('M');
   protected readonly eSpecialite = signal('');
   protected readonly eType = signal<TypeEngagement>('TITULAIRE');
+  protected readonly eCategorie = signal<CategorieEnseignant>('GENERAL');
+  protected readonly libelleCategorie = LIBELLE_CATEGORIE;
   protected readonly eDebut = signal(dateLocale());
   protected readonly eFin = signal('');
   protected readonly eTaux = signal<number | null>(null);
@@ -143,6 +147,7 @@ export class PersonnelPage implements OnInit {
         debut: this.eDebut(),
         fin: this.eFin() || null,
         tauxHoraire: this.eType() === 'VACATAIRE' ? this.eTaux() : null,
+        categorie: this.eCategorie(),
       }),
     );
     if (!r) {
@@ -219,6 +224,16 @@ export class PersonnelPage implements OnInit {
     );
     this.fermerFin();
     await this.recharger();
+  }
+
+  /** Général ou technique et professionnel (v0.40). */
+  protected async classer(e: EnseignantVue, categorie: CategorieEnseignant): Promise<void> {
+    this.message.set(null);
+    const r = await this.action.executer(() => this.api.classerEnseignant(e.engagementId, categorie));
+    if (r) {
+      this.message.set(`${e.prenoms ?? ''} ${e.nom ?? 'L’enseignant'} : enseignement ${LIBELLE_CATEGORIE[categorie].toLowerCase()}.`.trim());
+      await this.recharger();
+    }
   }
 
   protected async annulerFin(e: EnseignantVue): Promise<void> {

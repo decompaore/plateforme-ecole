@@ -131,6 +131,16 @@ public class AteliersController {
 
     // ---------------- Ateliers et responsables
 
+    public record AccesVue(boolean visible) {
+    }
+
+    /** L'onglet Ateliers est-il utile à la personne connectée ? (v0.40 : enseignant technique d'un atelier) */
+    @GetMapping("/api/v1/ateliers/acces")
+    @PreAuthorize(LECTURE)
+    public AccesVue acces() {
+        return new AccesVue(ateliers.accessible());
+    }
+
     @GetMapping("/api/v1/ateliers")
     @PreAuthorize(LECTURE)
     public List<AtelierResumeVue> ateliers() {

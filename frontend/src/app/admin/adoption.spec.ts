@@ -173,4 +173,37 @@ describe('Mesure de l’adoption (v0.34)', () => {
     r.flush(vue);
     await attendre();
   });
+
+  it('compte de direction (v0.39) : adoption de son ressort regroupée par direction provinciale, sans filtre ni recalcul', async () => {
+    const connexion = TestBed.inject(SessionService).connexion('70000001', 'secret123');
+    http.expectOne('/api/v1/auth/connexion').flush(reponse('u1', 1, { etablissementActif: null, etablissements: [], superAdmin: false,
+      direction: { id: 'dr', code: 'DR', nom: 'DR du Centre', chemin: 'Burkina Faso · MESFPT · DR du Centre', paysId: 'bf' } }));
+    await attendre();
+    http.expectOne('/api/v1/moi').flush({ nom: 'SANOU', prenoms: 'Aline' });
+    await connexion;
+    const f = TestBed.createComponent(AdoptionPlateformePage);
+    f.detectChanges();
+    await attendre();
+    const vue: AdoptionPlateforme = {
+      debut: '2026-09-07', fin: '2026-10-06', calculeLe: '2026-10-06T10:00:00Z', indicateurs: INDICATEURS,
+      etablissements: 3, etablissementsActifs: 3, comptes: 360, actifs: 240, enseignants: { total: 120, actifs: 90 },
+      parents: { total: 210, actifs: 105 }, actions: { APPELS: 2700 }, quotidien: jours(30, (i) => i),
+      details: [
+        etablissement({ id: 'a', nom: 'Lycée A', rattachement: 'Burkina Faso · MESFPT · DR du Centre · DP du Kadiogo' }),
+        etablissement({ id: 'b', nom: 'Lycée B', rattachement: 'Burkina Faso · MESFPT · DR du Centre · DP du Kadiogo', alertes: ['SANS_APPEL'] }),
+        etablissement({ id: 'c', nom: 'Lycée C', rattachement: 'Burkina Faso · MESFPT · DR du Centre · DP du Bazèga' }),
+      ],
+    };
+    http.expectOne((r) => r.url === '/api/v1/pilotage/adoption' && !r.params.has('direction')).flush(vue);
+    await attendre();
+    const t = texte(f);
+    expect(t).toContain('Burkina Faso · MESFPT · DR du Centre');
+    expect(t).toContain('DP du Kadiogo · 2 établissement(s)');
+    expect(t).toContain('1 à accompagner');
+    expect(t).toContain('160 / 240');
+    expect((f.nativeElement as HTMLElement).querySelector('#adoptionDirection')).toBeNull();
+    expect(bouton(f, 'Recalculer la période')).toBeUndefined();
+    const onglets = [...(f.nativeElement as HTMLElement).querySelectorAll('app-plateforme-nav a')].map((a) => a.textContent?.trim());
+    expect(onglets).toEqual(['Pilotage', 'Adoption']);
+  });
 });

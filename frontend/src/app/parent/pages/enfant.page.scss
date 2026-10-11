@@ -109,3 +109,9 @@ table {
 td.nombre {
   white-space: nowrap;
 }
+
+.moyens {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}

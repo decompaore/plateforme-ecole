@@ -3,7 +3,7 @@
   "version": 1,
   "cli": {
     "packageManager": "npm",
-    "analytics": "1eeb47c8-371f-4533-98a3-6f484ef20e95"
+    "analytics": "74457a35-ebe9-4a8a-a613-5d019b220a9f"
   },
   "newProjectRoot": "projects",
   "projects": {
@@ -75,7 +75,10 @@
           }
         },
         "test": {
-          "builder": "@angular/build:unit-test"
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "runnerConfig": "vitest-base.config.mts"
+          }
         }
       }
     }

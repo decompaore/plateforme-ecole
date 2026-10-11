@@ -24,6 +24,7 @@ import bf.edutech.plateforme.mobilemoney.Agregateur.EtatDistant;
 import bf.edutech.plateforme.mobilemoney.ConfigurationMobileMoneyService.Configuration;
 import bf.edutech.plateforme.scolarite.EncaissementsService;
 import bf.edutech.plateforme.scolarite.EncaissementsService.DonneesPaiement;
+import bf.edutech.plateforme.scolarite.MoyensPaiementService;
 import bf.edutech.plateforme.scolarite.Payeur;
 import bf.edutech.plateforme.scolarite.SituationsService;
 import bf.edutech.plateforme.scolarite.Vues.PaiementVue;
@@ -66,6 +67,7 @@ public class PaiementsMobileMoneyService {
     }
 
     private final TransactionRepository transactions;
+    private final MoyensPaiementService moyens;
     private final ConfigurationMobileMoneyService configuration;
     private final EncaissementsService encaissements;
     private final SituationsService situations;
@@ -84,7 +86,8 @@ public class PaiementsMobileMoneyService {
             EncaissementsService encaissements, SituationsService situations, InscriptionsService inscriptions,
             EspaceParentService espaceParent, Compteurs compteurs, AuditService audit,
             Indicatifs indicatifs, MobileMoneyProperties proprietes, JdbcTemplate jdbc, Clock horloge,
-            PlatformTransactionManager gestionnaire) {
+            PlatformTransactionManager gestionnaire, MoyensPaiementService moyens) {
+        this.moyens = moyens;
         this.transactions = transactions;
         this.configuration = configuration;
         this.encaissements = encaissements;
@@ -168,6 +171,8 @@ public class PaiementsMobileMoneyService {
         if (operateur == null) {
             throw new IllegalArgumentException("Choisissez l'opérateur (ORANGE_MONEY, MOOV_MONEY ou TELECEL_MONEY)");
         }
+        // Proposé par l'établissement, avec cet opérateur (v0.38)
+        moyens.verifierMobileMoneyParent(operateur.moyen());
         if (montant == null || montant < MONTANT_MIN || montant > MONTANT_MAX) {
             throw new IllegalArgumentException("Le montant est compris entre 100 et 2 000 000 FCFA");
         }

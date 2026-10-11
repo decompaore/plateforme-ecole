@@ -11,6 +11,7 @@ import { SessionService } from '../core/session.service';
 import { RechercheComponent } from '../partage/recherche.component';
 import { PilotageApi } from './pilotage-api.service';
 import { Compte, Indicateurs, LigneEtablissement, TableauPilotage } from './modeles-pilotage';
+import { arbreTerritoire, basculer as basculerGroupe, ouvertsParDefaut } from '../partage/arbre-territoire';
 
 /** « 66,7 % », ou un tiret si rien n'est mesuré. */
 export function pourcent(taux: number | null | undefined): string {
@@ -32,6 +33,37 @@ export function tauxExamen(i: Indicateurs, examen: string): string {
   return pourcent(i.examens.find((e) => e.examen === examen)?.taux ?? null);
 }
 
+/** Cumul d'un groupe d'établissements (une direction de l'arbre) : sommes et taux pondérés. */
+export function cumul(lignes: readonly LigneEtablissement[]): {
+  eleves: Compte; classes: number; enseignants: number; tauxAdmission: number | null;
+  examens: Record<string, number | null>; actifs: number; comptes: number;
+} {
+  let garcons = 0, filles = 0, classes = 0, enseignants = 0, decides = 0, admis = 0, actifs = 0, comptes = 0;
+  const parExamen: Record<string, { admis: number; resultats: number }> = {};
+  for (const l of lignes) {
+    const i = l.indicateurs;
+    garcons += i.eleves.garcons;
+    filles += i.eleves.filles;
+    classes += i.classes;
+    enseignants += i.enseignants.total;
+    decides += i.decides.total;
+    admis += i.admis.total;
+    actifs += i.utilisation.actifs;
+    comptes += i.utilisation.comptes;
+    for (const x of i.examens) {
+      const e = (parExamen[x.examen] ??= { admis: 0, resultats: 0 });
+      e.admis += x.admis.total;
+      e.resultats += x.resultats.total;
+    }
+  }
+  const taux = (p: number, t: number) => (t ? Math.round((p / t) * 1000) / 10 : null);
+  const examens: Record<string, number | null> = {};
+  for (const [nom, e] of Object.entries(parExamen)) {
+    examens[nom] = taux(e.admis, e.resultats);
+  }
+  return { eleves: { garcons, filles, total: garcons + filles }, classes, enseignants, tauxAdmission: taux(admis, decides), examens, actifs, comptes };
+}
+
 /**
  * Tableau de bord de pilotage : une direction (régionale, provinciale…) voit les nombres de
  * chaque établissement de son ressort et leurs cumuls par direction ; l'administrateur pays et
@@ -44,9 +76,7 @@ export function tauxExamen(i: Indicateurs, examen: string): string {
   template: `
     <div class="page large">
       <h1>Pilotage</h1>
-      @if (administrePlateforme) {
-        <app-plateforme-nav />
-      }
+      <app-plateforme-nav />
 
       @if (action.erreur()) {
         <div class="alerte erreur" role="alert">{{ action.erreur() }}</div>
@@ -245,7 +275,18 @@ export function tauxExamen(i: Indicateurs, examen: string): string {
                 @for (d of t.directions; track d.id) { <option [value]="d.id" [selected]="d.id === sousDirection()">{{ d.nom }}</option> }
               </select>
             }
+            <div class="vue" role="group" aria-label="Présentation">
+              <button type="button" class="bouton petit" [class.secondaire]="vue() !== 'territoire'" [attr.aria-pressed]="vue() === 'territoire'" (click)="vue.set('territoire')">Par territoire</button>
+              <button type="button" class="bouton petit" [class.secondaire]="vue() !== 'liste'" [attr.aria-pressed]="vue() === 'liste'" (click)="vue.set('liste')">Liste</button>
+              @if (vue() === 'territoire' && arbre().cles.length) {
+                <button type="button" class="bouton discret petit" (click)="toutDeplier()">Tout déplier</button>
+                <button type="button" class="bouton discret petit" (click)="ouverts.set(vide)">Tout replier</button>
+              }
+            </div>
           </div>
+          @if (vue() === 'territoire' && arbre().prefixe.length) {
+            <p class="doux petit-texte">{{ arbre().prefixe.join(' · ') }}</p>
+          }
           <div class="tableau-defilant">
             <table class="tableau">
               <thead>
@@ -257,9 +298,29 @@ export function tauxExamen(i: Indicateurs, examen: string): string {
                 </tr>
               </thead>
               <tbody>
-                @for (e of affiches(); track e.id) {
+                @for (l of lignes(); track l.cle) {
+                  @if (l.groupe; as g) {
+                    @let c = cumul(g.elements);
+                    <tr class="groupe">
+                      <td [style.padding-left.rem]="0.5 + l.profondeur * 1.25">
+                        <button type="button" class="replier" [attr.aria-expanded]="g.ouvert" (click)="replier(g.cle)">
+                          <span aria-hidden="true">{{ g.ouvert ? '▾' : '▸' }}</span>&nbsp;<strong>{{ g.nom }}</strong>
+                        </button>
+                        <span class="doux petit-texte">&nbsp;· {{ g.elements.length }} établissement(s)</span>
+                      </td>
+                      <td class="nombre">{{ c.eleves.total }}</td>
+                      <td class="nombre">{{ partFilles(c.eleves) }}</td>
+                      <td class="nombre">{{ c.classes }}</td>
+                      <td class="nombre">{{ c.enseignants }}</td>
+                      <td class="nombre">{{ pourcent(c.tauxAdmission) }}</td>
+                      @for (x of examens(); track x) { <td class="nombre">{{ pourcent(c.examens[x] ?? null) }}</td> }
+                      <td class="nombre">{{ c.actifs }} / {{ c.comptes }}</td>
+                      <td></td>
+                    </tr>
+                  } @else {
+                  @let e = l.element!;
                   <tr>
-                    <td>
+                    <td [style.padding-left.rem]="0.5 + l.profondeur * 1.25">
                       <strong>{{ e.nom }}</strong>
                       @if (e.statut === 'SUSPENDU') { <span class="pastille">Suspendu</span> }
                       <br /><span class="doux petit-texte">{{ e.direction }}</span>
@@ -295,6 +356,7 @@ export function tauxExamen(i: Indicateurs, examen: string): string {
                         </ul>
                       </td>
                     </tr>
+                  }
                   }
                 } @empty {
                   <tr><td [attr.colspan]="8 + examens().length" class="doux">Aucun établissement.</td></tr>
@@ -388,6 +450,26 @@ export function tauxExamen(i: Indicateurs, examen: string): string {
     .detail td {
       background: var(--surface);
     }
+    .vue {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
+    }
+    tr.groupe td {
+      background: var(--surface);
+      font-variant-numeric: tabular-nums;
+    }
+    .replier {
+      background: none;
+      border: none;
+      padding: 0;
+      min-height: 0;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      text-align: left;
+    }
     .petit-texte {
       font-size: 0.85rem;
     }
@@ -401,7 +483,6 @@ export class PilotagePage implements OnInit {
   private readonly session = inject(SessionService);
 
   protected readonly superAdmin = this.session.profil()?.superAdmin === true;
-  protected readonly administrePlateforme = this.session.administrePlateforme();
 
   protected readonly pourcent = pourcent;
   protected readonly partFilles = partFilles;
@@ -422,6 +503,17 @@ export class PilotagePage implements OnInit {
     const t = this.tableau();
     return t ? nomsExamens(t) : [];
   });
+  protected readonly cumul = cumul;
+  protected readonly vide = new Set<string>();
+  /** Présentation des établissements (v0.39) : arbre par direction, ou liste. */
+  protected readonly vue = signal<'territoire' | 'liste'>('territoire');
+  protected readonly ouverts = signal<Set<string>>(new Set());
+  protected readonly arbre = computed(() =>
+    arbreTerritoire(this.affiches(), (e) => e.rattachement, this.ouverts(), !!this.recherche().trim() || !!this.sousDirection()),
+  );
+  protected readonly lignes = computed(() =>
+    this.vue() === 'liste' ? this.affiches().map((e) => ({ cle: e.id, profondeur: 0, element: e, groupe: undefined })) : this.arbre().lignes,
+  );
   protected readonly affiches = computed(() =>
     filtrer(
       (this.tableau()?.etablissements ?? []).filter((e) => !this.sousDirection() || e.sousDirectionId === this.sousDirection()),
@@ -474,6 +566,14 @@ export class PilotagePage implements OnInit {
     await this.charger();
   }
 
+  protected replier(cle: string): void {
+    this.ouverts.set(basculerGroupe(this.ouverts(), cle));
+  }
+
+  protected toutDeplier(): void {
+    this.ouverts.set(new Set(this.arbre().cles));
+  }
+
   protected basculer(e: LigneEtablissement): void {
     this.detail.set(this.detail() === e.id ? null : e.id);
   }
@@ -505,6 +605,7 @@ export class PilotagePage implements OnInit {
     const t = await this.action.executer(() => this.api.tableau(this.filtre()));
     if (t) {
       this.tableau.set(t);
+      this.ouverts.set(ouvertsParDefaut(t.etablissements, (e) => e.rattachement));
       this.annee.set(t.annee);
       if (t.perimetre.type === 'PAYS') {
         this.paysId.set(t.perimetre.id);

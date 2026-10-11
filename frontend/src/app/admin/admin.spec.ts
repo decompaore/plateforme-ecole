@@ -245,6 +245,41 @@ describe('Espace d’administration', () => {
     expect(texte(f)).toContain('une invitation lui a été envoyée');
   });
 
+  it('personnel (v0.40) : catégorie général / technique, suggestion de reclassement d’un enseignant de TP', async () => {
+    await session(http);
+    const f = TestBed.createComponent(PersonnelPage);
+    f.detectChanges();
+    const tp = {
+      engagementId: 'g3', enseignantId: 's3', nom: 'TRAORE', prenoms: 'Ali', telephone: '22661000003', sexe: 'M',
+      specialite: 'TP électricité', type: 'TITULAIRE', statut: 'ACTIF', debut: '2026-10-01', fin: null, motifFin: null,
+      finProgrammee: false, categorie: 'GENERAL', suggestionTechnique: true,
+    };
+    const maths = { ...tp, engagementId: 'g4', nom: 'KABORE', prenoms: 'Awa', specialite: 'Maths', suggestionTechnique: false };
+    http.expectOne('/api/v1/enseignants').flush([tp, maths]);
+    http.expectOne('/api/v1/membres').flush([]);
+    await attendre();
+    expect(texte(f)).toContain('Assure une matière technique ou pratique.');
+    cliquer(f, 'Classer en technique');
+    await attendre();
+    const req = http.expectOne((r) => r.url === '/api/v1/engagements/g3/categorie' && r.method === 'PUT');
+    expect(req.request.body).toEqual({ categorie: 'TECHNIQUE' });
+    req.flush({ ...tp, categorie: 'TECHNIQUE', suggestionTechnique: false });
+    await attendre();
+    http.expectOne('/api/v1/enseignants').flush([{ ...tp, categorie: 'TECHNIQUE', suggestionTechnique: false }, maths]);
+    http.expectOne('/api/v1/membres').flush([]);
+    await attendre();
+    const t = texte(f);
+    expect(t).toContain('Technique et professionnel');
+    expect(t).toContain('enseignement technique et professionnel');
+    expect(t).not.toContain('Assure une matière technique');
+
+    // Le formulaire d'engagement propose la catégorie
+    cliquer(f, 'Engager un enseignant');
+    f.detectChanges();
+    await f.whenStable();
+    expect((f.nativeElement as HTMLElement).querySelector('#eCategorie')).not.toBeNull();
+  });
+
   it('personnel : programme la mutation d’un titulaire, rappelle ses matières puis annule la fin', async () => {
     await session(http);
     const f = TestBed.createComponent(PersonnelPage);

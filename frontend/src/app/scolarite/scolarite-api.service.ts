@@ -4,7 +4,11 @@ import { firstValueFrom } from 'rxjs';
 
 import { API } from '../core/session.service';
 import {
+  CompteBancaireVue,
+  ConfigurationMobileMoney,
   DemandePaiement,
+  DonneesCompte,
+  DonneesParametresPaiement,
   DonneesFrais,
   EtatClasseVue,
   ExonerationVue,
@@ -12,11 +16,14 @@ import {
   JournalVue,
   OrganismeVue,
   PaiementVue,
+  ParametresPaiement,
   ParametresScolarite,
   PriseEnChargeVue,
   ResultatRelancesVue,
   SituationVue,
+  StatutVirement,
   TypeOrganisme,
+  VirementVue,
 } from './modeles-scolarite';
 
 /** Appels de l'API Scolarité (en ligne uniquement : l'encaissement exige le serveur). */
@@ -52,6 +59,50 @@ export class ScolariteApi {
 
   modifierParametres(p: ParametresScolarite): Promise<ParametresScolarite> {
     return this.put('/parametres/scolarite', p);
+  }
+
+  // ---------- Moyens de paiement (v0.38)
+
+  parametresPaiement(): Promise<ParametresPaiement> {
+    return this.get('/parametres/paiement');
+  }
+
+  modifierParametresPaiement(p: DonneesParametresPaiement): Promise<ParametresPaiement> {
+    return this.put('/parametres/paiement', p);
+  }
+
+  configurationMobileMoney(): Promise<ConfigurationMobileMoney> {
+    return this.get('/parametres/mobile-money');
+  }
+
+  configurerMobileMoney(d: { agregateur: string; identifiantMarchand: string; cleApi: string | null; secretWebhook: string | null; actif: boolean }): Promise<ConfigurationMobileMoney> {
+    return this.put('/parametres/mobile-money', d);
+  }
+
+  creerCompte(d: DonneesCompte): Promise<CompteBancaireVue> {
+    return this.post('/comptes-bancaires', d);
+  }
+
+  modifierCompte(id: string, d: DonneesCompte): Promise<CompteBancaireVue> {
+    return this.put(`/comptes-bancaires/${id}`, d);
+  }
+
+  // ---------- Virements déclarés par les parents (v0.38)
+
+  virements(statut: StatutVirement | 'TOUS'): Promise<VirementVue[]> {
+    return this.get('/virements', { statut });
+  }
+
+  preuveVirement(id: string): Promise<Blob> {
+    return this.fichier(`/virements/${id}/preuve`);
+  }
+
+  validerVirement(id: string, montantRecu: number | null): Promise<VirementVue> {
+    return this.post(`/virements/${id}/validation`, { montantRecu });
+  }
+
+  refuserVirement(id: string, motif: string): Promise<VirementVue> {
+    return this.post(`/virements/${id}/refus`, { motif });
   }
 
   organismes(): Promise<OrganismeVue[]> {

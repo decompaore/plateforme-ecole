@@ -21,7 +21,6 @@ import bf.edutech.plateforme.etablissement.Vues.AnneeVue;
 import bf.edutech.plateforme.etablissement.Vues.ClasseVue;
 import bf.edutech.plateforme.etablissement.Vues.MatiereDeClasseVue;
 import bf.edutech.plateforme.socle.erreurs.AccesRefuseException;
-import bf.edutech.plateforme.socle.erreurs.RessourceIntrouvableException;
 import bf.edutech.plateforme.socle.securite.UtilisateurConnecte;
 import bf.edutech.plateforme.utilisateurs.MembresService;
 import bf.edutech.plateforme.utilisateurs.Role;
@@ -106,18 +105,19 @@ class AccesAteliers {
     }
 
     /**
-     * Enseignants des matières techniques, pratiques ou modules des classes de l'année active dont la
-     * filière est servie par l'atelier, avec les matières qu'ils y enseignent.
+     * Enseignants techniques (catégorie TECHNIQUE, v0.40) qui assurent une matière technique, pratique
+     * ou un module dans les classes de l'année active dont la filière est servie par l'atelier, avec
+     * les matières qu'ils y enseignent.
      */
     Map<UUID, Set<String>> enseignantsTechniques(Collection<UUID> filieresAtelier) {
         Map<UUID, Set<String>> resultat = new LinkedHashMap<>();
         if (filieresAtelier.isEmpty()) {
             return resultat;
         }
-        AnneeVue annee;
-        try {
-            annee = annees.active();
-        } catch (RessourceIntrouvableException e) {
+        // Seuls les enseignants classés « technique et professionnel » sont rattachés aux ateliers (v0.40)
+        Set<UUID> techniques = enseignants.engagementsTechniques();
+        AnneeVue annee = annees.activeSiExiste().orElse(null);
+        if (annee == null) {
             return resultat;
         }
         for (ClasseVue c : classes.lister(annee.id())) {
@@ -125,7 +125,7 @@ class AccesAteliers {
                 continue;
             }
             for (MatiereDeClasseVue m : classes.matieres(c.id())) {
-                if (m.engagementId() != null && m.type() != TypeMatiere.GENERALE) {
+                if (m.engagementId() != null && m.type() != TypeMatiere.GENERALE && techniques.contains(m.engagementId())) {
                     resultat.computeIfAbsent(m.engagementId(), k -> new TreeSet<>())
                             .add(m.matiereLibelle() + " (" + c.code() + ")");
                 }

@@ -90,9 +90,11 @@ public class AdministrateursPaysService {
             if (u.isSuperAdmin()) {
                 throw new RegleMetierException("COMPTE_PLATEFORME", "Ce numéro est celui d'un super administrateur");
             }
-            if (!acces.pour(u.getId()).isEmpty()) {
+            // Parent d'élève : permis (v0.41) ; personnel d'un établissement, même suspendu ou désactivé : jamais
+            if (Boolean.TRUE.equals(jdbc.queryForObject("select compte_personnel_etablissement(?)", Boolean.class,
+                    u.getId()))) {
                 throw new RegleMetierException("COMPTE_ETABLISSEMENT",
-                        "Ce numéro a déjà un compte dans un établissement : un administrateur pays a un compte dédié");
+                        "Ce numéro est celui d'un membre du personnel d'un établissement : un administrateur pays a un compte dédié");
             }
             if (jdbc.queryForObject("select count(*) from administrateur_direction where utilisateur_id = ? and actif",
                     Integer.class, u.getId()) > 0) {

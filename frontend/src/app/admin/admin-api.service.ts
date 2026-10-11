@@ -41,6 +41,7 @@ import {
   StatutTenant,
   TypeEngagement,
   TypeMatiere,
+  CategorieEnseignant,
 } from './modeles-admin';
 
 /** Appels de l'API pour l'espace d'administration (en ligne uniquement). */
@@ -163,6 +164,11 @@ export class AdminApi {
 
   adoptionPlateforme(jours: number, direction?: string | null): Promise<AdoptionPlateforme> {
     return this.get('/plateforme/adoption', direction ? { jours, direction } : { jours });
+  }
+
+  /** Adoption vue du territoire (v0.39) : le ressort d'un compte de direction. */
+  adoptionTerritoire(jours: number, direction?: string | null): Promise<AdoptionPlateforme> {
+    return this.get('/pilotage/adoption', direction ? { jours, direction } : { jours });
   }
 
   recalculerAdoption(jours: number, direction?: string | null): Promise<AdoptionPlateforme> {
@@ -343,8 +349,14 @@ export class AdminApi {
     debut: string;
     fin: string | null;
     tauxHoraire: number | null;
+    categorie?: CategorieEnseignant;
   }): Promise<ResultatEngagement> {
     return this.post('/enseignants', d);
+  }
+
+  /** Général ou technique et professionnel (v0.40) : seul ce dernier voit les ateliers. */
+  classerEnseignant(engagementId: string, categorie: CategorieEnseignant): Promise<EnseignantVue> {
+    return this.put(`/engagements/${engagementId}/categorie`, { categorie });
   }
 
   /** Fiche : matières assurées pendant l'année active et charge hebdomadaire. */

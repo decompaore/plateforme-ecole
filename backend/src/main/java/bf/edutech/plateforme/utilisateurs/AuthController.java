@@ -56,6 +56,13 @@ public class AuthController {
                 demande.etablissementId(), ancien));
     }
 
+    /** Compte d'administration qui est aussi parent (v0.41) : ouvre son espace d'administration. */
+    @PostMapping("/administration")
+    public ResponseEntity<ReponseConnexion> choisirAdministration(@AuthenticationPrincipal Jwt jwt,
+            @CookieValue(name = COOKIE_RAFRAICHISSEMENT, required = false) String ancien) {
+        return reponse(service.choisirAdministration(java.util.UUID.fromString(jwt.getSubject()), ancien));
+    }
+
     @PostMapping("/rafraichir")
     public ResponseEntity<ReponseConnexion> rafraichir(
             @CookieValue(name = COOKIE_RAFRAICHISSEMENT, required = false) String valeur) {

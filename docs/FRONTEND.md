@@ -1,4 +1,4 @@
-# Application web (v0.37)
+# Application web (v0.41)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -116,6 +116,8 @@ exécution crée un nouvel établissement : on peut le relancer sans rien nettoy
 | `npm start` | Serveur de développement, rechargement automatique (service worker désactivé) |
 | `npm test` | Tests unitaires (Vitest), en continu. `npx ng test --watch=false` pour une seule exécution |
 | `npm run build` | Construction de production dans `dist/frontend/browser/` (avec service worker) |
+
+Les options Vitest complémentaires (délai de 30 s par test au lieu de 5 s, pour les postes chargés) sont dans `frontend/vitest-base.config.mts`, déclaré par `runnerConfig` dans `angular.json`.
 
 ## Tester sur un téléphone
 
@@ -254,6 +256,55 @@ Mise en place d'un établissement, dans l'ordre :
 Comptes créés (administrateur d'un établissement, enseignant, personnel) : le **mot de passe provisoire** s'affiche
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
+
+## Choix d'espace : administration et parent d'élève (v0.41)
+
+- Un compte, un numéro. Un enseignant ou un membre du personnel qui est aussi parent dans **son** établissement
+  a les deux rôles dans la même session (tuile « Suivi de mes enfants »). Parent dans un autre établissement : il
+  choisit l'établissement à la connexion, puis « Changer d'établissement ».
+- Un compte d'**administration** (super administrateur, administrateur pays, compte de direction) peut aussi être
+  parent d'élève (jamais personnel d'un établissement). À la connexion, « Choisissez votre espace » : son espace
+  d'administration en premier, puis chaque établissement où il est parent. Le menu propose ensuite « Changer
+  d'espace ». Dans un établissement, il n'a que les droits d'un parent.
+- L'établissement de son enfant ne peut ni réinitialiser son mot de passe, ni le déverrouiller, ni fermer ses
+  sessions : ces actions restent au super administrateur (ou à l'administrateur pays pour une direction).
+
+## Enseignants du général et du technique (v0.40)
+
+- **Personnel** : colonne « Enseignement » (Général / Technique et professionnel), choisie à l'engagement et
+  modifiable (« Passer en technique », « Passer en général »). Un enseignant classé « général » qui assure une
+  matière technique, pratique ou un module cette année est signalé, avec « Classer en technique ».
+- **Accueil d'un enseignant** : la tuile Ateliers n'apparaît qu'à un enseignant du technique rattaché à un atelier
+  (responsable, ou matière technique d'une filière de l'atelier). Hors connexion, elle reste cachée.
+
+## Regroupement par territoire (v0.39)
+
+- **Établissements**, **Adoption** et **Pilotage** (super administrateur, administrateur pays, compte de direction) :
+  vue « Par territoire » par défaut, avec un arbre pays › ministère › direction régionale › direction provinciale ›
+  établissements. Chaque niveau se replie ou se déplie (« Tout déplier », « Tout replier ») et affiche ses
+  totaux : statuts des établissements, comptes actifs et taux de l'adoption, élèves, filles, enseignants, taux
+  d'admission et de réussite aux examens (pondérés) du pilotage. Les niveaux communs à tous (le pays et le
+  ministère pour un administrateur pays, sa propre hiérarchie pour une direction) sont écrits en tête. Les
+  établissements non rattachés forment le groupe « Sans rattachement ». Une recherche ou un filtre déplie tout ;
+  la vue « Liste » garde l'ancienne présentation.
+- **Compte de direction** : onglets « Pilotage » et « Adoption » de son ressort (en lecture ; sans filtre de
+  direction ni recalcul), aussi dans le menu et sur l'accueil.
+- **Territoire** : sur chaque direction du dernier niveau, « Nouvel établissement » ouvre le formulaire de création
+  avec ce rattachement déjà choisi.
+
+## Moyens de paiement et virements (v0.38)
+
+- **Scolarité → Moyens de paiement** (administrateur ; lecture pour l'intendance et le secrétariat) : moyens acceptés
+  au guichet ; pour les parents, Mobile Money (opérateurs) et virement (consigne) ; compte marchand Mobile Money
+  (agrégateur, identifiant, clés masquées, adresse de notification) ; comptes bancaires (ajout, modification,
+  désactivation).
+- **Guichet** : seuls les moyens acceptés sont proposés.
+- **Scolarité → Virements** (intendance) : à vérifier / validés / refusés / tous ; preuve ouverte dans un onglet ;
+  « Valider » avec le montant reçu (reçu émis, SMS) ou « Refuser » avec un motif (SMS).
+- **Espace parent → Scolarité** : boutons « Payer par Mobile Money » (opérateurs de l'établissement) et « Payer par
+  virement » (compte, motif à indiquer, déclaration avec preuve facultative) ; liste « Virements déclarés » avec leur
+  statut. Sans moyen en ligne : « Le paiement se fait à l'intendance ».
+- Détails : [API_SCOLARITE.md](API_SCOLARITE.md#7-moyens-de-paiement-et-virements-déclarés-v038).
 
 ## Pilotage des directions (v0.37)
 

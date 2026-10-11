@@ -56,6 +56,8 @@ const SEMAINES = borne(Number(process.env.SEMAINES ?? 4), 2, 20);
 const ELEVES_PAR_CLASSE = borne(Number(process.env.ELEVES ?? 60), 5, 60);
 const PARALLELE = borne(Number(process.env.PARALLELE ?? 6), 1, 16);
 const FICHIER_COMPTES = join(dirname(fileURLToPath(import.meta.url)), 'comptes-demo.md');
+/** État structuré des établissements créés, lu par la recette (scripts/recette/recette.mjs). */
+const FICHIER_ETAT = join(dirname(fileURLToPath(import.meta.url)), 'etat-demo.json');
 
 if (MOT_DE_PASSE.length < 8 || !/[A-Za-z]/.test(MOT_DE_PASSE) || !/[0-9]/.test(MOT_DE_PASSE)) {
   arreter('DEMO_MOT_DE_PASSE doit faire au moins 8 caractères, avec une lettre et un chiffre.');
@@ -829,6 +831,8 @@ async function engagerEnseignants(e) {
       type: vacataire ? 'VACATAIRE' : 'TITULAIRE',
       debut: RENTREE,
       ...(vacataire ? { tauxHoraire: 3500 } : {}),
+      // v0.40 : enseignement général ou technique et professionnel (seul ce dernier accède aux ateliers)
+      categorie: CATALOGUE[code][1] === 'GENERALE' ? 'GENERAL' : 'TECHNIQUE',
     }, e.sAdmin);
     qui.engagementId = r.enseignant.engagementId;
     qui.type = vacataire ? 'vacataire' : 'titulaire';
@@ -840,7 +844,10 @@ async function engagerEnseignants(e) {
     // Enseignant déjà titulaire ailleurs : il est invité comme vacataire et accepte l'invitation
     const source = GLOBAL.ecoles.find((x) => x.n === e.partage.ecole)?.enseignants[e.partage.depuis];
     if (source) {
-      const r = await api('POST', '/enseignants', { telephone: source.telephone, type: 'VACATAIRE', debut: RENTREE, tauxHoraire: 4000 }, e.sAdmin);
+      const r = await api('POST', '/enseignants', {
+        telephone: source.telephone, type: 'VACATAIRE', debut: RENTREE, tauxHoraire: 4000,
+        categorie: CATALOGUE[e.partage.matiere]?.[1] === 'GENERALE' ? 'GENERAL' : 'TECHNIQUE',
+      }, e.sAdmin);
       await api('POST', `/moi/invitations/${r.enseignant.engagementId}/acceptation`, undefined, source.session);
       e.enseignants[e.partage.matiere] = {
         ...source,
@@ -1866,6 +1873,60 @@ async function relancesEtStatistiques(e) {
 
 // ===================================================================== bilan
 
+/** Comptes, classes, enseignants et familles de chaque établissement, sans jetons ni mots de passe provisoires. */
+function etatPourRecette() {
+  return {
+    genereLe: new Date().toISOString(),
+    motDePasse: MOT_DE_PASSE,
+    superAdmin: { telephone: SUPER_ADMIN_TELEPHONE, motDePasse: SUPER_ADMIN_NOUVEAU },
+    annee: { libelle: LIBELLE_ANNEE, rentree: RENTREE, fin: FIN_ANNEE, aujourdhui: AUJOURDHUI },
+    ecoles: GLOBAL.ecoles.map((e) => ({
+      n: e.n,
+      code: e.code,
+      nom: e.nom,
+      id: e.id,
+      profil: e.profil,
+      profilId: e.profilId,
+      anneeId: e.annee?.id,
+      chefTravaux: !!e.chefTravaux,
+      retardataire: e.retardataire,
+      admin: e.admin?.telephone,
+      personnel: Object.fromEntries(Object.entries(e.personnel ?? {}).map(([role, p]) => [role, p.telephone])),
+      periodes: (e.periodes ?? []).map((p) => ({ id: p.id, libelle: p.libelle, debut: p.debut, fin: p.fin })),
+      ateliers: (e.definition.ateliers ?? []).filter((a) => a.id).map((a) => ({ id: a.id, code: a.code, nom: a.nom, filiere: a.filiere })),
+      enseignants: Object.entries(e.enseignants ?? {}).map(([code, p]) => ({
+        matiere: code,
+        telephone: p.telephone,
+        nom: `${p.nom} ${p.prenoms}`,
+        engagementId: p.engagementId,
+        type: p.type,
+        partage: !!p.partage,
+      })),
+      classes: (e.classes ?? []).map((c) => ({
+        id: c.id,
+        code: c.code,
+        niveau: c.niveau,
+        filiere: c.filiere?.code,
+        diplome: c.filiere?.diplome,
+        matieres: c.matieres.map((m) => ({ id: m.id, code: m.code, type: m.type, enseignant: m.enseignant?.telephone ?? null })),
+      })),
+      familles: (e.familles ?? []).map((f) => ({
+        telephone: f.telephone,
+        nom: `${f.nom} ${f.prenoms}`,
+        enfants: f.enfants.map((x) => ({
+          ecole: GLOBAL.ecoles.find((g) => g.eleves.includes(x))?.n ?? e.n,
+          eleveId: x.eleveId,
+          inscriptionId: x.inscriptionId,
+          classe: x.classe?.code,
+          nom: x.nom,
+          prenoms: x.prenoms,
+          sexe: x.sexe,
+        })),
+      })),
+    })),
+  };
+}
+
 function bilanFinal(debutChrono) {
   const duree = Math.round((Date.now() - debutChrono) / 1000);
   console.log(`\n━━ Bilan (${Math.floor(duree / 60)} min ${duree % 60} s)\n`);
@@ -1908,6 +1969,11 @@ function bilanFinal(debutChrono) {
     writeFileSync(FICHIER_COMPTES, lignes.join('\n'));
   } catch (err) {
     console.log(`\n  (fichier des comptes non écrit : ${err.message})`);
+  }
+  try {
+    writeFileSync(FICHIER_ETAT, JSON.stringify(etatPourRecette(), null, 2));
+  } catch (err) {
+    console.log(`\n  (état pour la recette non écrit : ${err.message})`);
   }
 
   console.log(`

@@ -54,6 +54,13 @@
             <input id="eSpec" name="eSpec" placeholder="Électrotechnique" [(ngModel)]="eSpecialite" />
           </div>
           <div class="champ">
+            <label for="eCategorie">Enseignement</label>
+            <select id="eCategorie" name="eCategorie" [(ngModel)]="eCategorie">
+              <option value="GENERAL">Général</option>
+              <option value="TECHNIQUE">Technique et professionnel</option>
+            </select>
+          </div>
+          <div class="champ">
             <label for="eType">Engagement</label>
             <select id="eType" name="eType" [(ngModel)]="eType">
               <option value="TITULAIRE">Titulaire</option>
@@ -76,6 +83,8 @@
           }
         </div>
         <p class="doux">
+          Seul un enseignant du technique et professionnel peut être rattaché à un atelier (responsable, travaux
+          pratiques) et voir l'onglet Ateliers.
           Un enseignant déjà inscrit sur la plateforme (dans un autre établissement) reçoit une invitation à accepter.
           Un titulaire ne l'est que dans un seul établissement.
         </p>
@@ -85,7 +94,7 @@
 
     <div class="tableau-defilant">
       <table class="tableau">
-        <thead><tr><th>Nom et prénoms</th><th>Téléphone</th><th>Spécialité</th><th>Engagement</th><th>Statut</th><th></th></tr></thead>
+        <thead><tr><th>Nom et prénoms</th><th>Téléphone</th><th>Spécialité</th><th>Enseignement</th><th>Engagement</th><th>Statut</th><th></th></tr></thead>
         <tbody>
           @for (e of enseignantsAffiches(); track e.engagementId) {
             <tr [class.doux]="e.statut !== 'ACTIF'">
@@ -94,6 +103,18 @@
               </td>
               <td>{{ e.telephone }}</td>
               <td>{{ e.specialite }}</td>
+              <td>
+                {{ libelleCategorie[e.categorie ?? 'GENERAL'] }}
+                @if (e.suggestionTechnique && e.statut === 'ACTIF') {
+                  <div class="doux">Assure une matière technique ou pratique.</div>
+                  <button type="button" class="bouton secondaire petit" [disabled]="action.enCours()" (click)="classer(e, 'TECHNIQUE')">Classer en technique</button>
+                } @else if (e.statut === 'ACTIF' || e.statut === 'INVITE') {
+                  <button type="button" class="bouton discret petit" [disabled]="action.enCours()"
+                    (click)="classer(e, e.categorie === 'TECHNIQUE' ? 'GENERAL' : 'TECHNIQUE')">
+                    {{ e.categorie === 'TECHNIQUE' ? 'Passer en général' : 'Passer en technique' }}
+                  </button>
+                }
+              </td>
               <td>
                 {{ e.type === 'TITULAIRE' ? 'Titulaire' : 'Vacataire' }}
                 @if (e.fin && !e.finProgrammee && e.statut !== 'TERMINE') { <span class="doux">jusqu'au {{ dateCourte(e.fin) }}</span> }
@@ -123,7 +144,7 @@
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="6" class="doux">{{ enseignants().length ? 'Aucun enseignant ne correspond.' : 'Aucun enseignant.' }}</td></tr>
+            <tr><td colspan="7" class="doux">{{ enseignants().length ? 'Aucun enseignant ne correspond.' : 'Aucun enseignant.' }}</td></tr>
           }
         </tbody>
       </table>

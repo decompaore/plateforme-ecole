@@ -119,6 +119,13 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/appareils.page').then((m) => m.AppareilsPage),
       },
       {
+        // Compte de direction (v0.39) : adoption de son ressort, en lecture
+        path: 'pilotage/adoption',
+        canActivate: [pilote],
+        title: 'Adoption',
+        loadComponent: () => import('./admin/pages/adoption-plateforme.page').then((m) => m.AdoptionPlateformePage),
+      },
+      {
         path: 'pilotage',
         canActivate: [pilote],
         title: 'Pilotage',
@@ -396,6 +403,17 @@ export const routes: Routes = [
             path: 'frais',
             title: 'Frais et bourses',
             loadComponent: () => import('./scolarite/pages/frais.page').then((m) => m.FraisPage),
+          },
+          {
+            path: 'virements',
+            canActivate: [role('INTENDANT', 'ADMIN_ECOLE')],
+            title: 'Virements déclarés',
+            loadComponent: () => import('./scolarite/pages/virements.page').then((m) => m.VirementsPage),
+          },
+          {
+            path: 'moyens',
+            title: 'Moyens de paiement',
+            loadComponent: () => import('./scolarite/pages/moyens-paiement.page').then((m) => m.MoyensPaiementPage),
           },
         ],
       },

@@ -35,6 +35,7 @@ import org.springframework.web.context.WebApplicationContext;
 
 import com.jayway.jsonpath.JsonPath;
 
+import bf.edutech.plateforme.enseignants.CategorieEnseignant;
 import bf.edutech.plateforme.enseignants.EnseignantsService;
 import bf.edutech.plateforme.enseignants.EnseignantsService.DonneesEngagement;
 import bf.edutech.plateforme.enseignants.TypeEngagement;
@@ -102,11 +103,12 @@ class AteliersIntegrationTest {
         UUID maths = matiere("MATH", TypeMatiere.GENERALE, classe);
         UUID elec = matiere("ELEC", TypeMatiere.TECHNIQUE, classe);
         UUID tp = matiere("TP-ELEC", TypeMatiere.PRATIQUE, classe);
+        UUID mesures = matiere("MES-ELEC", TypeMatiere.PRATIQUE, classe);
         dans(() -> periodes.generer(annee.id(), technique));
         dans(() -> annees.ouvrir(annee.id()));
 
         Prof sanou = enseignant("Sanou", "Paul", classe, elec);
-        Prof kabore = enseignant("Kabore", "Awa", classe, maths);
+        Prof kabore = enseignant("Kabore", "Awa", classe, maths, CategorieEnseignant.GENERAL);
         Prof traore = enseignant("Traore", "Ali", classe, tp);
         UUID chef = membre(Role.CHEF_TRAVAUX, "Ouedraogo", "Salif");
         UUID censeur = membre(Role.CENSEUR, "Zongo", "Ines");
@@ -137,6 +139,35 @@ class AteliersIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.responsable.enseignant").value("SANOU Paul"))
                 .andExpect(jsonPath("$.responsable.finPrevue").value(aujourdhui.plusMonths(24).toString()));
+
+        // v0.40 : l'onglet Ateliers n'a de sens que pour un enseignant technique rattaché à un atelier
+        mvc.perform(get("/api/v1/ateliers/acces").with(jeton(kabore.compte(), "ENSEIGNANT")))
+                .andExpect(jsonPath("$.visible").value(false));
+        mvc.perform(get("/api/v1/ateliers/acces").with(jeton(traore.compte(), "ENSEIGNANT")))
+                .andExpect(jsonPath("$.visible").value(true));
+        mvc.perform(get("/api/v1/ateliers/acces").with(jeton(intendant, "INTENDANT")))
+                .andExpect(jsonPath("$.visible").value(true));
+        // Un enseignant de l'atelier classé « général » n'y a pas accès, et la liste suggère de le reclasser
+        // (une autre matière pratique : affecter TP-ELEC remplacerait Traore)
+        Prof diallo = enseignant("Diallo", "Issa", classe, mesures, CategorieEnseignant.GENERAL);
+        UUID admin = membre(Role.ADMIN_ECOLE, "Kone", "Adama");
+        mvc.perform(get("/api/v1/ateliers/acces").with(jeton(diallo.compte(), "ENSEIGNANT")))
+                .andExpect(jsonPath("$.visible").value(false));
+        mvc.perform(get("/api/v1/ateliers/{a}", atelier).with(jeton(diallo.compte(), "ENSEIGNANT")))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/enseignants").with(jeton(admin, "ADMIN_ECOLE")))
+                .andExpect(jsonPath("$[?(@.engagementId == '" + diallo.engagement() + "')].suggestionTechnique").value(true))
+                .andExpect(jsonPath("$[?(@.engagementId == '" + kabore.engagement() + "')].categorie").value("GENERAL"));
+        mvc.perform(put("/api/v1/engagements/{id}/categorie", diallo.engagement()).with(jeton(chef, "CHEF_TRAVAUX"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"categorie\":\"TECHNIQUE\"}"))
+                .andExpect(status().isForbidden());
+        mvc.perform(put("/api/v1/engagements/{id}/categorie", diallo.engagement()).with(jeton(admin, "ADMIN_ECOLE"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"categorie\":\"TECHNIQUE\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.categorie").value("TECHNIQUE"))
+                .andExpect(jsonPath("$.suggestionTechnique").value(false));
+        mvc.perform(get("/api/v1/ateliers/acces").with(jeton(diallo.compte(), "ENSEIGNANT")))
+                .andExpect(jsonPath("$.visible").value(true));
 
         // Catalogue : l'intendant et le responsable oui, un enseignant sans atelier non
         mvc.perform(post("/api/v1/catalogue").with(jeton(kabore.compte(), "ENSEIGNANT")).contentType(MediaType.APPLICATION_JSON)
@@ -280,9 +311,14 @@ class AteliersIntegrationTest {
     }
 
     private Prof enseignant(String nom, String prenoms, UUID classe, UUID matiere) {
+        return enseignant(nom, prenoms, classe, matiere, CategorieEnseignant.TECHNIQUE);
+    }
+
+    /** v0.40 : seuls les enseignants classés TECHNIQUE sont rattachés aux ateliers. */
+    private Prof enseignant(String nom, String prenoms, UUID classe, UUID matiere, CategorieEnseignant categorie) {
         String tel = telephone();
         UUID engagement = dans(() -> enseignants.engager(new DonneesEngagement(tel, null, nom, prenoms, Sexe.M, null,
-                TypeEngagement.TITULAIRE, aujourdhui.minusDays(30), null, null))).enseignant().engagementId();
+                TypeEngagement.TITULAIRE, aujourdhui.minusDays(30), null, null, categorie))).enseignant().engagementId();
         dans(() -> enseignants.affecter(classe, matiere, engagement));
         return new Prof(compte(tel, Role.ENSEIGNANT), engagement);
     }

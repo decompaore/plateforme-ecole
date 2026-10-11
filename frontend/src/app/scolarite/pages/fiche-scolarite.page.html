@@ -109,7 +109,7 @@
                 <div class="champ">
                   <label for="moyen">Moyen de paiement</label>
                   <select id="moyen" name="moyen" [ngModel]="moyen()" (ngModelChange)="moyen.set($event)">
-                    @for (m of moyens; track m) { <option [value]="m">{{ libelleMoyen[m] }}</option> }
+                    @for (m of moyens(); track m) { <option [value]="m">{{ libelleMoyen[m] }}</option> }
                   </select>
                 </div>
                 @if (moyen() !== 'ESPECES') {

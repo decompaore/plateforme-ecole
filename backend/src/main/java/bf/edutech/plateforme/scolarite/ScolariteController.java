@@ -75,10 +75,12 @@ public class ScolariteController {
     private final SituationsService situations;
     private final EncaissementsService encaissements;
     private final RelancesService relances;
+    private final MoyensPaiementService moyens;
 
     ScolariteController(ParametresScolariteService parametres, OrganismesService organismes, FraisService frais,
             BoursesService bourses, SituationsService situations, EncaissementsService encaissements,
-            RelancesService relances) {
+            RelancesService relances, MoyensPaiementService moyens) {
+        this.moyens = moyens;
         this.parametres = parametres;
         this.organismes = organismes;
         this.frais = frais;
@@ -218,6 +220,9 @@ public class ScolariteController {
     @ResponseStatus(HttpStatus.CREATED)
     @PreAuthorize(GESTION)
     public PaiementVue encaisser(@PathVariable UUID id, @RequestBody DonneesPaiement d) {
+        // Seuls les moyens acceptés par l'établissement (v0.38) ; le Mobile Money des parents et les
+        // virements déclarés passent par leurs propres circuits
+        moyens.verifierGuichet(d.moyen());
         return encaissements.encaisser(id, d);
     }
 

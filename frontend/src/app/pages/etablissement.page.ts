@@ -2,7 +2,7 @@ import { Component, inject, OnInit, signal } from '@angular/core';
 import { Router } from '@angular/router';
 
 import { messageErreur } from '../core/erreurs';
-import { EtablissementAccessible, Role } from '../core/modeles';
+import { EspaceAdministration, EtablissementAccessible, Role } from '../core/modeles';
 import { SessionService } from '../core/session.service';
 import { EnvoisService } from '../hors-ligne/envois.service';
 
@@ -22,11 +22,26 @@ const LIBELLES: Record<Role, string> = {
   selector: 'app-etablissement',
   template: `
     <div class="page">
-      <h1>Choisissez l'établissement</h1>
+      <h1>{{ administration() ? 'Choisissez votre espace' : "Choisissez l'établissement" }}</h1>
       @if (erreur()) {
         <div class="alerte erreur" role="alert">{{ erreur() }}</div>
       }
       <ul class="liste carte">
+        @if (administration(); as a) {
+          <li>
+            <button type="button" class="ligne-lien choix" [disabled]="envoi()" (click)="choisirAdministration()">
+              <span>
+                <strong>{{ a.libelle }}</strong><br />
+                <span class="doux">Espace d'administration</span>
+              </span>
+              @if (administrationActive()) {
+                <span class="pastille present">actuel</span>
+              } @else {
+                <span aria-hidden="true">›</span>
+              }
+            </button>
+          </li>
+        }
         @for (e of etablissements(); track e.id) {
           <li>
             <button type="button" class="ligne-lien choix" [disabled]="envoi()" (click)="choisir(e)">
@@ -67,6 +82,10 @@ export class EtablissementPage implements OnInit {
   protected readonly envoi = signal(false);
   protected readonly erreur = signal<string | null>(null);
   protected readonly actif = () => this.session.profil()?.etablissement?.id;
+  /** Compte d'administration qui est aussi parent (v0.41) : son espace d'administration en premier. */
+  protected readonly administration = (): EspaceAdministration | null =>
+    this.session.selection()?.administration ?? this.session.profil()?.administration ?? null;
+  protected readonly administrationActive = () => !this.session.selection() && !!this.session.profil() && !this.session.profil()?.etablissement;
 
   async ngOnInit(): Promise<void> {
     const selection = this.session.selection();
@@ -78,6 +97,27 @@ export class EtablissementPage implements OnInit {
       this.etablissements.set(await this.session.mesEtablissements());
     } catch (e) {
       this.erreur.set(messageErreur(e));
+    }
+  }
+
+  protected async choisirAdministration(): Promise<void> {
+    if (this.administrationActive()) {
+      await this.router.navigate(['/']);
+      return;
+    }
+    this.envoi.set(true);
+    this.erreur.set(null);
+    try {
+      if (this.session.profil()) {
+        // Les appels de l'établissement actuel partent avec son jeton, avant d'en changer
+        await this.envois.synchroniser();
+      }
+      await this.session.choisirAdministration();
+      await this.router.navigate([this.session.profil()?.doitChangerMotDePasse ? '/mot-de-passe' : '/']);
+    } catch (err) {
+      this.erreur.set(messageErreur(err, 'Choix impossible. Reconnectez-vous.'));
+    } finally {
+      this.envoi.set(false);
     }
   }
 

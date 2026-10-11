@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute } from '@angular/router';
 
 import { Module } from '../../core/modeles';
 import { filtrer } from '../../core/recherche';
@@ -14,6 +15,7 @@ import { DirectionChemin } from '../modeles-territoire';
 import { PlateformeNavComponent } from '../plateforme-nav.component';
 import { SessionService } from '../../core/session.service';
 import { TerritoireApi } from '../territoire-api.service';
+import { arbreTerritoire, basculer as basculerGroupe, ouvertsParDefaut } from '../../partage/arbre-territoire';
 
 
 const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU: 'Suspendu', RESILIE: 'Résilié' };
@@ -121,15 +123,38 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
             @for (d of directions(); track d.id) { <option [ngValue]="d.id">{{ d.chemin }}</option> }
           </select>
         </div>
+        <div class="vue" role="group" aria-label="Présentation">
+          <button type="button" class="bouton petit" [class.secondaire]="vue() !== 'territoire'" [attr.aria-pressed]="vue() === 'territoire'" (click)="vue.set('territoire')">Par territoire</button>
+          <button type="button" class="bouton petit" [class.secondaire]="vue() !== 'liste'" [attr.aria-pressed]="vue() === 'liste'" (click)="vue.set('liste')">Liste</button>
+          @if (vue() === 'territoire' && arbre().cles.length) {
+            <button type="button" class="bouton discret petit" (click)="ouverts.set(toutesCles())">Tout déplier</button>
+            <button type="button" class="bouton discret petit" (click)="ouverts.set(vide)">Tout replier</button>
+          }
+        </div>
+        @if (vue() === 'territoire' && arbre().prefixe.length) {
+          <p class="doux petit-texte">{{ arbre().prefixe.join(' · ') }}</p>
+        }
         <div class="tableau-defilant">
           <table class="tableau">
             <thead>
               <tr><th>Code</th><th>Nom</th><th>Créé le</th><th>Statut</th><th></th></tr>
             </thead>
             <tbody>
-              @for (e of affiches(); track e.id) {
+              @for (l of lignes(); track l.cle) {
+                @if (l.groupe; as g) {
+                  <tr class="groupe">
+                    <td colspan="3" [style.padding-left.rem]="0.5 + l.profondeur * 1.25">
+                      <button type="button" class="replier" [attr.aria-expanded]="g.ouvert" (click)="replier(g.cle)">
+                        <span aria-hidden="true">{{ g.ouvert ? '▾' : '▸' }}</span>&nbsp;<strong>{{ g.nom }}</strong>
+                      </button>
+                      <span class="doux petit-texte">&nbsp;· {{ g.elements.length }} établissement(s)</span>
+                    </td>
+                    <td colspan="2" class="petit-texte">{{ resumeStatuts(g.elements) }}</td>
+                  </tr>
+                } @else {
+                @let e = l.element!;
                 <tr>
-                  <td><strong>{{ e.code }}</strong></td>
+                  <td [style.padding-left.rem]="0.5 + l.profondeur * 1.25"><strong>{{ e.code }}</strong></td>
                   <td>
                     {{ e.nom }}
                     <br />
@@ -261,6 +286,7 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
                     </td>
                   </tr>
                 }
+                }
               } @empty {
                 <tr><td colspan="5" class="doux">{{ etablissements().length ? 'Aucun établissement ne correspond.' : 'Aucun établissement.' }}</td></tr>
               }
@@ -283,6 +309,25 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
       select {
         width: auto;
       }
+    }
+    .vue {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      margin-bottom: 1rem;
+    }
+    tr.groupe td {
+      background: var(--surface);
+    }
+    .replier {
+      background: none;
+      border: none;
+      padding: 0;
+      min-height: 0;
+      font: inherit;
+      color: inherit;
+      cursor: pointer;
+      text-align: left;
     }
     .nouveau {
       border-bottom: 1px solid var(--bordure);
@@ -341,6 +386,7 @@ const LIBELLE_STATUT: Record<StatutTenant, string> = { ACTIF: 'Actif', SUSPENDU:
 })
 export class PlateformePage implements OnInit {
   private readonly api = inject(AdminApi);
+  private readonly route = inject(ActivatedRoute);
   private readonly territoire = inject(TerritoireApi);
   /** L'administrateur pays rattache obligatoirement l'établissement (v0.36). */
   private readonly session = inject(SessionService);
@@ -350,6 +396,17 @@ export class PlateformePage implements OnInit {
   protected readonly etablissements = signal<EtablissementVue[]>([]);
   protected readonly filtre = signal('');
   protected readonly filtreStatut = signal<StatutTenant | ''>('');
+  protected readonly vide = new Set<string>();
+  /** Présentation (v0.39) : arbre par territoire (pays, ministère, directions), ou liste. */
+  protected readonly vue = signal<'territoire' | 'liste'>('territoire');
+  protected readonly ouverts = signal<Set<string>>(new Set());
+  private arbreInitialise = false;
+  protected readonly arbre = computed(() =>
+    arbreTerritoire(this.affiches(), (e) => e.rattachement, this.ouverts(), !!this.filtre().trim() || !!this.filtreStatut()),
+  );
+  protected readonly lignes = computed(() =>
+    this.vue() === 'liste' ? this.affiches().map((e) => ({ cle: e.id, profondeur: 0, element: e, groupe: undefined })) : this.arbre().lignes,
+  );
   protected readonly affiches = computed(() =>
     filtrer(
       this.etablissements().filter((e) => !this.filtreStatut() || e.statut === this.filtreStatut()),
@@ -396,6 +453,13 @@ export class PlateformePage implements OnInit {
 
   async ngOnInit(): Promise<void> {
     await this.recharger();
+    // Depuis l'arbre du territoire (v0.39) : « Nouvel établissement » dans une direction
+    const direction = this.route.snapshot.queryParamMap.get('direction');
+    if (direction) {
+      this.formulaire.set(true);
+      await this.chargerDirections();
+      this.directionCreation.set(direction);
+    }
   }
 
   protected async basculerAdmins(e: EtablissementVue): Promise<void> {
@@ -479,6 +543,24 @@ export class PlateformePage implements OnInit {
     }
   }
 
+  protected replier(cle: string): void {
+    this.ouverts.set(basculerGroupe(this.ouverts(), cle));
+  }
+
+  protected toutesCles(): Set<string> {
+    return new Set(this.arbre().cles);
+  }
+
+  /** « 3 actifs · 1 suspendu » pour un groupe de l'arbre. */
+  protected resumeStatuts(l: readonly EtablissementVue[]): string {
+    const n = (s: StatutTenant) => l.filter((e) => e.statut === s).length;
+    return [
+      n('ACTIF') ? `${n('ACTIF')} actif(s)` : '',
+      n('SUSPENDU') ? `${n('SUSPENDU')} suspendu(s)` : '',
+      n('RESILIE') ? `${n('RESILIE')} résilié(s)` : '',
+    ].filter(Boolean).join(' · ');
+  }
+
   /** Directions avec leur chemin : chargées au premier besoin (filtre, création, rattachement). */
   protected async chargerDirections(): Promise<void> {
     if (this.directionsChargees) {
@@ -524,6 +606,10 @@ export class PlateformePage implements OnInit {
     const liste = await this.liste.executer(() => this.api.etablissements(this.filtreDirection()));
     if (liste) {
       this.etablissements.set([...liste].sort((a, b) => a.nom.localeCompare(b.nom)));
+      if (!this.arbreInitialise) {
+        this.arbreInitialise = true;
+        this.ouverts.set(ouvertsParDefaut(this.etablissements(), (e) => e.rattachement));
+      }
     }
   }
 

@@ -20,7 +20,7 @@
 
   <nav class="onglets-enfant" aria-label="Rubriques">
     @for (o of onglets; track o.id) {
-      <button type="button" [class.actif]="onglet() === o.id" [attr.aria-pressed]="onglet() === o.id" (click)="onglet.set(o.id)">
+      <button type="button" [class.actif]="onglet() === o.id" [attr.aria-pressed]="onglet() === o.id" (click)="choisirOnglet(o.id)">
         {{ o.titre }}
       </button>
     }
@@ -178,13 +178,48 @@
             @if (s.organisme) { <p class="doux">Une partie est prise en charge par {{ s.organisme }}.</p> }
 
             @if (paiementOuvert()) {
-              <app-paiement [situation]="s" (paye)="paye()" (ferme)="fermerPaiement()" />
-            } @else if (peutPayer(s)) {
-              <button type="button" class="bouton plein" (click)="paiementOuvert.set(true)">Payer par Mobile Money</button>
-            } @else if (s.resteFamille > 0) {
-              <p class="doux">Le paiement Mobile Money demande du réseau. Vous pouvez aussi payer à l'intendance.</p>
+              <app-paiement [situation]="s" [operateurs]="moyens()?.operateurs ?? []" (paye)="paye()" (ferme)="fermerPaiement()" />
+            } @else if (virementOuvert() && moyens(); as m) {
+              <app-virement [situation]="s" [moyens]="m" (declare)="virementDeclare()" (ferme)="virementOuvert.set(false)" />
+            } @else if (peutPayer(s) && moyens(); as m) {
+              @if (m.mobileMoney || m.virement) {
+                <div class="moyens">
+                  @if (m.mobileMoney) {
+                    <button type="button" class="bouton plein" (click)="paiementOuvert.set(true)">Payer par Mobile Money</button>
+                  }
+                  @if (m.virement) {
+                    <button type="button" class="bouton plein secondaire" (click)="virementOuvert.set(true)">Payer par virement</button>
+                  }
+                </div>
+              } @else {
+                <p class="doux">Le paiement se fait à l'intendance de l'établissement.</p>
+              }
+            } @else if (s.resteFamille > 0 && !peutPayer(s)) {
+              <p class="doux">Le paiement en ligne demande du réseau. Vous pouvez aussi payer à l'intendance.</p>
             }
           </section>
+
+          @if (virements().length) {
+            <section class="carte">
+              <h2>Virements déclarés</h2>
+              <ul class="liste">
+                @for (v of virements(); track v.id) {
+                  <li class="ligne">
+                    <span>
+                      <strong>{{ fcfa(v.montant) }}</strong>
+                      <span class="doux"> · {{ dateCourte(v.dateVirement) }} · réf. {{ v.reference }}</span>
+                      @switch (v.statut) {
+                        @case ('EN_ATTENTE') { <span class="pastille">en vérification</span> }
+                        @case ('VALIDE') { <span class="pastille present">validé · reçu {{ v.recuNumero }}</span> }
+                        @case ('REFUSE') { <span class="pastille absent">refusé</span> }
+                      }
+                      @if (v.statut === 'REFUSE' && v.motifRefus) { <br /><span class="doux">{{ v.motifRefus }}</span> }
+                    </span>
+                  </li>
+                }
+              </ul>
+            </section>
+          }
 
           <section class="carte">
             <h2>Échéances</h2>

@@ -49,6 +49,11 @@ public class Engagement extends EntiteCloisonnee {
     @Column(name = "fin_contrat")
     private LocalDate finContrat;
 
+    /** Enseignement général ou technique et professionnel (v0.40). */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "categorie", nullable = false, length = 9)
+    private CategorieEnseignant categorie = CategorieEnseignant.GENERAL;
+
     protected Engagement() {
     }
 
@@ -60,6 +65,14 @@ public class Engagement extends EntiteCloisonnee {
         this.debut = debut;
         this.fin = fin;
         this.tauxHoraire = tauxHoraire;
+    }
+
+    void classer(CategorieEnseignant categorie) {
+        this.categorie = categorie == null ? CategorieEnseignant.GENERAL : categorie;
+    }
+
+    public CategorieEnseignant getCategorie() {
+        return categorie;
     }
 
     void accepter() {

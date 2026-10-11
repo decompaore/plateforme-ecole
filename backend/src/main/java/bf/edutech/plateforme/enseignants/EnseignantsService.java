@@ -6,10 +6,12 @@ import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -24,8 +26,10 @@ import bf.edutech.plateforme.enseignants.Vues.ResultatEngagement;
 import bf.edutech.plateforme.etablissement.AnneesService;
 import bf.edutech.plateforme.etablissement.ClassesService;
 import bf.edutech.plateforme.etablissement.EtatAnnee;
+import bf.edutech.plateforme.etablissement.TypeMatiere;
 import bf.edutech.plateforme.etablissement.Vues.AffectationVue;
 import bf.edutech.plateforme.etablissement.Vues.AnneeVue;
+import bf.edutech.plateforme.etablissement.Vues.ClasseVue;
 import bf.edutech.plateforme.etablissement.Vues.MatiereDeClasseVue;
 import bf.edutech.plateforme.socle.audit.AuditService;
 import bf.edutech.plateforme.socle.telephone.Indicatifs;
@@ -51,7 +55,14 @@ public class EnseignantsService {
 
     /** Données d'un nouvel engagement. L'identité n'est utilisée que si l'enseignant est inconnu. */
     public record DonneesEngagement(String telephone, String matriculeFp, String nom, String prenoms, Sexe sexe,
-            String specialite, TypeEngagement type, LocalDate debut, LocalDate fin, BigDecimal tauxHoraire) {
+            String specialite, TypeEngagement type, LocalDate debut, LocalDate fin, BigDecimal tauxHoraire,
+            CategorieEnseignant categorie) {
+
+        /** Sans catégorie : enseignement général (v0.40). */
+        public DonneesEngagement(String telephone, String matriculeFp, String nom, String prenoms, Sexe sexe,
+                String specialite, TypeEngagement type, LocalDate debut, LocalDate fin, BigDecimal tauxHoraire) {
+            this(telephone, matriculeFp, nom, prenoms, sexe, specialite, type, debut, fin, tauxHoraire, null);
+        }
     }
 
     static final EnumSet<StatutEngagement> EN_COURS = EnumSet.of(StatutEngagement.INVITE, StatutEngagement.ACTIF);
@@ -91,12 +102,55 @@ public class EnseignantsService {
         Map<UUID, Enseignant> parId = enseignants
                 .findByIdIn(liste.stream().map(Engagement::getEnseignantId).distinct().toList()).stream()
                 .collect(Collectors.toMap(Enseignant::getId, Function.identity()));
+        Set<UUID> techniques = assurentUneMatiereTechnique();
         return liste.stream()
-                .map(e -> EnseignantVue.depuis(e, parId.get(e.getEnseignantId())))
+                .map(e -> EnseignantVue.depuis(e, parId.get(e.getEnseignantId()),
+                        e.getCategorie() == CategorieEnseignant.GENERAL && techniques.contains(e.getId())))
                 .sorted(Comparator.comparing(EnseignantVue::statut)
                         .thenComparing(v -> v.nom() == null ? "" : v.nom())
                         .thenComparing(v -> v.prenoms() == null ? "" : v.prenoms()))
                 .toList();
+    }
+
+    /** Change la catégorie d'un enseignant (général, technique et professionnel), v0.40. */
+    @Transactional
+    public EnseignantVue classer(UUID engagementId, CategorieEnseignant categorie) {
+        UtilisateurConnecte.etablissementActif();
+        if (categorie == null) {
+            throw new IllegalArgumentException("Catégorie : GENERAL ou TECHNIQUE");
+        }
+        Engagement e = charger(engagementId);
+        e.classer(categorie);
+        audit.enregistrer("ENSEIGNANT_CLASSE", categorie.name(), Map.of("engagement", engagementId));
+        Enseignant s = enseignants.findById(e.getEnseignantId()).orElseThrow();
+        return EnseignantVue.depuis(e, s, categorie == CategorieEnseignant.GENERAL
+                && assurentUneMatiereTechnique().contains(engagementId));
+    }
+
+    /** Engagements en cours classés TECHNIQUE : seuls rattachables à un atelier (v0.40). */
+    @Transactional(readOnly = true)
+    public Set<UUID> engagementsTechniques() {
+        UtilisateurConnecte.etablissementActif();
+        return engagements.findByStatutIn(List.of(StatutEngagement.ACTIF)).stream()
+                .filter(e -> e.getCategorie() == CategorieEnseignant.TECHNIQUE).map(Engagement::getId)
+                .collect(Collectors.toSet());
+    }
+
+    /** Engagements qui assurent une matière technique, pratique ou un module (année active). */
+    private Set<UUID> assurentUneMatiereTechnique() {
+        AnneeVue annee = annees.activeSiExiste().orElse(null);
+        if (annee == null) {
+            return Set.of();
+        }
+        Set<UUID> resultat = new HashSet<>();
+        for (ClasseVue c : classes.lister(annee.id())) {
+            for (MatiereDeClasseVue m : classes.matieres(c.id())) {
+                if (m.engagementId() != null && m.type() != TypeMatiere.GENERALE) {
+                    resultat.add(m.engagementId());
+                }
+            }
+        }
+        return resultat;
     }
 
     /** L'enseignant existe-t-il déjà sur la plateforme ? Réponse volontairement limitée à oui / non. */
@@ -135,8 +189,10 @@ public class EnseignantsService {
                         + "titulaire sur cette période : il ne peut être engagé ici que comme vacataire");
             }
             // Écrit tout de suite : la Row-Level Security ne montre l'identité qu'une fois l'engagement en base
-            Engagement invitation = engagements.saveAndFlush(new Engagement(enseignantId, d.type(),
-                    StatutEngagement.INVITE, d.debut(), d.fin(), d.tauxHoraire()));
+            Engagement nouvelle = new Engagement(enseignantId, d.type(), StatutEngagement.INVITE, d.debut(), d.fin(),
+                    d.tauxHoraire());
+            nouvelle.classer(d.categorie());
+            Engagement invitation = engagements.saveAndFlush(nouvelle);
             Enseignant enseignant = enseignants.findById(enseignantId).orElseThrow();
             audit.enregistrer("ENSEIGNANT_INVITE", d.type().name(), Map.of("engagement", invitation.getId()));
             return new ResultatEngagement(EnseignantVue.depuis(invitation, enseignant), true, null);
@@ -151,8 +207,10 @@ public class EnseignantsService {
         ResultatAjout compte = membres.garantirRole(telephone, nom, prenoms, Role.ENSEIGNANT);
         Enseignant enseignant = enseignants.save(new Enseignant(compte.membre().utilisateurId(), telephone, matricule,
                 nom, prenoms, d.sexe(), facultatif(d.specialite(), "La spécialité", 80)));
-        Engagement engagement = engagements.save(new Engagement(enseignant.getId(), d.type(), StatutEngagement.ACTIF,
-                d.debut(), d.fin(), d.tauxHoraire()));
+        Engagement nouveau = new Engagement(enseignant.getId(), d.type(), StatutEngagement.ACTIF, d.debut(), d.fin(),
+                d.tauxHoraire());
+        nouveau.classer(d.categorie());
+        Engagement engagement = engagements.save(nouveau);
         audit.enregistrer("ENSEIGNANT_ENGAGE", d.type().name(), Map.of("engagement", engagement.getId()));
         return new ResultatEngagement(EnseignantVue.depuis(engagement, enseignant), false,
                 compte.motDePasseTemporaire());

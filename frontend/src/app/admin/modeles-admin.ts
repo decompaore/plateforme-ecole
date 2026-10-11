@@ -250,7 +250,18 @@ export interface EnseignantVue {
   motifFin?: string | null;
   /** Engagement encore actif dont la fin est fixée à `fin`. */
   finProgrammee?: boolean;
+  /** Enseignement général ou technique et professionnel (v0.40) */
+  categorie?: CategorieEnseignant;
+  /** Classé « général » mais assure une matière technique ou pratique cette année */
+  suggestionTechnique?: boolean;
 }
+
+export type CategorieEnseignant = 'GENERAL' | 'TECHNIQUE';
+
+export const LIBELLE_CATEGORIE: Record<CategorieEnseignant, string> = {
+  GENERAL: 'Général',
+  TECHNIQUE: 'Technique et professionnel',
+};
 
 /** Matière d'une classe assurée par un enseignant pendant l'année. */
 export interface AffectationVue {

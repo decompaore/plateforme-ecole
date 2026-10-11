@@ -34,7 +34,8 @@ public class AuthService {
     public record ResultatConnexion(String jetonAcces, String jetonSelection, String jetonRafraichissement,
             long expireDansSecondes, EtablissementAccessible etablissementActif,
             List<EtablissementAccessible> etablissements, boolean superAdmin, boolean doitChangerMotDePasse,
-            String motifChangementMotDePasse, PaysAdministre adminPays, DirectionAdministree direction) {
+            String motifChangementMotDePasse, PaysAdministre adminPays, DirectionAdministree direction,
+            EspaceAdministration administration) {
     }
 
     private static final java.time.ZoneId FUSEAU = java.time.ZoneId.of("Africa/Ouagadougou");
@@ -106,6 +107,19 @@ public class AuthService {
         utilisateur.enregistrerConnexionReussie(maintenant);
         utilisateurs.save(utilisateur);
 
+        Optional<EspaceAdministration> administration = administration(utilisateur);
+        if (administration.isPresent()) {
+            // Compte d'administration qui est aussi parent d'élève (v0.41) : il choisit son espace
+            List<EtablissementAccessible> commeParent = acces.pour(utilisateur.getId());
+            if (!commeParent.isEmpty()) {
+                audit.enregistrerPour(utilisateur.getId(), "CONNEXION_SELECTION", null,
+                        Map.of("etablissements", commeParent.size(), "administration", administration.get().type()));
+                return new ResultatConnexion(null, jetons.jetonSelection(utilisateur), null,
+                        securite.dureeJetonSelection().toSeconds(), null, commeParent, false,
+                        utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement(), null, null,
+                        administration.get());
+            }
+        }
         if (utilisateur.isSuperAdmin()) {
             audit.enregistrerPour(utilisateur.getId(), "CONNEXION", "plateforme", null);
             return sessionComplete(utilisateur, null, List.of(), null);
@@ -143,7 +157,8 @@ public class AuthService {
                 Map.of("etablissements", etablissements.size()));
         return new ResultatConnexion(null, jetons.jetonSelection(utilisateur), null,
                 securite.dureeJetonSelection().toSeconds(), null, etablissements, false,
-                utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement(), null, null);
+                utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement(), null, null,
+                administration(utilisateur).orElse(null));
     }
 
     /**
@@ -172,6 +187,48 @@ public class AuthService {
         }
         auditerPour(choisi.id(), utilisateurId, "CHOIX_ETABLISSEMENT");
         return sessionComplete(utilisateur, choisi, etablissements, famillePrecedente);
+    }
+
+    /**
+     * Ouvre (ou rouvre) l'espace d'administration d'un compte qui est aussi parent (v0.41) : après la
+     * connexion (jeton de sélection) ou depuis un établissement (jeton d'accès, « Changer d'espace »).
+     */
+    public ResultatConnexion choisirAdministration(UUID utilisateurId, String ancienJetonRafraichissement) {
+        // Depuis un établissement (jeton d'accès), rien ne doit s'écrire pour lui : ni l'audit, ni la session
+        return bf.edutech.plateforme.socle.tenant.TenantContext.executerPour(null,
+                () -> ouvrirAdministration(utilisateurId, ancienJetonRafraichissement));
+    }
+
+    private ResultatConnexion ouvrirAdministration(UUID utilisateurId, String ancienJetonRafraichissement) {
+        Utilisateur utilisateur = utilisateurs.findById(utilisateurId)
+                .filter(Utilisateur::isActif)
+                .orElseThrow(() -> new AuthentificationException(MESSAGE_ECHEC));
+        EspaceAdministration administration = administration(utilisateur)
+                .orElseThrow(() -> new AccesRefuseException("Ce compte n'a pas d'espace d'administration"));
+        UUID famillePrecedente = null;
+        if (ancienJetonRafraichissement != null) {
+            Optional<JetonRafraichissement> ancien = jetonsRafraichissement
+                    .findByHache(ServiceJetons.hacher(ancienJetonRafraichissement));
+            if (ancien.isPresent()) {
+                famillePrecedente = ancien.get().getFamille();
+                jetonsRafraichissement.revoquerFamille(famillePrecedente, horloge.instant());
+            }
+        }
+        audit.enregistrerPour(utilisateurId, "CONNEXION", administration.type().toLowerCase(java.util.Locale.ROOT), null);
+        return sessionComplete(utilisateur, null, acces.pour(utilisateurId), famillePrecedente);
+    }
+
+    /** Espace d'administration du compte (super administrateur, administrateur pays, direction), s'il en a un. */
+    Optional<EspaceAdministration> administration(Utilisateur utilisateur) {
+        if (utilisateur.isSuperAdmin()) {
+            return Optional.of(new EspaceAdministration("PLATEFORME", "Administration de la plateforme"));
+        }
+        Optional<PaysAdministre> pays = administrateursPays.de(utilisateur.getId());
+        if (pays.isPresent()) {
+            return Optional.of(new EspaceAdministration("PAYS", "Administration du pays : " + pays.get().nom()));
+        }
+        return administrateursDirection.de(utilisateur.getId())
+                .map(d -> new EspaceAdministration("DIRECTION", d.nom()));
     }
 
     /**
@@ -236,10 +293,11 @@ public class AuthService {
         jeton.remplacer(nouveau.id(), maintenant);
         sessions.utiliser(jeton.getFamille());
         return new ResultatConnexion(jetons.jetonAcces(utilisateur, etablissement), null, nouveau.valeur(),
-                jetons.dureeAccesEnSecondes(), etablissement, List.of(), utilisateur.isSuperAdmin(),
+                jetons.dureeAccesEnSecondes(), etablissement, List.of(), utilisateur.isSuperAdmin() && etablissement == null,
                 utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement(),
                 etablissement == null ? administrateursPays.de(utilisateur.getId()).orElse(null) : null,
-                etablissement == null ? administrateursDirection.de(utilisateur.getId()).orElse(null) : null);
+                etablissement == null ? administrateursDirection.de(utilisateur.getId()).orElse(null) : null,
+                administration(utilisateur).orElse(null));
     }
 
     @Transactional
@@ -359,11 +417,13 @@ public class AuthService {
         ServiceJetons.JetonEmis emis = jetons.emettreJetonRafraichissement(utilisateur.getId(), tenant, null);
         sessions.ouvrir(utilisateur.getId(), emis.famille(), tenant, famillePrecedente);
         String rafraichissement = emis.valeur();
+        // Dans un établissement (parent), jamais les droits de l'espace d'administration (v0.41)
         return new ResultatConnexion(jetons.jetonAcces(utilisateur, etablissement), null, rafraichissement,
-                jetons.dureeAccesEnSecondes(), etablissement, etablissements, utilisateur.isSuperAdmin(),
+                jetons.dureeAccesEnSecondes(), etablissement, etablissements, utilisateur.isSuperAdmin() && etablissement == null,
                 utilisateur.isDoitChangerMotDePasse(), utilisateur.getMotifChangement(),
                 etablissement == null ? administrateursPays.de(utilisateur.getId()).orElse(null) : null,
-                etablissement == null ? administrateursDirection.de(utilisateur.getId()).orElse(null) : null);
+                etablissement == null ? administrateursDirection.de(utilisateur.getId()).orElse(null) : null,
+                administration(utilisateur).orElse(null));
     }
 
     /** Audit rattaché à l'établissement (la Row-Level Security l'exige pour l'écriture). */

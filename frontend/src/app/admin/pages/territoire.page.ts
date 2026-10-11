@@ -255,6 +255,9 @@ const PAYS_VIDE: DonneesPays = {
                   <button type="button" class="bouton discret petit" (click)="modifierDirection(d)">Modifier</button>
                   <button type="button" class="bouton discret petit" [attr.aria-expanded]="directionComptes()?.id === d.id" (click)="ouvrirComptes(d)">Comptes</button>
                   <a class="bouton discret petit" routerLink="/pilotage" [queryParams]="{ direction: d.id }">Tableau de bord</a>
+                  @if (d.rang === m.niveaux.length && d.actif) {
+                    <a class="bouton discret petit" routerLink="/plateforme" [queryParams]="{ direction: d.id }">Nouvel établissement</a>
+                  }
                 </span>
               </li>
               @if (directionComptes()?.id === d.id) {

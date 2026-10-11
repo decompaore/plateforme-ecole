@@ -64,10 +64,16 @@ public class ComptesService {
     private final SessionsAppareils sessions;
     private final bf.edutech.plateforme.socle.securite.SecuriteProperties securite;
 
+    private final AdministrateursPays administrateursPays;
+    private final AdministrateursDirection administrateursDirection;
+
     ComptesService(MembreEtablissementRepository membres, UtilisateurRepository utilisateurs,
             JetonRafraichissementRepository jetons, AccesEtablissements acces, PasswordEncoder encodeur,
             AuditService audit, NotificationsService notifications, Clock horloge, SessionsAppareils sessions,
-            bf.edutech.plateforme.socle.securite.SecuriteProperties securite) {
+            bf.edutech.plateforme.socle.securite.SecuriteProperties securite, AdministrateursPays administrateursPays,
+            AdministrateursDirection administrateursDirection) {
+        this.administrateursPays = administrateursPays;
+        this.administrateursDirection = administrateursDirection;
         this.sessions = sessions;
         this.securite = securite;
         this.membres = membres;
@@ -201,7 +207,10 @@ public class ComptesService {
         }
         Utilisateur u = utilisateurs.findById(utilisateurId)
                 .orElseThrow(() -> new RessourceIntrouvableException("Compte introuvable"));
-        if (u.isSuperAdmin()) {
+        // Un compte d'administration (plateforme, pays, direction) peut être parent d'élève (v0.41) : son mot de
+        // passe, son verrouillage et ses sessions ne se gèrent jamais depuis un établissement
+        if (u.isSuperAdmin() || administrateursPays.de(u.getId()).isPresent()
+                || administrateursDirection.de(u.getId()).isPresent()) {
             throw new AccesRefuseException("Les comptes de la plateforme ne se gèrent pas depuis un établissement");
         }
         return u;

@@ -141,6 +141,35 @@ describe('Territoire et documents officiels (v0.35)', () => {
     expect(bouton(f, 'Importer').disabled).toBe(true);
   });
 
+  it('établissements (v0.39) : regroupés par pays, ministère et directions, avec résumé des statuts', async () => {
+    await session(http, null, true);
+    const f = TestBed.createComponent(PlateformePage);
+    f.detectChanges();
+    await attendre();
+    const e = (id: string, nom: string, statut: string, rattachement: string | null) =>
+      ({ id, code: id, nom, statut, creeLe: '2026-09-01T08:00:00Z', directionId: rattachement ? 'd' : null, rattachement });
+    http.expectOne('/api/v1/plateforme/etablissements').flush([
+      e('a', 'Lycée A', 'ACTIF', 'Burkina Faso · MESFPT · DR du Centre · DP du Kadiogo'),
+      e('b', 'Lycée B', 'SUSPENDU', 'Burkina Faso · MESFPT · DR du Centre · DP du Kadiogo'),
+      e('c', 'Lycée C', 'ACTIF', 'Niger · MEP · DR de Niamey · DD de Niamey I'),
+      e('x', 'Privé X', 'ACTIF', null),
+    ]);
+    await attendre();
+    let t = texte(f);
+    expect(t).toContain('Burkina Faso · 2 établissement(s)');
+    expect(t).toContain('1 actif(s) · 1 suspendu(s)');
+    expect(t).toContain('Sans rattachement · 1 établissement(s)');
+    // Premier niveau déplié : les ministères visibles, pas encore les lycées
+    expect(t).toContain('MESFPT');
+    expect(t).not.toContain('Lycée A');
+    bouton(f, 'Tout déplier').click();
+    t = texte(f);
+    expect(t).toContain('Lycée A');
+    expect(t).toContain('DD de Niamey I');
+    bouton(f, 'Liste').click();
+    expect(texte(f)).not.toContain('· 2 établissement(s)');
+  });
+
   it('établissements : rattachement affiché, modifié, et filtre par direction', async () => {
     await session(http, null, true);
     const f = TestBed.createComponent(PlateformePage);

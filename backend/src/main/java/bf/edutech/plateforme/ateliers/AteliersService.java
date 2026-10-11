@@ -121,6 +121,19 @@ public class AteliersService {
     }
 
     /**
+     * L'onglet Ateliers a-t-il un sens pour la personne connectée (v0.40) : direction des ateliers,
+     * intendance, ou enseignant technique rattaché à un atelier (responsable ou enseignant de l'atelier).
+     */
+    @Transactional(readOnly = true)
+    public boolean accessible() {
+        UtilisateurConnecte.etablissementActif();
+        if (acces.direction() || acces.intendance()) {
+            return true;
+        }
+        return ateliers.findAllByOrderByCodeAsc().stream().anyMatch(a -> acces.droits(a.getId()).signaler());
+    }
+
+    /**
      * Ateliers ouverts et leurs filières, pour l'emploi du temps : lisibles par toute la direction
      * (censeur compris), sans les stocks ni les mandats.
      */

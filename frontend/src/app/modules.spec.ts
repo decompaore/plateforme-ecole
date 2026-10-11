@@ -7,6 +7,7 @@ import { ModuleEtablissementVue } from './admin/modeles-admin';
 import { module } from './core/gardes';
 import { EtablissementAccessible, Module, Role } from './core/modeles';
 import { SessionService } from './core/session.service';
+import { AccesAteliersService } from './ateliers/acces-ateliers.service';
 import { AccueilPage } from './pages/accueil.page';
 import { EnfantPage } from './parent/pages/enfant.page';
 import { attendre, configurer, reponse } from './testing/outils-test';
@@ -59,6 +60,32 @@ describe('Modules activables (v0.31)', () => {
     const garde = (m: Module) => TestBed.runInInjectionContext(() => module(m)({} as never, {} as never));
     expect(garde('EMPLOIS_DU_TEMPS')).toBe(true);
     expect(TestBed.inject(Router).serializeUrl(garde('ATELIERS') as never)).toBe('/');
+  });
+
+  it('accueil (v0.40) : l’onglet Ateliers n’apparaît qu’à l’enseignant du technique rattaché à un atelier', async () => {
+    await session(http, etablissement(['ENSEIGNANT'], []));
+    let f = TestBed.createComponent(AccueilPage);
+    f.detectChanges();
+    await attendre();
+    http.match('/api/v1/moi/invitations').forEach((r) => r.flush([]));
+    http.match('/api/v1/espace-enseignant/affectations').forEach((r) => r.flush([]));
+    http.expectOne('/api/v1/ateliers/acces').flush({ visible: false });
+    await attendre();
+    expect(texte(f)).toContain("Faire l'appel");
+    expect(texte(f)).not.toContain('Responsables, équipements');
+
+    // Même compte, reclassé en technique et rattaché : nouvelle session, l'onglet apparaît
+    f.destroy();
+    TestBed.inject(AccesAteliersService).visible.set(null);
+    (TestBed.inject(AccesAteliersService) as unknown as { pour: string | null }).pour = null;
+    f = TestBed.createComponent(AccueilPage);
+    f.detectChanges();
+    await attendre();
+    http.match('/api/v1/moi/invitations').forEach((r) => r.flush([]));
+    http.match('/api/v1/espace-enseignant/affectations').forEach((r) => r.flush([]));
+    http.expectOne('/api/v1/ateliers/acces').flush({ visible: true });
+    await attendre();
+    expect(texte(f)).toContain('Responsables, équipements');
   });
 
   it('espace parent : sans scolarité ni vie scolaire, seules les absences et les bulletins sont demandés', async () => {

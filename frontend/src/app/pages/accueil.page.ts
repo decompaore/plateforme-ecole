@@ -3,6 +3,7 @@ import { RouterLink } from '@angular/router';
 
 import { Module, Role } from '../core/modeles';
 import { SessionService } from '../core/session.service';
+import { AccesAteliersService } from '../ateliers/acces-ateliers.service';
 import { EnvoisService } from '../hors-ligne/envois.service';
 import { NotesService } from '../hors-ligne/notes.service';
 import { FinEngagementComponent } from './fin-engagement.component';
@@ -96,6 +97,10 @@ const TUILES: Tuile[] = [
             <strong>Tableau de bord</strong>
             <span>Effectifs, résultats et examens de chaque établissement de votre ressort</span>
           </a>
+          <a class="tuile active" routerLink="/pilotage/adoption">
+            <strong>Adoption</strong>
+            <span>Qui utilise l'application dans les établissements de votre ressort</span>
+          </a>
         </div>
       } @else if (!session.profil()?.etablissement) {
         <div class="carte">
@@ -155,11 +160,23 @@ const TUILES: Tuile[] = [
 })
 export class AccueilPage {
   protected readonly session = inject(SessionService);
+  private readonly accesAteliers = inject(AccesAteliersService);
   protected readonly envois = inject(EnvoisService);
   protected readonly notes = inject(NotesService);
 
   protected readonly tuiles = computed(() => {
     const roles = this.session.roles();
-    return TUILES.filter((t) => t.roles.some((r) => roles.includes(r)) && (!t.module || this.session.moduleActif(t.module)));
+    // v0.40 : un enseignant ne voit les ateliers que s'il est du technique et rattaché à un atelier
+    const ateliersCaches = this.accesAteliers.enseignantSeulement() && this.accesAteliers.visible() !== true;
+    return TUILES.filter(
+      (t) =>
+        t.roles.some((r) => roles.includes(r)) &&
+        (!t.module || this.session.moduleActif(t.module)) &&
+        !(t.lien === '/ateliers' && ateliersCaches),
+    );
   });
+
+  constructor() {
+    void this.accesAteliers.charger();
+  }
 }

@@ -200,6 +200,22 @@ class PilotageIntegrationTest {
         mvc.perform(get("/api/v1/pilotage").param("direction", dp1.toString()).with(provinciale))
                 .andExpect(status().isForbidden());
 
+        // Arbre territorial (v0.39) : chaque établissement porte son rattachement complet
+        mvc.perform(get("/api/v1/pilotage").with(direction))
+                .andExpect(jsonPath("$.etablissements[?(@.id == '" + lyceeA + "')].rattachement")
+                        .value("Burkina Faso · PI" + suffixe + " · DR Centre · DP Kadiogo"));
+
+        // Adoption de son ressort (v0.39) : ses deux lycées ; pas une direction voisine ; pas la route plateforme
+        mvc.perform(get("/api/v1/pilotage/adoption").with(direction))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.details.length()").value(2));
+        mvc.perform(get("/api/v1/pilotage/adoption").param("direction", dp1.toString()).with(direction))
+                .andExpect(jsonPath("$.details.length()").value(1))
+                .andExpect(jsonPath("$.details[0].id").value(lyceeA.toString()));
+        mvc.perform(get("/api/v1/pilotage/adoption").param("direction", dp1.toString()).with(provinciale))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/plateforme/adoption").with(direction)).andExpect(status().isForbidden());
+
         // Rien de l'administration de la plateforme ni des établissements
         mvc.perform(get("/api/v1/plateforme/etablissements").with(direction)).andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/plateforme/territoire/pays").with(direction)).andExpect(status().isForbidden());

@@ -42,6 +42,9 @@
       }
       @if (session.pilote()) {
         <a routerLink="/pilotage">Pilotage</a>
+        @if (session.profil()?.direction) {
+          <a routerLink="/pilotage/adoption">Adoption</a>
+        }
       }
       @if (session.aLeRole('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')) {
         <a routerLink="/admin/classes">Classes</a>
@@ -52,7 +55,7 @@
       }
       @if (!session.horsConnexion()) {
         @if (session.plusieursEtablissements()) {
-          <a routerLink="/etablissement">Changer d'établissement</a>
+          <a routerLink="/etablissement">{{ session.profil()?.administration ? "Changer d'espace" : "Changer d'établissement" }}</a>
         }
         <a routerLink="/mot-de-passe">Changer mon mot de passe</a>
         <a routerLink="/appareils">Mes appareils</a>
