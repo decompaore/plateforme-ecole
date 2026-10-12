@@ -4,7 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -61,6 +64,9 @@ import bf.edutech.plateforme.passage.ParametresPassageService.ParametresPassage;
 import bf.edutech.plateforme.passage.ParametresPassageService.PoidsPeriode;
 import bf.edutech.plateforme.passage.PassageService.AnneeSuivanteVue;
 import bf.edutech.plateforme.passage.PassageService.ReinscriptionsVue;
+import bf.edutech.plateforme.passage.PlanPassageService.LignePlan;
+import bf.edutech.plateforme.passage.PlanPassageService.PlanVue;
+import bf.edutech.plateforme.passage.PlanPassageService.Sortie;
 import bf.edutech.plateforme.pedagogie.ProfilsService;
 import bf.edutech.plateforme.plateforme.EtablissementsService;
 import bf.edutech.plateforme.scolarite.FraisService;
@@ -104,6 +110,7 @@ class PassageIntegrationTest {
     @Autowired private ParametresPassageService parametres;
     @Autowired private DecisionsService decisions;
     @Autowired private PassageService passage;
+    @Autowired private PlanPassageService plan;
     @Autowired private WebApplicationContext contexte;
 
     private final LocalDate j = LocalDate.now(ZoneOffset.UTC);
@@ -261,6 +268,108 @@ class PassageIntegrationTest {
         assertThat(commeCenseur(() -> decisions.valider(classe)).validees()).isTrue();
     }
 
+    /**
+     * v0.45 : plan de passage de deux classes parallèles (6e A, 6e B) vers l'année suivante. Les admis
+     * montent en 5e, répartis à parts égales entre 5e A et 5e B (une fille et un garçon chacune) ; la
+     * redoublante reste en 6e ; l'exclu sort. La confirmation réinscrit tout le monde en une fois.
+     */
+    @Test
+    void planDePassageEquilibreLesClassesParallelesPuisReinscrit() throws Exception {
+        UUID sixA = classe(annee.id(), "6e A", "6e");
+        UUID sixB = classe(annee.id(), "6e B", "6e");
+        UUID mA = matiere(sixA);
+        dans(() -> classes.definirMatiere(sixB, mA, BigDecimal.ONE, null, BigDecimal.ONE, null));
+        ouvrirAvecTrimestres();
+        UUID awa = inscrire(eleve("OUEDRAOGO", "Awa", null, Sexe.F), sixA);
+        UUID ali = inscrire(eleve("SAWADOGO", "Ali", null, Sexe.M), sixA);
+        UUID ines = inscrire(eleve("ZONGO", "Ines", null, Sexe.F), sixA);
+        UUID fati = inscrire(eleve("KONE", "Fati", null, Sexe.F), sixB);
+        UUID issa = inscrire(eleve("KABORE", "Issa", null, Sexe.M), sixB);
+        UUID paul = inscrire(eleve("TRAORE", "Paul", null, Sexe.M), sixB);
+        for (int t = 0; t < 3; t++) {
+            noter(sixA, mA, t, Map.of(awa, "14", ali, "12", ines, "9"));
+            noter(sixB, mA, t, Map.of(fati, "13", issa, "11", paul, "6"));
+        }
+        trimestres.forEach(t -> dans(() -> periodes.verrouiller(t.id())));
+        commeCenseur(() -> decisions.proposer(sixA));
+        commeCenseur(() -> decisions.valider(sixA));
+
+        // Pas d'année suivante : pas de plan
+        assertThatThrownBy(() -> commeCenseur(() -> plan.proposer(annee.id())))
+                .isInstanceOf(RegleMetierException.class).extracting("code").isEqualTo("ANNEE_SUIVANTE_ABSENTE");
+        AnneeSuivanteVue suivante = commeCenseur(() -> passage.creerAnneeSuivante(annee.id(), an + "-" + (an + 1),
+                annee.debut().plusYears(1), annee.fin().plusYears(1)));
+        UUID cinqA = classe(suivante.annee().id(), "5e A", "5e");
+        UUID cinqB = classe(suivante.annee().id(), "5e B", "5e");
+
+        // 6e B pas encore validée : signalée, ses élèves attendent
+        PlanVue p = commeCenseur(() -> plan.proposer(annee.id()));
+        assertThat(p.anneeSuivante().id()).isEqualTo(suivante.annee().id());
+        assertThat(p.classesNonValidees()).containsExactly("6e B");
+        assertThat(p.eleves()).extracting(LignePlan::prenoms).containsExactly("Awa", "Ali", "Ines");
+
+        commeCenseur(() -> decisions.proposer(sixB));
+        commeCenseur(() -> decisions.valider(sixB));
+        p = commeCenseur(() -> plan.proposer(annee.id()));
+        assertThat(p.classesNonValidees()).isEmpty();
+        Map<String, LignePlan> parPrenom = new java.util.HashMap<>();
+        p.eleves().forEach(l -> parPrenom.put(l.prenoms(), l));
+        // Admis : 5e A et 5e B, une fille et un garçon dans chacune
+        for (String admis : List.of("Awa", "Ali", "Fati", "Issa")) {
+            assertThat(parPrenom.get(admis).classeCibleId()).isIn(cinqA, cinqB);
+            assertThat(parPrenom.get(admis).redoublant()).isFalse();
+        }
+        assertThat(parPrenom.get("Awa").classeCibleId()).isNotEqualTo(parPrenom.get("Fati").classeCibleId());
+        assertThat(parPrenom.get("Ali").classeCibleId()).isNotEqualTo(parPrenom.get("Issa").classeCibleId());
+        // Redoublante : en 6e de l'année suivante ; exclu : sort
+        UUID sixSuivante = parPrenom.get("Ines").classeCibleId();
+        assertThat(dans(() -> classes.trouver(sixSuivante)).niveau()).isEqualTo("6e");
+        assertThat(parPrenom.get("Ines").redoublant()).isTrue();
+        assertThat(parPrenom.get("Paul").classeCibleId()).isNull();
+        assertThat(parPrenom.get("Paul").sortie()).isEqualTo(Sortie.EXCLU);
+
+        // Listes des classes de l'année suivante (Excel)
+        UUID secretaire = membre(Role.SECRETARIAT);
+        mvc.perform(get("/api/v1/annees/{id}/plan-passage/listes", annee.id()).param("format", "xlsx")
+                        .with(jeton(secretaire, "SECRETARIAT")))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type",
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+
+        // Confirmation : la direction a gardé le plan, et tente d'y placer l'exclu
+        StringBuilder corps = new StringBuilder("{\"affectations\":[");
+        for (LignePlan l : p.eleves()) {
+            UUID cible = l.classeCibleId() != null ? l.classeCibleId() : cinqA;
+            corps.append("{\"inscriptionId\":\"").append(l.inscriptionId()).append("\",\"classeCibleId\":\"")
+                    .append(cible).append("\"},");
+        }
+        corps.setLength(corps.length() - 1);
+        corps.append("]}");
+        mvc.perform(post("/api/v1/annees/{id}/plan-passage", annee.id()).with(jeton(membre(Role.SURVEILLANT), "SURVEILLANT"))
+                        .contentType(MediaType.APPLICATION_JSON).content(corps.toString()))
+                .andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/annees/{id}/plan-passage", annee.id()).with(jeton(secretaire, "SECRETARIAT"))
+                        .contentType(MediaType.APPLICATION_JSON).content(corps.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.reinscrits").value(5))
+                .andExpect(jsonPath("$.redoublants").value(1))
+                .andExpect(jsonPath("$.nonReinscrits.length()").value(1))
+                .andExpect(jsonPath("$.nonReinscrits[0].motif").value("Élève exclu par le conseil de classe"));
+        assertThat(dans(() -> inscriptions.listerParClasse(cinqA, false))).hasSize(2);
+        assertThat(dans(() -> inscriptions.listerParClasse(cinqB, false))).hasSize(2);
+        assertThat(dans(() -> inscriptions.listerParClasse(sixSuivante, false)))
+                .singleElement().satisfies(i -> assertThat(i.redoublant()).isTrue());
+
+        // Le plan se relit : tout le monde est placé
+        PlanVue apres = commeCenseur(() -> plan.proposer(annee.id()));
+        assertThat(apres.eleves()).filteredOn(l -> l.sortie() == null).allSatisfy(l -> {
+            assertThat(l.dejaInscrit()).isNotNull();
+            assertThat(l.classeCibleId()).isNull();
+        });
+        assertThat(apres.classesCibles()).filteredOn(c -> c.id().equals(cinqA)).singleElement()
+                .satisfies(c -> assertThat(c.dejaInscrits()).isEqualTo(2));
+    }
+
     // ------------------------------------------------------------------
 
     /** Trois trimestres couvrant l'année (le dernier contient aujourd'hui), puis ouverture de l'année. */
@@ -296,9 +405,13 @@ class PassageIntegrationTest {
     }
 
     private DossierEleveVue eleve(String nom, String prenoms, String telParent) {
+        return eleve(nom, prenoms, telParent, Sexe.F);
+    }
+
+    private DossierEleveVue eleve(String nom, String prenoms, String telParent, Sexe sexe) {
         List<DonneesResponsable> responsables = telParent == null ? List.of()
                 : List.of(new DonneesResponsable(nom, "Parent", telParent, LienParente.PERE, null, null, true, null));
-        return dans(() -> eleves.creer(new DonneesEleve(null, nom, prenoms, Sexe.F, LocalDate.of(2013, 5, 6), null,
+        return dans(() -> eleves.creer(new DonneesEleve(null, nom, prenoms, sexe, LocalDate.of(2013, 5, 6), null,
                 null, null, null), responsables));
     }
 

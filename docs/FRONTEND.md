@@ -267,6 +267,28 @@ l'adresse demandée et la session reprend grâce au cookie ; les autres erreurs 
 la console. En développement, si le problème persiste : arrêter `npm start`, supprimer `frontend/.angular`,
 relancer, puis recharger la page avec Ctrl+Maj+R.
 
+## Fin d'année (v0.45)
+
+Onglet **Fin d'année** (`/admin/fin-annee`, tuile de l'accueil et menu) pour le chef d'établissement, le censeur et
+le secrétariat. Une page, cinq étapes numérotées (vertes quand elles sont faites) :
+
+1. **Notes figées** : périodes encore ouvertes (à verrouiller dans Bulletins).
+2. **Conseils de classe** : état de chaque classe (à calculer, à valider, validées) et répartition ; bouton
+   « Calculer les propositions » pour toutes les classes ; lien vers le **conseil de fin d'année** d'une classe
+   (`/admin/fin-annee/classes/:id`) : moyenne annuelle, rang, redoublements, résultat de l'examen national, proposition,
+   décision du conseil avec **motif obligatoire** pour s'en écarter (la ligne est surlignée), enregistrement des seules
+   lignes modifiées, puis validation confirmée (SMS aux familles).
+3. **Année suivante** : création par copie (libellé et dates proposés, décalés d'un an).
+4. **Listes de l'année suivante** : une carte par classe (effectif prévu / maximal, filles, garçons, redoublants,
+   dépassement en rouge) avec ses élèves ; un menu par élève pour le déplacer vers une classe parallèle ou le retirer ;
+   les élèves sans classe (exclus, orientés, certifiés, fin de cycle) avec un menu pour les placer, sauf les exclus ;
+   téléchargement Excel ou PDF ; « Réinscrire N élève(s) » (administration et secrétariat), avec l'option de garder le
+   statut de bourse.
+5. **Clôture** de l'année puis **ouverture** de l'année suivante (chef d'établissement), chacune confirmée.
+
+Les **réglages** (repliés en bas de page) : seuil d'exclusion et redoublements maximum, poids des périodes par profil,
+nom de l'examen national de chaque classe. Tests : `fin-annee/fin-annee.spec.ts`.
+
 ## Photos d'identité, signature et visas des bulletins (v0.44)
 
 En ligne uniquement : photos et signatures ne sont **jamais** gardées sur le téléphone (pas de cache hors

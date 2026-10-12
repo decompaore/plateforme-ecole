@@ -78,3 +78,31 @@ Rang annuel : les ex-æquo ont le même rang et le rang suivant est sauté.
   plus, ou dont les dates ne tombent pas dans la nouvelle année, est à recréer à la main.
 - Les classes de niveau supérieur qui n'existaient pas (ex. 5e A quand l'école n'avait que la 6e) se créent dans la
   nouvelle année avant la réinscription.
+
+## Plan de passage automatique (v0.45)
+
+Une fois les décisions validées, la plateforme prépare **toutes** les listes de l'année suivante en une fois :
+
+| Appel | Rôles |
+|---|---|
+| `GET /api/v1/annees/{anneeId}/plan-passage` → `{annee, anneeSuivante, classesNonValidees, classesCibles[], eleves[]}` | CENSEUR, ADMIN_ECOLE, SECRETARIAT |
+| `GET …/plan-passage/listes?format=xlsx\|pdf` : une feuille par classe de l'année suivante (inscrits et « proposés »), puis les sortants | CENSEUR, ADMIN_ECOLE, SECRETARIAT |
+| `POST …/plan-passage` `{"affectations":[{"inscriptionId":"…","classeCibleId":"…"}],"conserverStatutBourse":false}` → `{reinscrits, redoublants, nonReinscrits[]}` | ADMIN_ECOLE, SECRETARIAT |
+
+- **Année suivante** : la première année en préparation ou active qui commence après la fin de l'année
+  (`409 ANNEE_SUIVANTE_ABSENTE` sinon : créez-la avec `annee-suivante`).
+- **Classe proposée** : `ADMIS` → niveau supérieur de la **même filière** ; `REDOUBLE` et `NON_CERTIFIE` → même
+  niveau, mention redoublant. Ordre des niveaux : 6e < 5e < 4e < 3e, 2nde < 1re < Tle, puis les niveaux numérotés
+  d'un même libellé (« 1re année » < « 2e année », « CAP 1 » < « CAP 2 »). Deux familles différentes ne se comparent
+  pas : un admis de 3e (fin du collège) ou de Tle sort avec `sortie = FIN_DE_CYCLE`, la direction peut le placer à la main.
+- **Sorties** (`sortie`) : `EXCLU` (jamais réinscrit : refusé à la confirmation), `ORIENTE` et `CERTIFIE` (placés
+  seulement si la direction choisit une classe), `FIN_DE_CYCLE`, `SANS_CLASSE_CIBLE` (aucune classe de ce niveau dans
+  l'année suivante : la créer, puis relire le plan).
+- **Répartition équilibrée** entre classes parallèles d'un même niveau et d'une même filière : par catégorie (sexe,
+  redoublant), chaque élève va dans la classe qui en compte le moins, puis la moins chargée ; les élèves déjà inscrits
+  comptent ; une classe pleine (effectif maximal) n'est choisie que si toutes le sont. Le résultat est déterministe.
+- Un élève déjà inscrit dans l'année suivante apparaît avec `dejaInscrit` (code de sa classe) et sans proposition :
+  le plan se relit et se confirme autant de fois que nécessaire (classe par classe au fil des conseils).
+- Les classes dont les décisions ne sont pas encore validées sont listées dans `classesNonValidees`.
+- La confirmation réinscrit par classe cible (même règles que les réinscriptions : année antérieure, élève actif,
+  pas déjà inscrit, place disponible) ; le journal d'audit garde `PLAN_PASSAGE_APPLIQUE`.
