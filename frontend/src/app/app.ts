@@ -1,3 +1,4 @@
+import { MessagerieApi } from './messagerie/messagerie-api.service';
 import { Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { SwUpdate } from '@angular/service-worker';
@@ -27,6 +28,7 @@ export class App {
   protected readonly refuses = computed(() => this.envois.refuses() + this.notes.refusees() + this.cahier.refusees());
   private readonly listes = inject(ListesService);
   private readonly anneeCourante = inject(AnneeCourante);
+  protected readonly messagerie = inject(MessagerieApi);
   private readonly router = inject(Router);
   private readonly sw = inject(SwUpdate);
 
@@ -57,7 +59,15 @@ export class App {
         void this.session.rafraichir();
       }
     }, REPRISE_MS);
+    // Messages non lus : relus toutes les cinq minutes tant que la session est ouverte
+    const courrier = setInterval(() => {
+      const p = this.session.profil();
+      if (p?.etablissement && this.session.jeton() !== null && !p.doitChangerMotDePasse && navigator.onLine) {
+        void this.messagerie.actualiserNonLus();
+      }
+    }, 5 * 60_000);
     destroyRef.onDestroy(() => {
+      clearInterval(courrier);
       window.removeEventListener('online', enLigne);
       window.removeEventListener('offline', horsLigne);
       clearInterval(reprise);
@@ -73,6 +83,7 @@ export class App {
         if (cle !== precedent) {
           // Autre établissement ou autre utilisateur : l'année de travail de l'administration est à relire
           this.anneeCourante.oublier();
+          this.messagerie.nonLus.set(0);
         }
         if (cle !== precedent || connecte) {
           precedent = cle;
@@ -83,6 +94,7 @@ export class App {
             void this.cahier.recharger().then(() => this.cahier.synchroniser());
           }
           if (cle && connecte && !profil?.doitChangerMotDePasse) {
+            void this.messagerie.actualiserNonLus();
             void this.listes.preparerSiAncien().then((fait) => (fait ? this.notes.preparerTout() : undefined));
           }
         }

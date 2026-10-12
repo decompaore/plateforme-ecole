@@ -118,3 +118,9 @@
     color: var(--info);
   }
 }
+
+/* Messages non lus (v0.46) */
+.compteur.messages {
+  background: var(--info-fond);
+  color: var(--info);
+}

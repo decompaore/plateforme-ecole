@@ -59,7 +59,8 @@ Pour travailler avec Eclipse, suivre [docs/GUIDE_ECLIPSE.md](docs/GUIDE_ECLIPSE.
 | [docs/API_BULLETINS.md](docs/API_BULLETINS.md) | Appréciations, conseil de classe, bulletins PDF, publication, espace parent, vérification |
 | [docs/API_SCOLARITE.md](docs/API_SCOLARITE.md) | Frais, tranches, bourses, exonérations, encaissements, reçus, retards, relances SMS |
 | [docs/API_MOBILE_MONEY.md](docs/API_MOBILE_MONEY.md) | Paiement Mobile Money par les parents, notifications signées, rapprochement quotidien, relances automatiques |
-| [docs/API_PASSAGE.md](docs/API_PASSAGE.md) | Moyenne annuelle, décisions de fin d'année, conseil de classe, année suivante, réinscriptions en masse |
+| [docs/API_PASSAGE.md](docs/API_PASSAGE.md) | Moyenne annuelle, décisions de fin d'année, conseil de classe, année suivante, plan de passage (v0.45), taux de réussite aux examens (v0.46) |
+| [docs/API_MESSAGERIE.md](docs/API_MESSAGERIE.md) | Messagerie de l'établissement : personnel, parents, groupes, SMS en option, lu / non lu (v0.46) |
 | [docs/API_VIE_SCOLAIRE.md](docs/API_VIE_SCOLAIRE.md) | Retards, avertissements, blâmes, exclusions temporaires, convocations, historique, espace parent |
 | [docs/API_STATISTIQUES.md](docs/API_STATISTIQUES.md) | Statistiques de rentrée, personnel, recouvrement, résultats, export Excel |
 | [docs/API_TERRITOIRE.md](docs/API_TERRITOIRE.md) | Pays, ministères, directions (saisie, import CSV), rattachement des établissements, logo et en-tête des documents officiels |

@@ -3,7 +3,7 @@
   "version": 1,
   "cli": {
     "packageManager": "npm",
-    "analytics": "3b225d04-8aa2-4be1-9926-8ef06c5f01ab"
+    "analytics": "7c1f9434-8c5e-4cd1-a881-35a212c45067"
   },
   "newProjectRoot": "projects",
   "projects": {
@@ -39,7 +39,7 @@
               "budgets": [
                 {
                   "type": "initial",
-                  "maximumWarning": "500kB",
+                  "maximumWarning": "550kB",
                   "maximumError": "1MB"
                 },
                 {

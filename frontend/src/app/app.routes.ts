@@ -121,6 +121,12 @@ export const routes: Routes = [
         component: CahierPage,
       },
       {
+        // Messagerie de l'établissement (v0.46) : boîte de réception de chacun, envoi par le chef d'établissement
+        path: 'messages',
+        title: 'Messages',
+        loadComponent: () => import('./messagerie/pages/messages.page').then((m) => m.MessagesPage),
+      },
+      {
         // Signature numérisée imprimée devant les matières visées (v0.44) : en ligne uniquement
         path: 'signature',
         title: 'Ma signature',
@@ -215,6 +221,13 @@ export const routes: Routes = [
             canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')],
             title: "Conseil de fin d'année",
             loadComponent: () => import('./fin-annee/pages/conseil-fin-annee.page').then((m) => m.ConseilFinAnneePage),
+          },
+          {
+            // Taux de réussite aux examens nationaux (v0.46)
+            path: 'examens',
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR')],
+            title: 'Examens',
+            loadComponent: () => import('./fin-annee/pages/examens.page').then((m) => m.ExamensPage),
           },
           {
             path: 'statistiques',

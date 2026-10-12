@@ -51,9 +51,11 @@ Code de sortie : 0 si tout est réussi, 1 s'il y a des échecs, 2 si la recette 
 | 06 | SCO, GUI, PAI, MMO | Frais, échéanciers, bourses et organismes, guichet et reçus, moyens de paiement choisis par l'établissement, virements déclarés puis validés, Mobile Money (simulateur), rapprochement |
 | 07 | ATE, BES | Ateliers, catalogue, responsables, équipements et pannes, stock, inventaires, campagnes de besoins, commandes et livraisons |
 | 08 | PLA, DON, ADO, ESP | Établissements gérés par le super administrateur (création, modules, dépannage, suspension), identité et logo, exports complets (réversibilité), statistiques, adoption (avec rattachement territorial, v0.39), choix d'espace d'un administrateur qui est aussi parent (v0.41) |
-| 09 | FIN | Une année complète dans un collège de recette : préparation, notes des trois trimestres, verrouillage, bulletins, décisions du conseil, validation, clôture, année suivante, réinscriptions, archivage, résiliation |
+| 09 | FIN | Une année complète dans un collège de recette : préparation, notes des trois trimestres, verrouillage, bulletins, décisions du conseil, validation, clôture, année suivante, plan de passage et réinscriptions (v0.45), archivage, résiliation |
+| 10 | MSG, EXA | Messagerie (v0.46) : décompte avant l'envoi, message aux enseignants et aux parents, lu / non lu, annuaire ; taux de réussite aux examens, saisie d'une année antérieure, export |
 
 **Ce que la recette laisse dans la base** (elle reste rejouable) :
+- des messages « [Recette] … » (sans SMS) dans les boîtes des enseignants et des parents du lycée Horizon ;
 - des élèves `RECETTE …` sortis de l'établissement ;
 - un enseignant de test dont l'engagement est terminé ;
 - des matières `REC-…` désactivées ;
@@ -88,6 +90,8 @@ Cochez chaque point sur l'interface (`cd frontend && npm start`, puis http://loc
 - [ ] **v0.40** : un enseignant technique rattaché à un atelier voit la tuile Ateliers, un enseignant général ne la voit pas.
 - [ ] La fiche de remise des accès parents d'une classe (PDF) est lisible et se découpe ligne par ligne ; les mots de passe n'apparaissent qu'une fois.
 - [ ] Import Excel des élèves : remplir le modèle téléchargé avec 5 élèves, dont 2 en erreur ; le contrôle signale les lignes fautives, l'import n'enregistre que les lignes valides.
+- [ ] **v0.46** : le chef d'établissement écrit aux enseignants, puis aux parents d'une classe avec l'envoi par SMS coché ; le décompte annonce les parents sans compte ; l'enseignant voit la pastille ✉ et lit le message ; un parent sans compte reçoit le SMS (passerelle réelle) ; le chef suit les lectures dans « Envoyés ».
+- [ ] **v0.46** : l'onglet Examens montre le taux du BEPC (ou BAC, CAP) de l'année, filles et garçons, le détail par classe ; on saisit les deux années précédentes et l'évolution s'affiche.
 - [ ] **v0.45** : en fin d'année, le censeur calcule les propositions de toutes les classes, tient le conseil d'une classe (une décision changée exige un motif), valide (SMS) ; l'administrateur crée l'année suivante ; l'onglet Fin d'année montre les listes de l'an prochain, équilibrées entre classes parallèles ; on déplace un élève, on télécharge les listes (Excel, PDF), on réinscrit en une fois ; on clôture puis on ouvre la nouvelle année.
 - [ ] **v0.44.1** : dans « Nouvel élève », « Engager un enseignant » et « Ajouter une personne », le cadre « + Photo » ouvre la caméra du téléphone ; la photo apparaît dans la colonne Photo des listes (élèves, classe, personnel). Un clic sur « + Photo » dans une liste ouvre le dossier pour l'ajouter.
 - [ ] **v0.44** : la secrétaire photographie un nouvel élève avec un téléphone (caméra frontale) depuis son dossier ; la miniature apparaît dans la liste de la classe ; les cartes scolaires de la classe s'impriment (8 par page, format carte bancaire, découpe nette).

@@ -267,6 +267,24 @@ l'adresse demandée et la session reprend grâce au cookie ; les autres erreurs 
 la console. En développement, si le problème persiste : arrêter `npm start`, supprimer `frontend/.angular`,
 relancer, puis recharger la page avec Ctrl+Maj+R.
 
+## Messages et examens nationaux (v0.46)
+
+- **Messages** (`/messages`, menu « Messages » et tuile de l'accueil, pour tout compte d'un établissement, en ligne) :
+  boîte de réception (non lus en gras, point bleu), lecture d'un message. Pastille **✉ n** dans la barre du haut quand
+  des messages sont non lus (relue à la connexion et toutes les 5 minutes).
+- Le **chef d'établissement** a deux onglets de plus :
+  - **Écrire** : objet, message (compteur), destinataires par groupes (tout le personnel, enseignants,
+    administration, tous les parents), par rôles, parents de certaines classes, ou personnes cherchées dans
+    l'annuaire (nom, rôle, enfant et classe) ; option SMS avec l'estimation du nombre de SMS ; décompte recalculé à
+    chaque changement (parents sans compte non joints sans SMS, en rouge) ; envoi confirmé ;
+  - **Envoyés** : date, objet, cibles, lus / comptes, détail des destinataires (lu le…, SMS).
+- **Examens** (`/admin/examens`, onglet de l'administration, chef d'établissement et censeur) : une carte par examen
+  (taux de la dernière année, admis sur candidats, résultats en attente, évolution en points, filles et garçons,
+  barres des huit dernières années), tableau de toutes les années (source plateforme ou saisie, détail par classe),
+  export Excel ou PDF, saisie et correction des années antérieures (chef d'établissement).
+- Budget du paquet initial relevé à 550 ko (avertissement) : la pastille des messages est chargée au démarrage.
+- Tests : `messagerie/messagerie.spec.ts`, `fin-annee/examens.spec.ts`.
+
 ## Fin d'année (v0.45)
 
 Onglet **Fin d'année** (`/admin/fin-annee`, tuile de l'accueil et menu) pour le chef d'établissement, le censeur et
