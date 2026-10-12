@@ -49,6 +49,7 @@
       @if (session.aLeRole('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')) {
         <a routerLink="/admin/classes">Classes</a>
         <a routerLink="/admin/eleves">Élèves</a>
+        <a routerLink="/admin/bulletins">Bulletins</a>
       }
       @if (session.aLeRole('ADMIN_ECOLE')) {
         <a routerLink="/admin/personnel">Personnel</a>

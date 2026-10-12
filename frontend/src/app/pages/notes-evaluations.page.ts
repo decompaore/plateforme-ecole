@@ -60,6 +60,9 @@ import { periodeParDefaut } from '../hors-ligne/periodes';
       @if (periode() && !periode()!.verrouillee && !formulaire()) {
         <button type="button" class="bouton plein nouvelle" (click)="ouvrirFormulaire()">+ Nouvelle évaluation</button>
       }
+      @if (affectation() && periodes().length > 0 && !formulaire()) {
+        <a class="bouton secondaire plein appreciations" [routerLink]="['/appreciations', classeId(), matiereId()]">Appréciations du bulletin</a>
+      }
 
       <ul class="liste carte">
         @for (e of evaluations(); track e.id) {
@@ -138,7 +141,8 @@ import { periodeParDefaut } from '../hors-ligne/periodes';
     .retour {
       margin-left: -0.5rem;
     }
-    .nouvelle {
+    .nouvelle,
+    .appreciations {
       margin-bottom: 0.75rem;
     }
     .etat {

@@ -257,6 +257,28 @@ Comptes créés (administrateur d'un établissement, enseignant, personnel) : le
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
 
+## Bulletins : conseil de classe, verrouillage, génération et publication (v0.43)
+
+Onglet **Bulletins** de l'administration (`/admin/bulletins`) et tuile de l'accueil, pour le censeur,
+l'administrateur et le secrétariat. On y choisit la classe, puis la période ; par défaut, c'est la dernière
+période commencée. Le parcours suit l'ordre du conseil :
+
+1. **Période** : son état (saisies ouvertes ou verrouillée). Le censeur ou l'administrateur la verrouille, puis
+   confirme. Le verrouillage vaut pour toutes les classes du profil et fige les notes. Un déverrouillage reste
+   possible tant que les bulletins ne sont pas publiés.
+2. **Conseil de classe** (direction) : rang, moyenne (ou taux de maîtrise), distinction proposée par les seuils,
+   distinction retenue et appréciation générale (300 caractères). Le bouton « Enregistrer le conseil » envoie
+   toute la classe en une fois.
+3. **Bulletins** : génération (période verrouillée), relecture élève par élève ou de toute la classe en PDF,
+   régénération tant que rien n'est publié, puis publication après confirmation. Les bulletins deviennent visibles
+   dans l'espace parent et un SMS part vers chaque famille. Après publication, plus rien n'est modifiable.
+   Le secrétariat ne voit que cette partie, pour consulter et imprimer.
+
+L'enseignant saisit ses **appréciations** depuis la liste de ses évaluations (« Appréciations du bulletin »,
+`/appreciations/:classeId/:matiereId`) : une phrase par élève (200 caractères au plus), pour sa matière et la
+période. Seules les lignes modifiées sont envoyées ; un texte vide efface l'appréciation. Cet écran demande une
+connexion.
+
 ## Choix d'espace : administration et parent d'élève (v0.41)
 
 - Un compte, un numéro. Un enseignant ou un membre du personnel qui est aussi parent dans **son** établissement
