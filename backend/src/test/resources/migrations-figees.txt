@@ -32,3 +32,4 @@ V28__pilotage_directions.sql -429972741
 V29__moyens_paiement_virements.sql -1780778853
 V30__categorie_enseignant.sql -1880565203
 V31__personnel_tous_etablissements.sql 602136955
+V32__photos_signatures_visas.sql 122418955

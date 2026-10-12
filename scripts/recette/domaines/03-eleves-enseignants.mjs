@@ -16,7 +16,7 @@
  * invitations refusées ou annulées. Les comptes de démonstration ne sont pas modifiés.
  */
 import {
-  appel, appelBrut, Echec, egal, exiger, ignorer, refuse, scenario, statut, suffixe, telephoneUnique, vrai,
+  appel, appelBrut, Echec, egal, exiger, fichierPng, ignorer, refuse, scenario, statut, suffixe, telephoneUnique, vrai,
   ajouterJours,
 } from '../lib.mjs';
 
@@ -461,6 +461,49 @@ scenario('ELV-14', D_ELV, 'Un enseignant consulte la liste de ses classes, pas c
   const parent = e.parent(0);
   if (parent) statut(await appel(parent, 'GET', `/classes/${t.classe.id}/inscriptions`), 403);
   return `${t.classe.code} oui, ${t.autre.code} non`;
+});
+
+scenario('ELV-16', D_ELV, 'Photo d’identité (v0.44) : déposée par le secrétariat, vue par les enseignants de la classe seulement, imprimée sur la carte scolaire, puis retirée', async (ctx) => {
+  const e = horizon(ctx);
+  const A = inscriptionA(ctx);
+  const sec = role(e, 'SECRETARIAT');
+  const chemin = `/eleves/${A.eleveId}/photo`;
+  const deposer = (qui, fichier) => {
+    const f = new FormData();
+    f.append('fichier', fichier, 'photo.png');
+    return appel(qui, 'POST', chemin, f);
+  };
+  statut(await appel(sec, 'GET', chemin), 404);
+  statut(await deposer(sec, new Blob([Buffer.from('pas une image')], { type: 'image/png' })), 400);
+  statut(await deposer(role(e, 'SURVEILLANT'), fichierPng()), 403);
+  statut(await deposer(sec, fichierPng()), 204);
+  const photo = await exiger(role(e, 'SURVEILLANT'), 'GET', chemin, undefined, { fichier: true });
+  egal(photo.type, 'image/jpeg', 'Photo ré-encodée en JPEG');
+  vrai(photo.octets[0] === 0xff && photo.octets[1] === 0xd8, 'JPEG');
+  await exiger(sec, 'GET', chemin, undefined, { fichier: true, params: { miniature: true } });
+  const avec = await exiger(role(e, 'CENSEUR'), 'GET', `/classes/${A.classeId}/photos`);
+  vrai(avec.includes(A.eleveId), 'L’élève figure parmi ceux qui ont une photo');
+  // Enseignants : ceux de la classe la voient, les autres non
+  const classe = e.classes.find((c) => c.id === A.classeId);
+  const telProf = classe?.matieres.find((m) => m.enseignant)?.enseignant;
+  const prof = e.enseignants.find((p) => p.telephone === telProf && !p.partage);
+  if (prof) {
+    await exiger(ctx.compte(prof.telephone, e.id, `enseignant ${prof.matiere}`), 'GET', chemin, undefined, { fichier: true, params: { miniature: true } });
+  }
+  const etranger = e.enseignants.find((p) => !p.partage && !classe?.matieres.some((m) => m.enseignant === p.telephone));
+  if (etranger) statut(await appel(ctx.compte(etranger.telephone, e.id, `enseignant ${etranger.matiere}`), 'GET', chemin), 403);
+  const parent = e.parent(0);
+  if (parent) statut(await appel(parent, 'GET', chemin), 403);
+  refuse(await appel(ctx.ecole(1).session('ADMIN_ECOLE'), 'GET', chemin), 'Photo lue par un autre établissement');
+  // Carte scolaire (élève et classe)
+  const carte = await exiger(sec, 'GET', `/eleves/${A.eleveId}/carte`, undefined, { fichier: true });
+  vrai(carte.octets.subarray(0, 4).toString() === '%PDF', 'Carte scolaire en PDF');
+  const cartes = await exiger(sec, 'GET', `/classes/${A.classeId}/cartes`, undefined, { fichier: true });
+  vrai(cartes.octets.subarray(0, 4).toString() === '%PDF', 'Cartes de la classe en PDF');
+  statut(await appel(role(e, 'CENSEUR'), 'GET', `/classes/${A.classeId}/cartes`), 403);
+  statut(await appel(sec, 'DELETE', chemin), 204);
+  statut(await appel(sec, 'GET', chemin), 404);
+  return `${classe?.code ?? ''} : photo ${photo.octets.length} octets`;
 });
 
 scenario('ELV-15', D_ELV, 'Sortie de l’élève (abandon) : inscription figée, absente de la liste sauf à demander les sorties ; saisies invalides refusées', async (ctx) => {

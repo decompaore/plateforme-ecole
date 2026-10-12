@@ -121,6 +121,12 @@ export const routes: Routes = [
         component: CahierPage,
       },
       {
+        // Signature numérisée imprimée devant les matières visées (v0.44) : en ligne uniquement
+        path: 'signature',
+        title: 'Ma signature',
+        loadComponent: () => import('./pages/signature.page').then((m) => m.SignaturePage),
+      },
+      {
         path: 'appareils',
         title: 'Mes appareils',
         loadComponent: () => import('./pages/appareils.page').then((m) => m.AppareilsPage),

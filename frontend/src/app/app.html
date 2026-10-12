@@ -58,6 +58,9 @@
         @if (session.plusieursEtablissements()) {
           <a routerLink="/etablissement">{{ session.profil()?.administration ? "Changer d'espace" : "Changer d'établissement" }}</a>
         }
+        @if (session.aLeRole('ENSEIGNANT', 'CENSEUR', 'ADMIN_ECOLE')) {
+          <a routerLink="/signature">Ma signature</a>
+        }
         <a routerLink="/mot-de-passe">Changer mon mot de passe</a>
         <a routerLink="/appareils">Mes appareils</a>
       }

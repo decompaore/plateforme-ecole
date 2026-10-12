@@ -33,6 +33,7 @@ import bf.edutech.plateforme.eleves.ContactsEleves.ContactEleve;
 import bf.edutech.plateforme.eleves.ElevesService;
 import bf.edutech.plateforme.eleves.EspaceParentService;
 import bf.edutech.plateforme.eleves.InscriptionsService;
+import bf.edutech.plateforme.eleves.PhotosEleves;
 import bf.edutech.plateforme.eleves.Vues.InscriptionVue;
 import bf.edutech.plateforme.enseignants.EnseignantsService;
 import bf.edutech.plateforme.etablissement.AnneesService;
@@ -92,6 +93,8 @@ public class BulletinsService {
     private final AuditService audit;
     private final JdbcTemplate jdbc;
     private final Clock horloge;
+    private final VisasService visas;
+    private final PhotosEleves photosEleves;
 
     BulletinsService(GenerationBulletinsRepository generations, BulletinRepository bulletins,
             BulletinLigneRepository lignes, AppreciationRepository appreciations, AvisConseilRepository avis,
@@ -99,7 +102,8 @@ public class BulletinsService {
             AbsencesService absences, ClassesService classes, PeriodesService periodes, AnneesService annees,
             ProfilsService profils, InscriptionsService inscriptions, ElevesService eleves,
             EspaceParentService espaceParent, EnseignantsService enseignants, ContactsEleves contacts,
-            NotificationsService notifications, AuditService audit, JdbcTemplate jdbc, Clock horloge) {
+            NotificationsService notifications, AuditService audit, JdbcTemplate jdbc, Clock horloge,
+            VisasService visas, PhotosEleves photosEleves) {
         this.generations = generations;
         this.bulletins = bulletins;
         this.lignes = lignes;
@@ -122,6 +126,8 @@ public class BulletinsService {
         this.audit = audit;
         this.jdbc = jdbc;
         this.horloge = horloge;
+        this.visas = visas;
+        this.photosEleves = photosEleves;
     }
 
     /** Génère (ou régénère, avant publication) les bulletins d'une classe pour une période verrouillée. */
@@ -171,6 +177,14 @@ public class BulletinsService {
         });
         Map<UUID, InscriptionVue> infos = inscriptions.listerParClasse(classeId, false).stream()
                 .collect(Collectors.toMap(InscriptionVue::id, Function.identity()));
+        // Visas des enseignants (v0.44) : signature et date devant chaque matière visée
+        Map<UUID, VisasService.VisaImprime> visasParMatiere = visas.pourImpression(classeId, periodeId, matieres);
+        Map<String, VisasService.VisaImprime> visasParCode = new HashMap<>();
+        matieres.forEach(m -> {
+            if (visasParMatiere.containsKey(m.matiereId())) {
+                visasParCode.put(m.matiereCode(), visasParMatiere.get(m.matiereId()));
+            }
+        });
 
         Instant maintenant = horloge.instant();
         GenerationBulletins generation = generations.save(new GenerationBulletins(classeId, periodeId, r.effectif(),
@@ -196,7 +210,9 @@ public class BulletinsService {
                     e.nom(), e.prenoms(), e.matricule(), info != null ? info.dateNaissance() : null,
                     info != null && info.redoublant(), e.moyenne(), e.rang(), e.admis(), e.tauxMaitrise(), contenu,
                     r.moyenneClasse(), r.plusForte(), r.plusFaible(), heures, nonJustifiees, retards, distinction,
-                    appreciation, code, maintenant))));
+                    appreciation, code, maintenant,
+                    info != null ? photosEleves.photo(info.eleveId(), false).map(PhotosEleves.Photo::contenu).orElse(null) : null,
+                    visasParCode))));
             bulletins.save(bulletin);
             contenu.forEach(l -> lignes.save(new BulletinLigne(bulletin.getId(), l)));
         }
@@ -392,6 +408,7 @@ public class BulletinsService {
                         .thenComparing(BulletinResumeVue::prenoms))
                 .toList();
         return new GenerationVue(g.getId(), classe.id(), classe.code(), periode.id(), periode.libelle(), g.getStatut(),
-                g.getEffectif(), g.getMoyenneClasse(), g.getTauxReussite(), g.getGenereLe(), g.getPublieLe(), liste);
+                g.getEffectif(), g.getMoyenneClasse(), g.getTauxReussite(), g.getGenereLe(), g.getPublieLe(), liste,
+                visas.nonVisees(classe.id(), periode.id()));
     }
 }

@@ -8,6 +8,7 @@ import java.math.RoundingMode;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Locale;
 
@@ -20,6 +21,7 @@ import org.apache.pdfbox.pdmodel.common.PDRectangle;
 import org.apache.pdfbox.pdmodel.font.PDFont;
 import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.springframework.stereotype.Component;
 
 import bf.edutech.plateforme.pedagogie.CodeModele;
@@ -48,6 +50,9 @@ class RenduPdf {
     private static final float UTILE = LARGEUR - 2 * MARGE;
     private static final float LIGNE = 14;
     private static final DateTimeFormatter JOUR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+    private static final DateTimeFormatter COURT = DateTimeFormatter.ofPattern("dd/MM/yy");
+    /** Hauteur d'une ligne de matière quand le bulletin porte les visas des enseignants (v0.44). */
+    private static final float LIGNE_VISA = 22;
 
     private final EntetesOfficiels entetes;
 
@@ -147,6 +152,16 @@ class RenduPdf {
 
     private void identite(Plume p, DonneesBulletin b) throws IOException {
         float haut = p.y + 10;
+        // Photo d'identité (v0.44) : à droite, dans le cadre
+        PDImageXObject photo = p.image(b.photo());
+        float basPhoto = Float.MAX_VALUE;
+        if (photo != null) {
+            float echelle = Math.min(46f / photo.getWidth(), 58f / photo.getHeight());
+            float l = photo.getWidth() * echelle;
+            float h = photo.getHeight() * echelle;
+            p.flux.drawImage(photo, MARGE + UTILE - 5 - l, haut - 4 - h, l, h);
+            basPhoto = haut - 4 - h - 4;
+        }
         float x2 = MARGE + UTILE / 2 + 10;
         p.texte(MARGE + 6, p.y, p.gras, 10, b.nom() + " " + b.prenoms());
         p.texte(x2, p.y, p.normal, 9, "Matricule : " + b.matricule());
@@ -156,13 +171,17 @@ class RenduPdf {
                         + "      Redoublant(e) : " + (b.redoublant() ? "Oui" : "Non"));
         p.texte(x2, p.y, p.normal, 9, "Classe : " + b.classe() + "      Effectif : " + b.effectif());
         p.y -= 8;
+        p.y = Math.min(p.y, basPhoto);
         p.cadre(MARGE, p.y, UTILE, haut - p.y);
         p.y -= 16;
     }
 
     private void tableauNotes(Plume p, DonneesBulletin b) throws IOException {
-        float[] l = { 142, 32, 44, 46, 34, 135, 90 };
-        String[] entetes = { "Matières", "Coef.", "Moy./20", "Points", "Rang", "Appréciations", "Professeur" };
+        // Avec des visas (v0.44) : une colonne de plus pour la signature de l'enseignant, lignes plus hautes
+        boolean visas = b.visas() != null && !b.visas().isEmpty();
+        float[] l = visas ? new float[] { 120, 30, 42, 44, 30, 117, 80, 60 } : new float[] { 142, 32, 44, 46, 34, 135, 90 };
+        String[] entetes = visas ? new String[] { "Matières", "Coef.", "Moy./20", "Points", "Rang", "Appréciations", "Professeur", "Visa" }
+                : new String[] { "Matières", "Coef.", "Moy./20", "Points", "Rang", "Appréciations", "Professeur" };
         p.ligneTableau(l, entetes, p.gras, 8, true, true);
         String groupeCourant = null;
         boolean notesAbsentes = false;
@@ -182,21 +201,26 @@ class RenduPdf {
                 p.y -= LIGNE;
             }
             if (ligne.nature() == NatureLigne.GROUPE) {
-                String[] v = { "Moyenne " + ligne.libelle(), nombre(ligne.coefficient(), 1), nombre(ligne.moyenne(), 2),
-                    "", "", "", "" };
+                String[] v = completer(l, "Moyenne " + ligne.libelle(), nombre(ligne.coefficient(), 1), nombre(ligne.moyenne(), 2),
+                    "", "", "", "");
                 p.ligneTableau(l, v, p.gras, 8, false, false);
                 continue;
             }
             notesAbsentes |= ligne.sansNote();
             totalCoef = totalCoef.add(ligne.coefficient() != null ? ligne.coefficient() : BigDecimal.ZERO);
             totalPoints = totalPoints.add(ligne.points() != null ? ligne.points() : BigDecimal.ZERO);
-            String[] v = { ligne.libelle(), nombre(ligne.coefficient(), 1),
+            String[] v = completer(l, ligne.libelle(), nombre(ligne.coefficient(), 1),
                 nombre(ligne.moyenne(), 2) + (ligne.sansNote() ? " *" : ""), nombre(ligne.points(), 2),
                 ligne.rang() != null ? String.valueOf(ligne.rang()) : "", texte(ligne.appreciation()),
-                texte(ligne.enseignant()) };
-            p.ligneTableau(l, v, p.normal, 8, false, false);
+                texte(ligne.enseignant()));
+            if (visas) {
+                p.ligneTableau(l, v, p.normal, 8, false, false, LIGNE_VISA);
+                visa(p, l, b.visas().get(ligne.code()));
+            } else {
+                p.ligneTableau(l, v, p.normal, 8, false, false);
+            }
         }
-        String[] totaux = { "TOTAUX", nombre(totalCoef, 1), "", nombre(totalPoints, 2), "", "", "" };
+        String[] totaux = completer(l, "TOTAUX", nombre(totalCoef, 1), "", nombre(totalPoints, 2), "", "", "");
         p.ligneTableau(l, totaux, p.gras, 8, true, false);
         if (notesAbsentes) {
             p.texte(MARGE, p.y - 9, p.italique, 7, "* Aucune note sur la période : moyenne comptée zéro.");
@@ -206,18 +230,25 @@ class RenduPdf {
     }
 
     private void tableauModules(Plume p, DonneesBulletin b) throws IOException {
-        float[] l = { 140, 62, 46, 48, 56, 101, 70 };
-        String[] entetes = { "Modules", "Compétences", "Acquises", "Taux", "Résultat", "Appréciations", "Formateur" };
+        boolean visas = b.visas() != null && !b.visas().isEmpty();
+        float[] l = visas ? new float[] { 120, 56, 42, 44, 50, 91, 60, 60 } : new float[] { 140, 62, 46, 48, 56, 101, 70 };
+        String[] entetes = visas ? new String[] { "Modules", "Compétences", "Acquises", "Taux", "Résultat", "Appréciations", "Formateur", "Visa" }
+                : new String[] { "Modules", "Compétences", "Acquises", "Taux", "Résultat", "Appréciations", "Formateur" };
         p.ligneTableau(l, entetes, p.gras, 8, true, true);
         for (LigneBulletin ligne : b.lignes()) {
             if (ligne.nature() != NatureLigne.MODULE) {
                 continue;
             }
-            String[] v = { ligne.libelle(), ligne.competences() != null ? String.valueOf(ligne.competences()) : "",
+            String[] v = completer(l, ligne.libelle(), ligne.competences() != null ? String.valueOf(ligne.competences()) : "",
                 ligne.acquises() != null ? String.valueOf(ligne.acquises()) : "",
                 ligne.taux() != null ? nombre(ligne.taux(), 2) + " %" : "—", statut(ligne.statutModule()),
-                texte(ligne.appreciation()), texte(ligne.enseignant()) };
-            p.ligneTableau(l, v, p.normal, 8, false, false);
+                texte(ligne.appreciation()), texte(ligne.enseignant()));
+            if (visas) {
+                p.ligneTableau(l, v, p.normal, 8, false, false, LIGNE_VISA);
+                visa(p, l, b.visas().get(ligne.code()));
+            } else {
+                p.ligneTableau(l, v, p.normal, 8, false, false);
+            }
         }
         p.y -= 8;
     }
@@ -267,6 +298,43 @@ class RenduPdf {
         p.y -= 60;
     }
 
+    /**
+     * Case « Visa » de la ligne qui vient d'être tracée : signature de l'enseignant et date du visa ;
+     * sans signature déposée, la mention « Visé le … » ; sans visa, la case reste vide.
+     */
+    private void visa(Plume p, float[] largeurs, VisasService.VisaImprime visa) throws IOException {
+        if (visa == null) {
+            return;
+        }
+        float x = MARGE;
+        for (int i = 0; i < largeurs.length - 1; i++) {
+            x += largeurs[i];
+        }
+        float largeur = largeurs[largeurs.length - 1];
+        String date = "le " + visa.viseLe().atZone(ZoneOffset.UTC).toLocalDate().format(COURT);
+        PDImageXObject image = p.image(visa.signature());
+        if (image != null) {
+            float hauteurMax = LIGNE_VISA - 9;
+            float echelle = Math.min((largeur - 4) / image.getWidth(), hauteurMax / image.getHeight());
+            float l = image.getWidth() * echelle;
+            float h = image.getHeight() * echelle;
+            p.flux.drawImage(image, x + (largeur - l) / 2, p.y + 7.5f, l, h);
+            p.texte(x + 2, p.y + 1.5f, p.normal, 5, date);
+        } else {
+            p.texte(x + 2, p.y + 9, p.italique, 6, "Visé");
+            p.texte(x + 2, p.y + 3, p.normal, 5.5f, date);
+        }
+    }
+
+    /** Valeurs d'une ligne complétées de cases vides jusqu'au nombre de colonnes. */
+    private static String[] completer(float[] largeurs, String... valeurs) {
+        String[] v = new String[largeurs.length];
+        for (int i = 0; i < v.length; i++) {
+            v[i] = i < valeurs.length ? valeurs[i] : "";
+        }
+        return v;
+    }
+
     private void pied(Plume p, DonneesBulletin b) throws IOException {
         String code = b.codeVerification().substring(0, 5) + "-" + b.codeVerification().substring(5);
         p.texte(MARGE, MARGE - 12, p.normal, 7, "Code de vérification : " + code + " — document produit le "
@@ -308,6 +376,8 @@ class RenduPdf {
         final PDFont italique = new PDType1Font(Standard14Fonts.FontName.HELVETICA_OBLIQUE);
         private PDPageContentStream flux;
         float y;
+        /** Images déjà intégrées au document : une signature répétée n'est stockée qu'une fois. */
+        private final java.util.Map<byte[], PDImageXObject> images = new IdentityHashMap<>();
 
         Plume(PDDocument doc) {
             this.doc = doc;
@@ -372,21 +442,41 @@ class RenduPdf {
 
         void ligneTableau(float[] largeurs, String[] valeurs, PDFont police, float taille, boolean fond,
                 boolean entete) throws IOException {
-            assurer(LIGNE);
+            ligneTableau(largeurs, valeurs, police, taille, fond, entete, LIGNE);
+        }
+
+        /** Ligne de tableau de hauteur donnée ; le texte est posé en bas de la case. */
+        void ligneTableau(float[] largeurs, String[] valeurs, PDFont police, float taille, boolean fond,
+                boolean entete, float hauteur) throws IOException {
+            assurer(hauteur);
             float x = MARGE;
-            float bas = y - LIGNE;
+            float bas = y - hauteur;
             if (fond) {
-                fond(MARGE, bas, somme(largeurs), LIGNE, entete ? 0.85f : 0.95f);
+                fond(MARGE, bas, somme(largeurs), hauteur, entete ? 0.85f : 0.95f);
             }
             for (int i = 0; i < largeurs.length; i++) {
-                cadre(x, bas, largeurs[i], LIGNE);
+                cadre(x, bas, largeurs[i], hauteur);
                 String valeur = ajuster(police, taille, propre(police, valeurs[i]), largeurs[i] - 6);
                 boolean aGauche = i == 0 || i >= largeurs.length - 2 || entete;
                 float lx = aGauche ? x + 3 : x + largeurs[i] - 3 - largeur(police, taille, valeur);
-                texte(lx, bas + 4, police, taille, valeur);
+                texte(lx, bas + (hauteur - taille) / 2 + 1, police, taille, valeur);
                 x += largeurs[i];
             }
             y = bas;
+        }
+
+        /** Image (PNG ou JPEG) prête à dessiner, ou null si absente ou illisible (le document se fait quand même). */
+        PDImageXObject image(byte[] contenu) {
+            if (contenu == null || contenu.length == 0) {
+                return null;
+            }
+            return images.computeIfAbsent(contenu, c -> {
+                try {
+                    return PDImageXObject.createFromByteArray(doc, c, "image");
+                } catch (IOException | RuntimeException e) {
+                    return null;
+                }
+            });
         }
 
         void trait(float x1, float y1, float x2, float y2) throws IOException {

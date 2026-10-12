@@ -17,6 +17,9 @@ public interface MembreEtablissementRepository extends JpaRepository<MembreEtabl
 
     long countByRoleAndActifTrue(Role role);
 
+    /** Le compte appartient-il (ou a-t-il appartenu) à l'établissement actif ? */
+    boolean existsByUtilisateurId(UUID utilisateurId);
+
     List<MembreEtablissement> findByUtilisateurIdAndActifTrue(UUID utilisateurId);
 
     @Query("""

@@ -76,6 +76,32 @@ export interface GenerationVue {
   genereLe: string;
   publieLe: string | null;
   bulletins: BulletinResumeVue[];
+  /** Matières enseignées sans visa valide (libellés) : leur case Visa reste vide (v0.44). */
+  matieresNonVisees?: string[];
+}
+
+/** Visa d'une matière sur les bulletins d'une classe pour une période (v0.44). */
+export interface VisaVue {
+  matiereId: string;
+  matiereCode: string;
+  matiereLibelle: string;
+  engagementId: string | null;
+  enseignant: string | null;
+  vise: boolean;
+  viseLe: string | null;
+  /** L'enseignant qui a visé a déposé une signature : elle s'imprime. */
+  signature: boolean;
+  /** Matière de l'enseignant connecté. */
+  moi: boolean;
+}
+
+/** Visas posés après la génération : il faut régénérer pour les imprimer. */
+export function visasApresGeneration(visas: VisaVue[], genereLe: string | null | undefined): VisaVue[] {
+  if (!genereLe) {
+    return [];
+  }
+  const t = new Date(genereLe).getTime();
+  return visas.filter((v) => v.vise && v.viseLe && new Date(v.viseLe).getTime() > t);
 }
 
 /** Moyenne ou taux de maîtrise affiché à la française : « 12,45 » ou « 75 % ». */

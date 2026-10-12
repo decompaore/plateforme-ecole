@@ -12,7 +12,7 @@ spring:
       enabled: true                       # Java 21 : threads virtuels pour les requêtes HTTP
   servlet:
     multipart:
-      max-file-size: 5MB                  # import Excel des élèves
+      max-file-size: 5MB                  # import Excel des élèves, photos et signatures (v0.44)
       max-request-size: 6MB
   datasource:
     url: ${DB_URL}

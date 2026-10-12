@@ -155,8 +155,21 @@
     <section class="carte">
       <div class="entete-section">
         <h2>Élèves ({{ eleves().length }})</h2>
-        <a class="bouton secondaire petit" [routerLink]="['/admin/eleves']" [queryParams]="{ classe: c.id }">Inscrire des élèves</a>
+        <div class="actions-ligne">
+          @if (gestionEleves() && eleves().length) {
+            <button type="button" class="bouton secondaire petit" (click)="cartesScolaires()" [disabled]="actionCartes.enCours()">
+              {{ actionCartes.enCours() ? 'Préparation…' : 'Cartes scolaires (PDF)' }}
+            </button>
+          }
+          <a class="bouton secondaire petit" [routerLink]="['/admin/eleves']" [queryParams]="{ classe: c.id }">Inscrire des élèves</a>
+        </div>
       </div>
+      @if (actionCartes.erreur(); as e) {
+        <p class="alerte erreur" role="alert">{{ e }}</p>
+      }
+      @if (eleves().length && avecPhoto().size < eleves().length && gestionEleves()) {
+        <p class="doux">{{ eleves().length - avecPhoto().size }} élève(s) sans photo d'identité : cliquez sur « + Photo » pour l'ajouter.</p>
+      }
       @if (eleves().length > 10) {
         <app-recherche
           libelle="Rechercher un élève (nom, matricule)"
@@ -167,11 +180,20 @@
       }
       <div class="tableau-defilant">
         <table class="tableau">
-          <thead><tr><th class="nombre">N°</th><th>Nom et prénoms</th><th>Matricule</th><th>Sexe</th><th></th></tr></thead>
+          <thead><tr><th class="nombre">N°</th><th>Photo</th><th>Nom et prénoms</th><th>Matricule</th><th>Sexe</th><th></th></tr></thead>
           <tbody>
             @for (e of elevesAffiches(); track e.id) {
               <tr>
                 <td class="nombre doux">{{ e.rang }}</td>
+                <td class="photo">
+                  @if (gestionEleves()) {
+                    <a [routerLink]="['/admin/eleves']" [queryParams]="{ eleve: e.eleveId }" [attr.aria-label]="'Photo de ' + e.prenoms + ' ' + e.nom">
+                      <app-vignette [chemin]="avecPhoto().has(e.eleveId) ? '/eleves/' + e.eleveId + '/photo' : null" [initiales]="e.nom.charAt(0) + e.prenoms.charAt(0)" [ajout]="true" />
+                    </a>
+                  } @else {
+                    <app-vignette [chemin]="avecPhoto().has(e.eleveId) ? '/eleves/' + e.eleveId + '/photo' : null" [initiales]="e.nom.charAt(0) + e.prenoms.charAt(0)" />
+                  }
+                </td>
                 <td><strong>{{ e.nom }}</strong> {{ e.prenoms }}</td>
                 <td>{{ e.matricule }}</td>
                 <td>{{ e.sexe }}</td>
@@ -181,7 +203,7 @@
                 </td>
               </tr>
             } @empty {
-              <tr><td colspan="5" class="doux">{{ eleves().length ? 'Aucun élève ne correspond.' : 'Aucun élève inscrit.' }}</td></tr>
+              <tr><td colspan="6" class="doux">{{ eleves().length ? 'Aucun élève ne correspond.' : 'Aucun élève inscrit.' }}</td></tr>
             }
           </tbody>
         </table>

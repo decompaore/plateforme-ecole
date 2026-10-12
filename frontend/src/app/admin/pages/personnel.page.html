@@ -12,6 +12,27 @@
     <div class="alerte erreur" role="alert">{{ action.erreur() }}</div>
   }
 
+  @if (photoCible(); as p) {
+    <section class="carte fiche-photo" aria-label="Photo d'identité">
+      <div class="entete-section">
+        <h2>Photo de {{ p.nom }}</h2>
+        <button type="button" class="bouton discret petit" (click)="photoCible.set(null)">Fermer</button>
+      </div>
+      <div class="fiche-photo-contenu">
+        <app-photo-identite [chemin]="'/personnes/' + p.utilisateurId + '/photo'" [nom]="p.nom" [modifiable]="true" (change)="photoChangee(p.utilisateurId, $event)" />
+        <button type="button" class="bouton secondaire petit" [disabled]="actionCartes.enCours()" (click)="cartes(p.utilisateurId)">Carte professionnelle (PDF)</button>
+      </div>
+    </section>
+  }
+  @if (actionCartes.erreur(); as e) {
+    <div class="alerte erreur" role="alert">{{ e }}</div>
+  }
+  <div class="barre-cartes">
+    <button type="button" class="bouton secondaire petit" [disabled]="actionCartes.enCours()" (click)="cartes()">
+      {{ actionCartes.enCours() ? 'Préparation…' : 'Cartes professionnelles (PDF)' }}
+    </button>
+  </div>
+
   <app-recherche
     libelle="Rechercher une personne (nom, téléphone, spécialité, rôle)"
     [(valeur)]="filtre"
@@ -88,16 +109,26 @@
           Un enseignant déjà inscrit sur la plateforme (dans un autre établissement) reçoit une invitation à accepter.
           Un titulaire ne l'est que dans un seul établissement.
         </p>
+        <div class="champ-photo">
+          <app-choix-photo champ="ePhoto" [(fichier)]="ePhoto" />
+        </div>
         <button type="submit" class="bouton" [disabled]="action.enCours()">Engager</button>
       </form>
     }
 
     <div class="tableau-defilant">
       <table class="tableau">
-        <thead><tr><th>Nom et prénoms</th><th>Téléphone</th><th>Spécialité</th><th>Enseignement</th><th>Engagement</th><th>Statut</th><th></th></tr></thead>
+        <thead><tr><th class="col-photo">Photo</th><th>Nom et prénoms</th><th>Téléphone</th><th>Spécialité</th><th>Enseignement</th><th>Engagement</th><th>Statut</th><th></th></tr></thead>
         <tbody>
           @for (e of enseignantsAffiches(); track e.engagementId) {
             <tr [class.doux]="e.statut !== 'ACTIF'">
+              <td class="col-photo">
+                @if (e.utilisateurId; as u) {
+                  <button type="button" class="photo" [attr.aria-label]="'Photo de ' + (e.prenoms ?? '') + ' ' + (e.nom ?? '')" (click)="ouvrirPhoto(u, (e.prenoms ?? '') + ' ' + (e.nom ?? ''))">
+                    <app-vignette [chemin]="avecPhoto().has(u) ? '/personnes/' + u + '/photo' : null" [initiales]="(e.nom ?? '').charAt(0) + (e.prenoms ?? '').charAt(0)" [ajout]="e.statut === 'ACTIF'" />
+                  </button>
+                }
+              </td>
               <td>
                 @if (e.nom) { <strong>{{ e.nom }}</strong> {{ e.prenoms }} } @else { <em>Invitation en attente</em> }
               </td>
@@ -144,7 +175,7 @@
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="7" class="doux">{{ enseignants().length ? 'Aucun enseignant ne correspond.' : 'Aucun enseignant.' }}</td></tr>
+            <tr><td colspan="8" class="doux">{{ enseignants().length ? 'Aucun enseignant ne correspond.' : 'Aucun enseignant.' }}</td></tr>
           }
         </tbody>
       </table>
@@ -244,16 +275,24 @@
             </select>
           </div>
         </div>
+        <div class="champ-photo">
+          <app-choix-photo champ="mPhoto" [(fichier)]="mPhoto" />
+        </div>
         <button type="submit" class="bouton" [disabled]="action.enCours()">Ajouter</button>
       </form>
     }
 
     <div class="tableau-defilant">
       <table class="tableau">
-        <thead><tr><th>Nom et prénoms</th><th>Téléphone</th><th>Rôle</th><th></th></tr></thead>
+        <thead><tr><th class="col-photo">Photo</th><th>Nom et prénoms</th><th>Téléphone</th><th>Rôle</th><th></th></tr></thead>
         <tbody>
           @for (m of administrationAffichee(); track m.id) {
             <tr [class.doux]="!m.actif">
+              <td class="col-photo">
+                <button type="button" class="photo" [attr.aria-label]="'Photo de ' + m.prenoms + ' ' + m.nom" (click)="ouvrirPhoto(m.utilisateurId, m.prenoms + ' ' + m.nom)">
+                  <app-vignette [chemin]="avecPhoto().has(m.utilisateurId) ? '/personnes/' + m.utilisateurId + '/photo' : null" [initiales]="m.nom.charAt(0) + m.prenoms.charAt(0)" [ajout]="m.actif" />
+                </button>
+              </td>
               <td><strong>{{ m.nom }}</strong> {{ m.prenoms }}</td>
               <td>{{ m.telephone }}</td>
               <td>{{ libelleRole[m.role] }}@if (!m.actif) { (retiré) }</td>
@@ -264,7 +303,7 @@
               </td>
             </tr>
           } @empty {
-            <tr><td colspan="4" class="doux">{{ administration().length ? 'Personne ne correspond.' : 'Personne.' }}</td></tr>
+            <tr><td colspan="5" class="doux">{{ administration().length ? 'Personne ne correspond.' : 'Personne.' }}</td></tr>
           }
         </tbody>
       </table>

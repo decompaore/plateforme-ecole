@@ -56,11 +56,12 @@ public class ConseilService {
     private final ParametresBulletinsService parametres;
     private final AuditService audit;
     private final Clock horloge;
+    private final VisasService visas;
 
     ConseilService(AppreciationRepository appreciations, AvisConseilRepository avis,
             GenerationBulletinsRepository generations, ClassesService classes, PeriodesService periodes,
             InscriptionsService inscriptions, EnseignantsService enseignants, ResultatsService resultats,
-            ParametresBulletinsService parametres, AuditService audit, Clock horloge) {
+            ParametresBulletinsService parametres, AuditService audit, Clock horloge, VisasService visas) {
         this.appreciations = appreciations;
         this.avis = avis;
         this.generations = generations;
@@ -72,6 +73,7 @@ public class ConseilService {
         this.parametres = parametres;
         this.audit = audit;
         this.horloge = horloge;
+        this.visas = visas;
     }
 
     @Transactional(readOnly = true)
@@ -106,6 +108,7 @@ public class ConseilService {
         UUID moi = UtilisateurConnecte.idSiConnecte().orElse(null);
         Instant maintenant = horloge.instant();
         Set<UUID> vus = new HashSet<>();
+        boolean modifiees = false;
         for (SaisieAppreciation s : saisies) {
             if (s == null || s.inscriptionId() == null || !vus.add(s.inscriptionId())) {
                 throw new IllegalArgumentException("Chaque élève figure une seule fois, avec son inscription");
@@ -121,14 +124,20 @@ public class ConseilService {
             if (texte.isEmpty()) {
                 if (existante != null) {
                     appreciations.delete(existante);
+                    modifiees = true;
                 }
                 continue;
             }
+            modifiees |= existante == null || !texte.equals(existante.getTexte());
             Appreciation a = existante != null ? existante : new Appreciation(s.inscriptionId(), periodeId, matiereId);
             a.definir(texte, moi, maintenant);
             if (existante == null) {
                 appreciations.save(a);
             }
+        }
+        if (modifiees) {
+            // Le visa de l'enseignant portait sur les appréciations d'avant (v0.44)
+            visas.annulerVisa(classeId, periodeId, matiereId);
         }
         audit.enregistrer("APPRECIATIONS_SAISIES", classe.code() + " / " + matiere.matiereCode(), null);
         return appreciations(classeId, periodeId, matiereId);

@@ -4,7 +4,7 @@ import { firstValueFrom } from 'rxjs';
 
 import { API } from '../core/session.service';
 import { PeriodeVue } from '../admin/modeles-admin';
-import { AppreciationVue, AvisVue, GenerationVue, SaisieAvis } from './modeles-bulletins';
+import { AppreciationVue, AvisVue, GenerationVue, SaisieAvis, VisaVue } from './modeles-bulletins';
 
 /** Appels de l'API des bulletins (en ligne uniquement). */
 @Injectable({ providedIn: 'root' })
@@ -52,6 +52,20 @@ export class BulletinsApi {
     return firstValueFrom(
       this.http.put<AppreciationVue[]>(`${this.base(classeId, periodeId)}/appreciations`, { matiereId, appreciations }),
     );
+  }
+
+  // ---------- Visas des matières (v0.44)
+
+  visas(classeId: string, periodeId: string): Promise<VisaVue[]> {
+    return firstValueFrom(this.http.get<VisaVue[]>(`${this.base(classeId, periodeId)}/visas`));
+  }
+
+  viser(classeId: string, periodeId: string, matiereId: string): Promise<VisaVue[]> {
+    return firstValueFrom(this.http.post<VisaVue[]>(`${this.base(classeId, periodeId)}/matieres/${matiereId}/visa`, null));
+  }
+
+  retirerVisa(classeId: string, periodeId: string, matiereId: string): Promise<VisaVue[]> {
+    return firstValueFrom(this.http.delete<VisaVue[]>(`${this.base(classeId, periodeId)}/matieres/${matiereId}/visa`));
   }
 
   // ---------- Génération, impression, publication

@@ -2,6 +2,7 @@ import { Component, computed, effect, inject, input, signal, untracked } from '@
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
+import { messageErreur } from '../../core/erreurs';
 import { SessionService } from '../../core/session.service';
 import { Action } from '../action';
 import { AdminApi } from '../admin-api.service';
@@ -20,8 +21,24 @@ import {
   StatutBourse,
 } from '../modeles-admin';
 import { MotDePasseTemporaireComponent } from '../mot-de-passe-temporaire.component';
+import { ChoixPhotoComponent, PhotoIdentiteComponent, VignetteComponent } from '../../partage/photo-identite.component';
+import { PhotosApi } from '../../partage/photos-api.service';
+import { enregistrerFichier } from '../../scolarite/scolarite-api.service';
 
 const TAILLE_PAGE = 20;
+
+/** Fait défiler la page jusqu'au dossier ouvert (il s'affiche sous la liste). */
+function montrerDossier(): void {
+  setTimeout(() => document.getElementById('dossier-eleve')?.scrollIntoView?.({ behavior: 'smooth', block: 'start' }));
+}
+
+/** Fin du message de création selon la photo. */
+function suitePhoto(photo: File | null, echec: string | null): string {
+  if (!photo) {
+    return " Vous pouvez ajouter sa photo dans son dossier, ci-dessous.";
+  }
+  return echec ? ` Photo non enregistrée : ${echec}` : ' Photo enregistrée.';
+}
 
 /** Contrôle d'un parent ou tuteur avant l'envoi. */
 export function erreurResponsable(nom: string, prenoms: string, telephone: string): string | null {
@@ -37,7 +54,7 @@ export function erreurResponsable(nom: string, prenoms: string, telephone: strin
 /** Élèves : recherche, nouvel élève avec son inscription, import Excel de la rentrée. */
 @Component({
   selector: 'app-eleves',
-  imports: [FormsModule, RouterLink, AdminNavComponent, MotDePasseTemporaireComponent],
+  imports: [FormsModule, RouterLink, AdminNavComponent, MotDePasseTemporaireComponent, PhotoIdentiteComponent, VignetteComponent, ChoixPhotoComponent],
   templateUrl: './eleves.page.html',
   styles: `
     .recherche {
@@ -85,14 +102,35 @@ export function erreurResponsable(nom: string, prenoms: string, telephone: strin
     .rouge {
       color: var(--absent);
     }
+    .col-photo {
+      width: 48px;
+      padding-block: 0.2rem;
+    }
+    button.photo {
+      appearance: none;
+      border: 0;
+      padding: 0;
+      background: none;
+      cursor: pointer;
+    }
+    .identite-eleve {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      margin-bottom: 0.5rem;
+    }
   `,
 })
 export class ElevesPage {
   /** Classe proposée par défaut pour l'inscription (?classe=… depuis la fiche d'une classe). */
   readonly classe = input<string | undefined>();
+  /** Dossier à ouvrir d'emblée (?eleve=… depuis la liste d'une classe, pour sa photo). */
+  readonly eleve = input<string | undefined>();
 
   private readonly api = inject(AdminApi);
   private readonly session = inject(SessionService);
+  private readonly photos = inject(PhotosApi);
   protected readonly anneeCourante = inject(AnneeCourante);
 
   protected readonly action = new Action();
@@ -107,8 +145,13 @@ export class ElevesPage {
   protected readonly page = signal<Page<EleveVue> | null>(null);
   protected readonly dossier = signal<DossierEleveVue | null>(null);
 
+  /** Élèves de la page affichée qui ont une photo (v0.44.1). */
+  protected readonly avecPhoto = signal<Set<string>>(new Set());
+
   // Nouvel élève
   protected readonly formulaire = signal(false);
+  /** Photo d'identité choisie dans le formulaire, envoyée une fois le dossier créé. */
+  protected readonly photoNouvel = signal<File | null>(null);
   protected readonly message = signal<string | null>(null);
   protected readonly nom = signal('');
   protected readonly prenoms = signal('');
@@ -151,6 +194,14 @@ export class ElevesPage {
   constructor() {
     void this.rechercher(0);
     effect(() => {
+      const id = this.eleve();
+      untracked(() => {
+        if (id) {
+          void this.ouvrir({ id } as EleveVue);
+        }
+      });
+    });
+    effect(() => {
       const a = this.annee();
       untracked(() => {
         if (a) {
@@ -172,6 +223,8 @@ export class ElevesPage {
     const p = await this.action.executer(() => this.api.eleves(this.q().trim(), numero, TAILLE_PAGE));
     if (p) {
       this.page.set(p);
+      const ids = p.elements.map((e) => e.id);
+      this.avecPhoto.set(new Set(await this.photos.elevesParmi(ids).catch(() => [] as string[])));
     }
   }
 
@@ -179,7 +232,18 @@ export class ElevesPage {
     const d = await this.action.executer(() => this.api.dossier(e.id));
     if (d) {
       this.dossier.set(d);
+      montrerDossier();
     }
+  }
+
+  protected photoChangee(eleveId: string, presente: boolean): void {
+    const s = new Set(this.avecPhoto());
+    if (presente) {
+      s.add(eleveId);
+    } else {
+      s.delete(eleveId);
+    }
+    this.avecPhoto.set(s);
   }
 
   protected nomClasse(id: string): string {
@@ -205,6 +269,17 @@ export class ElevesPage {
       return;
     }
     const nomComplet = `${dossier.eleve.nom} ${dossier.eleve.prenoms}`;
+    // Photo d'identité choisie dans le formulaire (v0.44.1)
+    const photo = this.photoNouvel();
+    let photoEchec: string | null = null;
+    if (photo) {
+      try {
+        await this.photos.deposerPhoto(`/eleves/${dossier.eleve.id}/photo`, photo);
+        this.photoNouvel.set(null);
+      } catch (e) {
+        photoEchec = messageErreur(e, "La photo n'a pas pu être enregistrée");
+      }
+    }
     if (this.classeId()) {
       const inscription = await this.action.executer(() =>
         this.api.inscrire({
@@ -215,12 +290,12 @@ export class ElevesPage {
         }),
       );
       this.message.set(
-        inscription
+        (inscription
           ? `${nomComplet} inscrit(e) en ${inscription.classeCode} (matricule ${dossier.eleve.matricule ?? '—'}).`
-          : `Dossier de ${nomComplet} créé, mais l'inscription a échoué : voir le message ci-dessus.`,
+          : `Dossier de ${nomComplet} créé, mais l'inscription a échoué : voir le message ci-dessus.`) + suitePhoto(photo, photoEchec),
       );
     } else {
-      this.message.set(`Dossier de ${nomComplet} créé.`);
+      this.message.set(`Dossier de ${nomComplet} créé.` + suitePhoto(photo, photoEchec));
     }
     // On garde la classe et le parent n'est pas réutilisé : on vide le reste pour l'élève suivant
     for (const s of [this.nom, this.prenoms, this.dateNaissance, this.lieuNaissance, this.parentNom, this.parentPrenoms, this.parentTelephone]) {
@@ -228,6 +303,24 @@ export class ElevesPage {
     }
     this.redoublant.set(false);
     await this.rechercher(0);
+    // Le dossier s'ouvre : la photo d'identité s'ajoute tout de suite (v0.44)
+    const ouvert = await this.action.executer(() => this.api.dossier(dossier.eleve.id));
+    if (ouvert) {
+      this.dossier.set(ouvert);
+      montrerDossier();
+    }
+  }
+
+  /** Carte d'identité scolaire de l'élève ouvert (v0.44). */
+  protected async carteScolaire(): Promise<void> {
+    const d = this.dossier();
+    if (!d) {
+      return;
+    }
+    const pdf = await this.action.executer(() => this.photos.carteEleve(d.eleve.id));
+    if (pdf) {
+      enregistrerFichier(pdf, `carte-${d.eleve.matricule ?? d.eleve.nom}.pdf`);
+    }
   }
 
   protected async inscrireDossier(): Promise<void> {

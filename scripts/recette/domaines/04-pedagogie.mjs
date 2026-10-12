@@ -21,7 +21,7 @@
 import { randomUUID } from 'node:crypto';
 
 import {
-  ajouterJours, appel, appelBrut, Echec, egal, exiger, ignorer, refuse, scenario, statut, suffixe, vrai,
+  ajouterJours, appel, appelBrut, Echec, egal, exiger, fichierPng, ignorer, refuse, scenario, statut, suffixe, vrai,
 } from '../lib.mjs';
 
 const D_PED = 'Pédagogie : mise en place';
@@ -686,6 +686,65 @@ scenario('BUL-08', D_BUL, 'Paramètres des bulletins : lus par la direction et l
   statut(await appel(adm, 'PUT', '/parametres/bulletins', { ...p, seuilFelicitations: 25 }), 400);
   const r = await exiger(adm, 'PUT', '/parametres/bulletins', p);
   egal(r, p, 'Paramètres inchangés');
+});
+
+scenario('BUL-09', D_BUL, 'Visas (v0.44) : l’enseignant voit ses matières, ne vise pas une période ouverte ni une période publiée ; la direction voit toute la classe', async (ctx) => {
+  const m = montage(ctx);
+  if (!m.periode) ignorer('Période en cours inconnue (EVA-01)');
+  const chemin = `/classes/${m.classe.id}/periodes/${m.periode.id}`;
+  const miens = await exiger(m.profG.session, 'GET', `${chemin}/visas`);
+  const g = miens.find((v) => v.matiereId === m.general.id);
+  vrai(g && g.moi && !g.vise, 'La matière de test, non visée, est la sienne');
+  vrai(miens.every((v) => v.moi), 'L’enseignant ne voit que ses matières');
+  if (!m.periode.verrouillee) {
+    statut(await appel(m.profG.session, 'POST', `${chemin}/matieres/${m.general.id}/visa`), 409, 'VISA_PERIODE_OUVERTE');
+  }
+  statut(await appel(m.profT.session, 'POST', `${chemin}/matieres/${m.general.id}/visa`), 403);
+  const tous = await exiger(role(m.e, 'SECRETARIAT'), 'GET', `${chemin}/visas`);
+  vrai(tous.length >= 2 && tous.some((v) => v.matiereId === m.pratique.id), 'Le secrétariat voit toutes les matières');
+  statut(await appel(role(m.e, 'SURVEILLANT'), 'GET', `${chemin}/visas`), 403);
+  statut(await appel(role(m.e, 'SECRETARIAT'), 'POST', `${chemin}/matieres/${m.general.id}/visa`), 403);
+  // Relevés publiés du centre de formation : plus de visa, et la génération liste les matières non visées
+  const b = etat(ctx).bulletins;
+  let publie = '';
+  if (b) {
+    const g2 = await exiger(role(b.e, 'CENSEUR'), 'GET', `/classes/${b.classe.id}/periodes/${b.periode.id}/bulletins`);
+    vrai(Array.isArray(g2.matieresNonVisees), 'Matières non visées annoncées');
+    const mod = b.classe.matieres.find((x) => x.enseignant);
+    const formateur = mod && b.e.enseignants.find((p) => p.telephone === mod.enseignant && !p.partage);
+    if (formateur) {
+      const s = ctx.compte(formateur.telephone, b.e.id, `formateur ${formateur.matiere}`);
+      statut(await appel(s, 'POST', `/classes/${b.classe.id}/periodes/${b.periode.id}/matieres/${mod.id}/visa`), 409, 'BULLETINS_PUBLIES');
+    }
+    publie = `, ${g2.matieresNonVisees.length} module(s) non visé(s) au centre`;
+  }
+  return `${miens.length} matière(s) de l’enseignant, ${tous.length} pour le secrétariat${publie}`;
+});
+
+scenario('BUL-10', D_BUL, 'Signature (v0.44) : l’enseignant dépose sa signature, la relit en PNG, une image illisible est refusée ; son état d’origine est rétabli', async (ctx) => {
+  const m = montage(ctx);
+  const s = m.profG.session;
+  const avant = await exiger(s, 'GET', '/moi/signature/etat');
+  const origine = avant.presente ? (await exiger(s, 'GET', '/moi/signature', undefined, { fichier: true })).octets : null;
+  const deposer = (blob) => {
+    const f = new FormData();
+    f.append('fichier', blob, 'signature.png');
+    return appel(s, 'POST', '/moi/signature', f);
+  };
+  try {
+    statut(await deposer(new Blob([Buffer.from('pas une image')], { type: 'image/png' })), 400);
+    const r = await deposer(fichierPng());
+    statut(r, 200);
+    egal(r.donnees.presente, true, 'Signature présente');
+    const png = await exiger(s, 'GET', '/moi/signature', undefined, { fichier: true });
+    egal(png.octets.subarray(1, 4).toString(), 'PNG', 'Signature relue en PNG');
+    const retiree = await exiger(s, 'DELETE', '/moi/signature');
+    egal(retiree.presente, false, 'Signature retirée');
+    statut(await appel(s, 'GET', '/moi/signature'), 404);
+  } finally {
+    if (origine) await deposer(new Blob([origine], { type: 'image/png' }));
+  }
+  return avant.presente ? 'signature d’origine rétablie' : 'aucune signature avant ni après';
 });
 
 // ===================================================================== nettoyage

@@ -64,7 +64,12 @@ describe('Comptes des parents et tuteurs', () => {
     ({ http } = configurer());
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    // Listes « qui a une photo » (v0.44), sans objet pour ces scénarios
+    http.match((r) => r.method === 'GET' && r.url.endsWith('/photos')).forEach((r) => r.flush([]));
+    http.match((r) => r.method === 'GET' && r.url.endsWith('/photo')).forEach((r) => r.flush(null, { status: 404, statusText: 'Not Found' }));
+    http.verify();
+  });
 
   it('contrôle un parent ou tuteur avant l’envoi', () => {
     expect(erreurResponsable('', 'Awa', '70123456')).toContain('nom');

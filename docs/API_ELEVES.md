@@ -55,6 +55,24 @@ POST /api/v1/eleves
 \* ADMIN_ECOLE, CENSEUR, SECRETARIAT, INTENDANT, SURVEILLANT. Les dossiers concernent des mineurs : les enseignants voient
 les listes de leurs classes seulement (celles où ils ont au moins une matière), pas les dossiers.
 
+## Photos d'identité et cartes scolaires (v0.44)
+
+| Appel | Rôles |
+|---|---|
+| `GET /api/v1/eleves/{id}/photo[?miniature=true]` (JPEG ; miniature 96 × 120 pour les listes) | personnel administratif*, ENSEIGNANT d'une classe actuelle de l'élève |
+| `POST /api/v1/eleves/{id}/photo` (multipart, champ `fichier`) ; `DELETE /api/v1/eleves/{id}/photo` | ADMIN_ECOLE, SECRETARIAT |
+| `GET /api/v1/classes/{id}/photos` → identifiants des élèves de la classe qui ont une photo | personnel administratif*, ENSEIGNANT de la classe |
+| `GET /api/v1/eleves/photos?ids=a,b,…` (200 au plus, v0.44.1) → ceux de ces élèves qui ont une photo (page de la recherche) | personnel administratif* |
+| `GET /api/v1/classes/{id}/cartes` (élèves actifs, ordre alphabétique) ; `GET /api/v1/eleves/{id}/carte` | ADMIN_ECOLE, SECRETARIAT |
+
+- Formats acceptés : JPEG, PNG (5 Mo, 8000 pixels de côté au plus). L'image est **ré-encodée** par le serveur
+  (JPEG, 480 × 600 au plus) : les métadonnées (position GPS, appareil) disparaissent. Le navigateur réduit déjà la
+  photo avant l'envoi (réseau lent).
+- La photo s'imprime sur le **bulletin** (au moment de la génération) et la **carte d'identité scolaire** : format
+  carte bancaire (ID-1), huit par page A4, avec logo, nom, matricule, date de naissance, classe et année scolaire.
+- Elle n'est **pas** montrée dans l'espace parent (choix v0.44). Elle est jointe à l'export de réversibilité
+  (`fichiers/photo_eleve/`), et supprimée avec le dossier de l'élève.
+
 ## Règles de gestion
 
 | Code d'erreur (409) | Règle |

@@ -16,6 +16,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -64,11 +65,14 @@ public class BulletinsController {
     private final BulletinsService bulletins;
     private final ConseilService conseil;
     private final ParametresBulletinsService parametres;
+    private final VisasService visas;
 
-    BulletinsController(BulletinsService bulletins, ConseilService conseil, ParametresBulletinsService parametres) {
+    BulletinsController(BulletinsService bulletins, ConseilService conseil, ParametresBulletinsService parametres,
+            VisasService visas) {
         this.bulletins = bulletins;
         this.conseil = conseil;
         this.parametres = parametres;
+        this.visas = visas;
     }
 
     // ---------------- Appréciations des enseignants ----------------
@@ -86,6 +90,30 @@ public class BulletinsController {
     public List<AppreciationVue> saisirAppreciations(@PathVariable UUID classeId, @PathVariable UUID periodeId,
             @Valid @RequestBody DemandeAppreciations d) {
         return conseil.saisirAppreciations(classeId, periodeId, d.matiereId(), d.appreciations());
+    }
+
+    // ---------------- Visas des enseignants (v0.44) ----------------
+
+    /** Matières de la classe et leurs visas (un enseignant ne voit que les siennes). */
+    @GetMapping(BASE + "/visas")
+    @PreAuthorize("hasAnyRole('CENSEUR','ADMIN_ECOLE','SECRETARIAT','ENSEIGNANT')")
+    public List<VisasService.VisaVue> visas(@PathVariable UUID classeId, @PathVariable UUID periodeId) {
+        return visas.visas(classeId, periodeId);
+    }
+
+    /** L'enseignant vise sa matière : sa signature figurera sur les bulletins générés ensuite. */
+    @PostMapping(BASE + "/matieres/{matiereId}/visa")
+    @PreAuthorize("hasRole('ENSEIGNANT')")
+    public List<VisasService.VisaVue> viser(@PathVariable UUID classeId, @PathVariable UUID periodeId,
+            @PathVariable UUID matiereId) {
+        return visas.viser(classeId, periodeId, matiereId);
+    }
+
+    @DeleteMapping(BASE + "/matieres/{matiereId}/visa")
+    @PreAuthorize("hasAnyRole('ENSEIGNANT','CENSEUR','ADMIN_ECOLE')")
+    public List<VisasService.VisaVue> retirerVisa(@PathVariable UUID classeId, @PathVariable UUID periodeId,
+            @PathVariable UUID matiereId) {
+        return visas.retirer(classeId, periodeId, matiereId);
     }
 
     // ---------------- Conseil de classe ----------------
