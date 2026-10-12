@@ -102,6 +102,13 @@ export const routes: Routes = [
         component: NotesSaisiePage,
       },
       {
+        // Appréciations du bulletin (v0.43) : en ligne uniquement, chargées à la demande
+        path: 'appreciations/:classeId/:matiereId',
+        canActivate: [role('ENSEIGNANT')],
+        title: 'Appréciations',
+        loadComponent: () => import('./bulletins/pages/appreciations.page').then((m) => m.AppreciationsPage),
+      },
+      {
         path: 'cahier',
         canActivate: [role('ENSEIGNANT'), module('PROGRESSION')],
         title: 'Cahier de textes',
@@ -183,6 +190,12 @@ export const routes: Routes = [
             canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')],
             title: 'Suivi des évaluations',
             loadComponent: () => import('./admin/pages/suivi-evaluations.page').then((m) => m.SuiviEvaluationsPage),
+          },
+          {
+            path: 'bulletins',
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')],
+            title: 'Bulletins',
+            loadComponent: () => import('./bulletins/pages/bulletins.page').then((m) => m.BulletinsPage),
           },
           {
             path: 'statistiques',

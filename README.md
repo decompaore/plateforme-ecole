@@ -49,6 +49,7 @@ Pour travailler avec Eclipse, suivre [docs/GUIDE_ECLIPSE.md](docs/GUIDE_ECLIPSE.
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Profils, variables d'environnement, rôles PostgreSQL, secrets |
 | [docs/CI_CD.md](docs/CI_CD.md) | Pipeline GitHub Actions, préparation des serveurs, déploiement, retour arrière |
 | [docs/FRONTEND.md](docs/FRONTEND.md) | Application web : démarrage, test sur téléphone, sécurité de la session, appel et notes sans réseau, espace d'administration |
+| [docs/RECETTE.md](docs/RECETTE.md) | Recette grandeur nature avant la mise en production : scénarios automatisés par l'API (`scripts/recette/recette-grandeur-nature.sh`) et check-list manuelle |
 | [docs/API_SOCLE.md](docs/API_SOCLE.md) | Points d'accès du socle et parcours d'authentification |
 | [docs/API_ETABLISSEMENT.md](docs/API_ETABLISSEMENT.md) | Profils pédagogiques, années, périodes, filières, classes, matières |
 | [docs/API_ELEVES.md](docs/API_ELEVES.md) | Élèves, responsables, inscriptions, réinscriptions, bourses, import Excel, espace parent |
