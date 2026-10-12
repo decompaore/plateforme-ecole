@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Transforme les exceptions en réponses « Problem Details » (RFC 9457).
@@ -94,6 +95,21 @@ public class GestionnaireErreurs extends ResponseEntityExceptionHandler {
         ProblemDetail pd = probleme(HttpStatus.BAD_REQUEST, "Données invalides", "Certains champs sont invalides");
         pd.setProperty("erreurs", erreurs);
         return ResponseEntity.badRequest().body(pd);
+    }
+
+    /**
+     * Adresse inconnue de l'API (v0.46) : au lieu de « No static resource … » (message de Spring en anglais),
+     * un message en français avec le code ROUTE_INCONNUE. Cas typique : un serveur plus ancien que l'application
+     * web (redémarrez le serveur après une mise à jour).
+     */
+    @Override
+    protected ResponseEntity<Object> handleNoResourceFoundException(NoResourceFoundException ex, HttpHeaders headers,
+            HttpStatusCode status, WebRequest request) {
+        ProblemDetail pd = probleme(HttpStatus.NOT_FOUND, "Adresse inconnue",
+                "Cette fonction n'existe pas sur le serveur : il est peut-être d'une version plus ancienne que "
+                        + "l'application. Redémarrez ou mettez à jour le serveur.");
+        pd.setProperty("code", "ROUTE_INCONNUE");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(pd);
     }
 
     private static ProblemDetail probleme(HttpStatus statut, String titre, String detail) {
