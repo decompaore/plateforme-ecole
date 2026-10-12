@@ -269,21 +269,35 @@ scenario('FIN-10', D_FIN, 'L’année suivante se crée par copie (classes, prog
   return `${s.annee.libelle} : ${s.classesCopiees} classes, ${s.periodesCopiees} périodes copiées`;
 });
 
-scenario('FIN-11', D_FIN, 'Réinscriptions d’après les décisions : les deux admis en 5e, le redoublant en 6e (marqué redoublant), l’exclu n’est pas réinscrit ; un second envoi ne double rien', async (ctx) => {
+scenario('FIN-11', D_FIN, 'Plan de passage (v0.45) : les deux admis proposés en 5e, le redoublant en 6e, l’exclu sort ; la confirmation réinscrit en une fois et un second envoi ne double rien', async (ctx) => {
   const a = annee(ctx);
   if (!a.b) ignorer('Année suivante non créée (FIN-10)');
-  const chemin = `/classes/${a.classes['6e'].id}/decisions/reinscriptions`;
-  statut(await appel(a.adm, 'POST', chemin, {}), 400);
-  const r = await exiger(a.adm, 'POST', chemin, { classeAdmisId: a.b.classes['5e'].id, classeRedoublantsId: a.b.classes['6e'].id });
-  egal([r.admis?.reinscrits, r.redoublants?.reinscrits, r.nonReinscrits], [2, 1, 1], 'Admis, redoublants, non concernés');
+  // L'ancienne réinscription classe par classe reste disponible (contrôle des paramètres)
+  statut(await appel(a.adm, 'POST', `/classes/${a.classes['6e'].id}/decisions/reinscriptions`, {}), 400);
+  const chemin = `/annees/${a.annee.id}/plan-passage`;
+  const plan = await exiger(a.adm, 'GET', chemin);
+  egal(plan.anneeSuivante.id, a.b.annee.id, 'Année suivante du plan');
+  const par = Object.fromEntries(plan.eleves.map((l) => [l.eleveId, l]));
+  egal([a.eleves[0], a.eleves[2]].map((e) => par[e.eleveId]?.classeCibleId), [a.b.classes['5e'].id, a.b.classes['5e'].id], 'Admis proposés en 5e A');
+  egal([par[a.eleves[3].eleveId]?.classeCibleId, par[a.eleves[3].eleveId]?.redoublant], [a.b.classes['6e'].id, true], 'Redoublant proposé en 6e A');
+  egal([par[a.eleves[1].eleveId]?.classeCibleId ?? null, par[a.eleves[1].eleveId]?.sortie], [null, 'EXCLU'], 'Exclu sans classe');
+  const listes = await exiger(a.adm, 'GET', `${chemin}/listes`, undefined, { fichier: true, params: { format: 'xlsx' } });
+  vrai(listes.octets.subarray(0, 2).toString() === 'PK', 'Listes de l’année suivante en Excel');
+  statut(await appel(a.adm, 'POST', chemin, { affectations: [] }), 400);
+  // L'exclu est envoyé quand même : il est refusé, les autres passent
+  const affectations = plan.eleves.map((l) => ({ inscriptionId: l.inscriptionId, classeCibleId: l.classeCibleId ?? a.b.classes['5e'].id }));
+  const r = await exiger(a.adm, 'POST', chemin, { affectations });
+  egal([r.reinscrits, r.redoublants, r.nonReinscrits.length], [3, 1, 1], 'Réinscrits, redoublants, refusé');
   const en5e = await exiger(a.adm, 'GET', `/classes/${a.b.classes['5e'].id}/inscriptions`);
   const en6e = await exiger(a.adm, 'GET', `/classes/${a.b.classes['6e'].id}/inscriptions`);
   egal(en5e.map((i) => i.eleveId).sort(), [a.eleves[0].eleveId, a.eleves[2].eleveId].sort(), 'Admis en 5e A');
   vrai(en5e.every((i) => !i.redoublant), 'Admis non redoublants');
   egal(en6e.map((i) => [i.eleveId, i.redoublant]), [[a.eleves[3].eleveId, true]], 'Redoublant en 6e A');
-  const encore = await exiger(a.adm, 'POST', chemin, { classeAdmisId: a.b.classes['5e'].id, classeRedoublantsId: a.b.classes['6e'].id });
-  egal([encore.admis?.reinscrits ?? 0, encore.redoublants?.reinscrits ?? 0], [0, 0], 'Second envoi sans effet');
-  vrai((encore.admis?.nonReinscrits ?? []).every((n) => n.motif?.startsWith('Déjà inscrit')), 'Motif « déjà inscrit »');
+  const encore = await exiger(a.adm, 'POST', chemin, { affectations });
+  egal(encore.reinscrits, 0, 'Second envoi sans effet');
+  vrai(encore.nonReinscrits.filter((n) => n.motif?.startsWith('Déjà inscrit')).length === 3, 'Motif « déjà inscrit »');
+  const apres = await exiger(a.adm, 'GET', chemin);
+  vrai(apres.eleves.filter((l) => !l.sortie).every((l) => l.dejaInscrit), 'Le plan relu : tout le monde est placé');
 });
 
 scenario('FIN-12', D_FIN, 'La nouvelle année s’ouvre, l’ancienne s’archive ; les statistiques de la nouvelle année comptent les trois élèves réinscrits', async (ctx) => {

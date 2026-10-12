@@ -204,6 +204,19 @@ export const routes: Routes = [
             loadComponent: () => import('./bulletins/pages/bulletins.page').then((m) => m.BulletinsPage),
           },
           {
+            // Fin d'année (v0.45) : conseils, année suivante, plan de passage, clôture
+            path: 'fin-annee',
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')],
+            title: "Fin d'année",
+            loadComponent: () => import('./fin-annee/pages/fin-annee.page').then((m) => m.FinAnneePage),
+          },
+          {
+            path: 'fin-annee/classes/:classeId',
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')],
+            title: "Conseil de fin d'année",
+            loadComponent: () => import('./fin-annee/pages/conseil-fin-annee.page').then((m) => m.ConseilFinAnneePage),
+          },
+          {
             path: 'statistiques',
             title: 'Statistiques',
             loadComponent: () => import('./admin/pages/statistiques.page').then((m) => m.StatistiquesPage),
