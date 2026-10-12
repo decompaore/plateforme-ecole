@@ -115,3 +115,10 @@ h3 {
   font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
 }
+
+/* Photo d'identité à côté du nom (v0.44.1) */
+.identite {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}

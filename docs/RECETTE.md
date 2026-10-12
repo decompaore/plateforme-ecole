@@ -88,6 +88,10 @@ Cochez chaque point sur l'interface (`cd frontend && npm start`, puis http://loc
 - [ ] **v0.40** : un enseignant technique rattaché à un atelier voit la tuile Ateliers, un enseignant général ne la voit pas.
 - [ ] La fiche de remise des accès parents d'une classe (PDF) est lisible et se découpe ligne par ligne ; les mots de passe n'apparaissent qu'une fois.
 - [ ] Import Excel des élèves : remplir le modèle téléchargé avec 5 élèves, dont 2 en erreur ; le contrôle signale les lignes fautives, l'import n'enregistre que les lignes valides.
+- [ ] **v0.44.1** : dans « Nouvel élève », « Engager un enseignant » et « Ajouter une personne », le cadre « + Photo » ouvre la caméra du téléphone ; la photo apparaît dans la colonne Photo des listes (élèves, classe, personnel). Un clic sur « + Photo » dans une liste ouvre le dossier pour l'ajouter.
+- [ ] **v0.44** : la secrétaire photographie un nouvel élève avec un téléphone (caméra frontale) depuis son dossier ; la miniature apparaît dans la liste de la classe ; les cartes scolaires de la classe s'impriment (8 par page, format carte bancaire, découpe nette).
+- [ ] **v0.44** : un enseignant dessine sa signature sur son téléphone (Ma signature), vise sa matière après le verrouillage ; le censeur voit « visée », régénère, et le bulletin porte la signature et la date dans la colonne Visa. Une appréciation modifiée retire le visa. Une matière non visée laisse la case vide, et la génération l'annonce.
+- [ ] **v0.44** : l'administrateur ajoute la photo d'un enseignant et d'une secrétaire (Personnel) et imprime les cartes professionnelles.
 - [ ] **v0.43** : un enseignant saisit les appréciations de sa matière (« Appréciations du bulletin »). Le censeur, dans l'onglet Bulletins, enregistre le conseil de classe, verrouille la période, génère, relit le PDF, puis publie. Le parent voit le bulletin et reçoit le SMS ; plus rien n'est modifiable ensuite.
 - [ ] Le logo de l'établissement apparaît sur les bulletins, les reçus et les exports PDF.
 - [ ] Génération automatique de l'emploi du temps sur une année en préparation, puis placement et déplacement de séances à la main ; les conflits sont signalés.
@@ -102,6 +106,7 @@ Cochez chaque point sur l'interface (`cd frontend && npm start`, puis http://loc
 ### Impression et documents
 
 - [ ] Les bulletins (classe entière et un par un) s'impriment correctement sur A4. Le QR code ou le code de vérification renvoie à la page publique de vérification.
+- [ ] Bulletin avec photo et colonne Visa (v0.44) : la photo est nette dans le cadre d'identité, les signatures restent lisibles dans leur case, le tableau tient sur une page A4.
 - [ ] Le reçu de paiement s'imprime, et son code se vérifie sur la page publique.
 - [ ] Les exports Excel (statistiques, recouvrement, emploi du temps, ateliers) s'ouvrent dans Excel et LibreOffice sans alerte de réparation.
 - [ ] L'archive de réversibilité (export complet) s'ouvre ; son fichier LISEZMOI.txt décrit les tables et les fichiers CSV sont lisibles.

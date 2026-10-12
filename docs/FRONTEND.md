@@ -257,6 +257,52 @@ Comptes créés (administrateur d'un établissement, enseignant, personnel) : le
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
 
+## Onglet qui ne s'ouvre pas (v0.44.1)
+
+Les écrans de l'administration (Classes, Élèves, Bulletins…) sont chargés à la demande. Si le fichier
+JavaScript d'un écran est introuvable (application reconstruite ou mise à jour pendant que l'onglet du
+navigateur était ouvert, `npm start` relancé, cache périmé), Angular annulait la navigation **sans message** :
+le clic sur l'onglet ne faisait rien. Désormais (`core/navigation.ts`), la page se recharge une fois à
+l'adresse demandée et la session reprend grâce au cookie ; les autres erreurs de navigation s'affichent dans
+la console. En développement, si le problème persiste : arrêter `npm start`, supprimer `frontend/.angular`,
+relancer, puis recharger la page avec Ctrl+Maj+R.
+
+## Photos d'identité, signature et visas des bulletins (v0.44)
+
+En ligne uniquement : photos et signatures ne sont **jamais** gardées sur le téléphone (pas de cache hors
+connexion, pas de photo sur la feuille d'appel, qui doit fonctionner hors ligne).
+
+- **Photo d'un élève** : dossier de l'élève (`/admin/eleves`), cadre « Ajouter une photo ». Sur téléphone, le
+  bouton ouvre directement la caméra frontale (`capture="user"`). Après la création d'un élève, son dossier
+  s'ouvre pour ajouter la photo tout de suite. Le navigateur réduit l'image (JPEG 960 × 1200 au plus) avant
+  l'envoi ; le serveur la ré-encode. Bouton **Carte scolaire (PDF)**.
+- **Liste de la classe** (`/admin/classes/:id`) : miniatures (32 × 40) des élèves qui ont une photo — seules
+  celles-là sont demandées —, nombre d'élèves sans photo, bouton **Cartes scolaires (PDF)** (8 par page A4).
+- **Personnel** (`/admin/personnel`) : miniature devant chaque nom ; un clic ouvre la photo (ajout, changement,
+  retrait) et la **carte professionnelle** de la personne. Bouton **Cartes professionnelles (PDF)** pour tous.
+  Les enseignants invités (pas encore acceptés) n'ont pas de photo.
+- **Ma signature** (`/signature`, menu du compte pour les enseignants, censeurs et chefs d'établissement) :
+  dessinée au doigt ou à la souris dans un cadre (le tracé est recadré avant l'envoi), ou photo d'une signature
+  sur papier blanc. Elle vaut pour tous les établissements du compte.
+- **Visa** (page Appréciations de l'enseignant) : état de la matière, bouton « Viser … », rappel quand aucune
+  signature n'est déposée ou que la période ne semble pas verrouillée ; « Retirer mon visa ». Une appréciation
+  modifiée après le visa le retire : la page le signale.
+- **Bulletins** (`/admin/bulletins`) : tableau « Visas des enseignants » (x / n matières visées ; la direction
+  peut retirer un visa avant publication), alerte des matières non visées après génération, et rappel
+  « régénérez » quand des visas ont été posés après la génération.
+- **v0.44.1 — où insérer les photos** (les cadres de la v0.44 n'étaient visibles qu'en ouvrant un dossier) :
+  - formulaire **Nouvel élève** : cadre « + Photo » (prise de vue ou fichier, aperçu) ; la photo part juste après
+    la création du dossier ;
+  - formulaires **Engager un enseignant** et **Ajouter une personne** : même cadre ; la photo part avec le
+    nouveau compte (pour une invitation, elle s'ajoutera depuis la liste quand l'enseignant aura accepté) ;
+  - colonne **Photo** dans la recherche des élèves, la liste d'une classe et les deux tableaux du Personnel :
+    miniature, ou cadre pointillé « + Photo » qui ouvre le dossier (élève) ou la fiche photo (personnel) ;
+    `/admin/eleves?eleve=<id>` ouvre directement un dossier ;
+  - fiche de **vie scolaire** de l'élève : photo à côté du nom (lecture seule).
+- Composants partagés : `partage/photo-identite.component.ts` (`app-photo-identite`, `app-vignette`, `app-choix-photo`),
+  `partage/photos-api.service.ts` (`PhotosApi`, `reduirePhoto`). Tests : `partage/photos.spec.ts`,
+  `bulletins/bulletins.spec.ts`, `admin/admin.spec.ts`.
+
 ## Bulletins : conseil de classe, verrouillage, génération et publication (v0.43)
 
 Onglet **Bulletins** de l'administration (`/admin/bulletins`) et tuile de l'accueil, pour le censeur,

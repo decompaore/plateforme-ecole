@@ -11,7 +11,7 @@ import { AnneeCourante } from '../../admin/annee-courante.service';
 import { ClasseVue, PeriodeVue } from '../../admin/modeles-admin';
 import { enregistrerFichier } from '../../scolarite/scolarite-api.service';
 import { BulletinsApi } from '../bulletins-api.service';
-import { AvisVue, Distinction, DISTINCTIONS, GenerationVue, LIBELLE_DISTINCTION, rang, resultat } from '../modeles-bulletins';
+import { AvisVue, Distinction, DISTINCTIONS, GenerationVue, LIBELLE_DISTINCTION, rang, resultat, VisaVue, visasApresGeneration } from '../modeles-bulletins';
 
 /** Ligne du conseil de classe en cours de saisie. */
 interface LigneConseil {
@@ -178,6 +178,45 @@ export function periodeParDefaut(periodes: PeriodeVue[], aujourdhui = dateLocale
           </section>
         }
 
+        <!-- Visas des enseignants (v0.44) -->
+        @if (visas().length > 0) {
+          <section class="carte">
+            <div class="entete-section">
+              <h2>Visas des enseignants</h2>
+              <span class="pastille" [class.present]="nombreVisees() === visas().length">{{ nombreVisees() }} / {{ visas().length }} matières visées</span>
+            </div>
+            <p class="doux">
+              Après le verrouillage, chaque enseignant vise sa matière depuis ses appréciations : sa signature et la date
+              s'impriment devant la matière. Les bulletins se génèrent même s'il manque des visas (la case reste vide).
+            </p>
+            <div class="tableau-defilant">
+              <table class="tableau">
+                <thead><tr><th>Matière</th><th>Enseignant</th><th>Visa</th><th></th></tr></thead>
+                <tbody>
+                  @for (v of visas(); track v.matiereId) {
+                    <tr>
+                      <td>{{ v.matiereLibelle }}</td>
+                      <td>{{ v.enseignant ?? 'sans enseignant' }}</td>
+                      <td>
+                        @if (v.vise) {
+                          <span class="pastille present">visée</span> <span class="doux">le {{ dateHeureCourte(v.viseLe!) }}@if (!v.signature) { · sans signature }</span>
+                        } @else if (v.engagementId) {
+                          <span class="pastille">non visée</span>
+                        }
+                      </td>
+                      <td>
+                        @if (direction() && v.vise && !publie()) {
+                          <button type="button" class="bouton discret petit" [disabled]="action.enCours()" (click)="retirerVisa(v)">Retirer</button>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        }
+
         <!-- 3. Bulletins -->
         <section class="carte">
           <div class="entete-section">
@@ -194,6 +233,16 @@ export function periodeParDefaut(periodes: PeriodeVue[], aujourdhui = dateLocale
               @if (g.moyenneClasse !== null) { Moyenne de la classe : {{ resultat(g.moyenneClasse, null) }}. }
               @if (g.tauxReussite !== null) { Réussite : {{ resultat(null, g.tauxReussite) }}. }
             </p>
+            @if (g.matieresNonVisees?.length) {
+              <p class="alerte attention" role="status">
+                Matière(s) non visée(s) : {{ g.matieresNonVisees!.join(', ') }}. Leur case Visa reste vide sur les bulletins.
+              </p>
+            }
+            @if (g.statut === 'GENEREE' && visasRecents().length) {
+              <p class="alerte" role="status">
+                {{ visasRecents().length }} visa(s) posé(s) après la génération ({{ libellesVisasRecents() }}) : régénérez pour les imprimer.
+              </p>
+            }
             <div class="actions">
               <button type="button" class="bouton secondaire" [disabled]="action.enCours()" (click)="imprimerClasse()">Imprimer toute la classe (PDF)</button>
               @if (direction() && g.statut === 'GENEREE') {
@@ -336,6 +385,11 @@ export class BulletinsPage {
   );
   protected readonly periode = computed(() => this.periodesClasse().find((p) => p.id === this.periodeId()) ?? null);
   protected readonly publie = computed(() => this.generation()?.statut === 'PUBLIEE');
+  /** Visas des matières (v0.44). */
+  protected readonly visas = signal<VisaVue[]>([]);
+  protected readonly nombreVisees = computed(() => this.visas().filter((v) => v.vise).length);
+  protected readonly visasRecents = computed(() => visasApresGeneration(this.visas(), this.generation()?.genereLe));
+  protected readonly libellesVisasRecents = computed(() => this.visasRecents().map((v) => v.matiereLibelle).join(', '));
   /** Profil en compétences : taux de maîtrise au lieu de la moyenne. */
   protected readonly competences = computed(() => {
     const l = this.lignes();
@@ -381,6 +435,7 @@ export class BulletinsPage {
     this.message.set(null);
     this.lignes.set([]);
     this.generation.set(null);
+    this.visas.set([]);
     if (!id) {
       this.charge.set(true);
       return;
@@ -392,17 +447,31 @@ export class BulletinsPage {
     const classeId = this.classeId();
     const periodeId = this.periodeId();
     await this.action.executer(async () => {
-      const [avis, generation] = await Promise.all([
+      const [avis, generation, visas] = await Promise.all([
         this.direction() ? this.api.conseil(classeId, periodeId) : Promise.resolve([] as AvisVue[]),
         this.api.bulletins(classeId, periodeId),
+        this.api.visas(classeId, periodeId).catch(() => [] as VisaVue[]),
       ]);
       if (classeId !== this.classeId() || periodeId !== this.periodeId()) {
         return;
       }
+      this.visas.set(visas);
       this.lignes.set(avis.map((a) => ({ avis: a, distinction: a.distinction ?? '', appreciation: a.appreciation ?? '' })));
       this.generation.set(generation);
       this.charge.set(true);
     });
+  }
+
+  /** La direction retire un visa (erreur constatée après le visa, par exemple). */
+  protected async retirerVisa(v: VisaVue): Promise<void> {
+    if (!window.confirm(`Retirer le visa de ${v.matiereLibelle} (${v.enseignant ?? ''}) ?`)) {
+      return;
+    }
+    const maj = await this.action.executer(() => this.api.retirerVisa(this.classeId(), this.periodeId(), v.matiereId));
+    if (maj) {
+      this.visas.set(maj);
+      this.message.set(`Visa de ${v.matiereLibelle} retiré.`);
+    }
   }
 
   protected async basculerVerrou(): Promise<void> {

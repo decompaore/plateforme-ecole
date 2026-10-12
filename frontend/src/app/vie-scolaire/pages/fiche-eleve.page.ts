@@ -1,3 +1,4 @@
+import { PhotoIdentiteComponent } from '../../partage/photo-identite.component';
 import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
@@ -43,7 +44,7 @@ interface JourAbsence {
  */
 @Component({
   selector: 'app-fiche-eleve-vs',
-  imports: [FormsModule, RouterLink, JustificationComponent],
+  imports: [FormsModule, RouterLink, JustificationComponent, PhotoIdentiteComponent],
   templateUrl: './fiche-eleve.page.html',
   styleUrl: './fiche-eleve.page.scss',
 })

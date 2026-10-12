@@ -161,9 +161,12 @@ final class ArchiveEtablissement {
         List<String> cle = clePrimaire(table);
         boolean aTenant = toutes.stream().anyMatch(c -> c.nom().equals("tenant_id"));
         List<Colonne> binaires = gardees.stream().filter(c -> c.typeCourt().equals("bytea")).toList();
-        // Les fichiers joints sont nommés d'après l'identifiant de la ligne (id, sinon clé primaire simple)
+        // Les fichiers joints sont nommés d'après l'identifiant de la ligne : id, sinon la clé primaire
+        // simple, tenant_id mis à part (photo_eleve : clé (tenant_id, eleve_id) → eleve_id)
+        List<String> cleSansTenant = cle.stream().filter(c -> !c.equals("tenant_id")).toList();
         String colonneId = gardees.stream().anyMatch(c -> c.nom().equals("id")) ? "id"
-                : cle.size() == 1 && gardees.stream().anyMatch(c -> c.nom().equals(cle.get(0))) ? cle.get(0) : null;
+                : cleSansTenant.size() == 1 && gardees.stream().anyMatch(c -> c.nom().equals(cleSansTenant.get(0)))
+                        ? cleSansTenant.get(0) : null;
         boolean joignables = !binaires.isEmpty() && colonneId != null;
         String filtre = aTenant ? " where tenant_id = ?" : "";
         String tri = cle.isEmpty() ? "" : " order by " + cle.stream().map(c -> q(c)).collect(Collectors.joining(", "));

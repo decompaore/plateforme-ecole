@@ -79,6 +79,31 @@ SMS envoyé à la publication (un par élève ayant un contact) :
 moyenne, rang, effectif, date de publication. `404` si le code est inconnu, si le bulletin n'est pas publié ou si
 l'établissement est suspendu. Codes de 10 caractères tirés au hasard (32¹⁰ possibilités) : impossibles à deviner.
 
+## Visa des matières et signature des enseignants (v0.44)
+
+Une fois la période **verrouillée**, chaque enseignant **vise** sa matière dans chaque classe : il atteste ses
+notes et ses appréciations. Le bulletin imprime alors, dans une colonne **Visa** devant la matière, sa signature
+numérisée et la date (« le 12/03/26 ») ; sans signature déposée, la case porte « Visé ». Migration `V32`.
+
+| Appel | Rôles |
+|---|---|
+| `GET …/visas` → `[{matiereId, matiereCode, matiereLibelle, engagementId, enseignant, vise, viseLe, signature, moi}]` | CENSEUR, ADMIN_ECOLE, SECRETARIAT (toutes les matières) ; ENSEIGNANT (les siennes) |
+| `POST …/matieres/{matiereId}/visa` : viser (sans effet si déjà visé) | ENSEIGNANT **de la matière dans la classe** |
+| `DELETE …/matieres/{matiereId}/visa` : retirer | l'enseignant qui a visé, CENSEUR, ADMIN_ECOLE |
+
+- Période non verrouillée : `409 VISA_PERIODE_OUVERTE`. Bulletins publiés : `409 BULLETINS_PUBLIES`.
+- Une appréciation de la matière **modifiée ou effacée** après le visa l'**annule** (journal : `VISA_ANNULE`).
+- Un visa ne vaut que pour l'enseignant **actuel** de la matière : si la matière change d'enseignant, elle
+  redevient « non visée ».
+- **Les bulletins se génèrent même sans tous les visas** : la réponse de génération (`GET/POST …/bulletins`)
+  porte `matieresNonVisees` (libellés) pour avertir la direction ; la case Visa reste vide. Un visa posé après la
+  génération n'apparaît qu'en **régénérant**.
+- La colonne Visa n'apparaît que si au moins une matière de la classe est visée (les bulletins des établissements
+  qui n'utilisent pas les visas ne changent pas).
+- La signature appartient au compte (`/api/v1/moi/signature`, voir API_SOCLE) : un enseignant partagé entre deux
+  établissements la dépose une fois.
+- Le bulletin imprime aussi la **photo d'identité** de l'élève (API_ELEVES) dans le cadre d'identité, si elle existe.
+
 ## Limites connues (MVP)
 
 - Police standard : les caractères hors alphabet latin occidental (certaines lettres des langues nationales)

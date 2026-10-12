@@ -235,6 +235,8 @@ export interface RapportImport {
 export interface EnseignantVue {
   engagementId: string;
   enseignantId: string | null;
+  /** Compte de l'enseignant (photo, carte professionnelle) ; masqué tant que l'engagement n'est pas actif (v0.44) */
+  utilisateurId?: string | null;
   nom: string | null;
   prenoms: string | null;
   telephone: string | null;

@@ -23,7 +23,9 @@ public final class Vues {
     public record EnseignantVue(UUID engagementId, UUID enseignantId, String nom, String prenoms, String telephone,
             Sexe sexe, String matriculeFp, String specialite, TypeEngagement type, StatutEngagement statut,
             LocalDate debut, LocalDate fin, BigDecimal tauxHoraire, String motifFin, boolean finProgrammee,
-            CategorieEnseignant categorie, boolean suggestionTechnique) {
+            CategorieEnseignant categorie, boolean suggestionTechnique,
+            /** Compte de l'enseignant (photo, v0.44) ; masqué tant que l'invitation n'est pas acceptée. */
+            UUID utilisateurId) {
 
         static EnseignantVue depuis(Engagement e, Enseignant s) {
             return depuis(e, s, false);
@@ -36,7 +38,8 @@ public final class Vues {
                     visible ? s.getPrenoms() : null, visible ? s.getTelephone() : null,
                     visible ? s.getSexe() : null, visible ? s.getMatriculeFp() : null,
                     visible ? s.getSpecialite() : null, e.getType(), e.getStatut(), e.getDebut(), e.getFin(),
-                    e.getTauxHoraire(), e.getMotifFin(), e.isFinProgrammee(), e.getCategorie(), suggestionTechnique);
+                    e.getTauxHoraire(), e.getMotifFin(), e.isFinProgrammee(), e.getCategorie(), suggestionTechnique,
+                    visible ? s.getUtilisateurId() : null);
         }
     }
 

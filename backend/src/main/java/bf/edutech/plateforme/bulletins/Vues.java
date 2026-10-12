@@ -33,7 +33,9 @@ public final class Vues {
 
     public record GenerationVue(UUID id, UUID classeId, String classeCode, UUID periodeId, String periodeLibelle,
             StatutGeneration statut, int effectif, BigDecimal moyenneClasse, BigDecimal tauxReussite,
-            Instant genereLe, Instant publieLe, List<BulletinResumeVue> bulletins) {
+            Instant genereLe, Instant publieLe, List<BulletinResumeVue> bulletins,
+            /** Matières enseignées sans visa valide de leur enseignant (v0.44). */
+            List<String> matieresNonVisees) {
     }
 
     /** Bulletin publié, vu par le parent. */

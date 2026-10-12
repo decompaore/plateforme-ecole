@@ -138,8 +138,12 @@ describe('Vie scolaire', () => {
     };
     recharger(historique);
     await attendre();
+    // Photo d'identité à côté du nom (v0.44.1) : aucune pour cet élève
+    http.expectOne((r) => r.url === '/api/v1/eleves/e1/photo').flush(null, { status: 404, statusText: 'Not Found' });
+    await attendre();
 
     const t = texte(f);
+    expect(t).toContain('Pas de photo');
     // La mère reçoit les SMS : elle apparaît en premier
     expect(t.indexOf('Mariam')).toBeLessThan(t.indexOf('Salif'));
     expect(t).toContain('+22670222222');

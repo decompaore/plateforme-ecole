@@ -39,6 +39,25 @@ changement n'est demandé.
 - Les mots de passe provisoires ne comptent pas : seule la date d'un mot de passe choisi par la personne est retenue.
   Au déploiement de la v0.28, les mots de passe définitifs existants comptent comme changés le jour de la migration.
 
+### Signature numérisée et photo du personnel (v0.44)
+
+| Méthode et chemin | Accès | Description |
+|---|---|---|
+| `GET /api/v1/moi/signature/etat` | connecté | `{presente, modifieeLe}` |
+| `GET /api/v1/moi/signature` | connecté | Image PNG de sa signature (404 si aucune) |
+| `POST /api/v1/moi/signature` (multipart `fichier`) | connecté | Dépose ou remplace sa signature (dessinée à l'écran ou photographiée) : PNG 600 × 200 au plus |
+| `DELETE /api/v1/moi/signature` | connecté | Retire sa signature |
+| `GET /api/v1/personnes/{utilisateurId}/photo[?miniature=true]` | ADMIN_ECOLE, CENSEUR, CHEF_TRAVAUX, SECRETARIAT, INTENDANT, SURVEILLANT ; la personne elle-même | Photo d'un membre de l'établissement actif |
+| `POST`, `DELETE /api/v1/personnes/{utilisateurId}/photo` | ADMIN_ECOLE ; la personne elle-même | Photo propre à l'établissement (un enseignant partagé peut en avoir deux) |
+| `GET /api/v1/personnes/photos` | idem lecture | Comptes de l'établissement qui ont une photo |
+| `GET /api/v1/personnes/cartes[?utilisateur=]` | ADMIN_ECOLE, SECRETARIAT | Cartes professionnelles (PDF, huit par page) des membres actifs : fonction(s), téléphone |
+
+- La signature appartient au **compte**, pas à l'établissement : seul son titulaire la voit, la dépose ou la retire.
+  Elle n'est lue que par la génération des bulletins (colonne Visa, voir API_BULLETINS). Elle n'est pas dans
+  l'export de réversibilité d'un établissement.
+- Les enseignants retrouvent leur `utilisateurId` dans `EnseignantVue.utilisateurId` (masqué tant que
+  l'engagement n'est pas actif ou terminé).
+
 ## Établissement actif
 
 | Méthode et chemin | Accès | Description |

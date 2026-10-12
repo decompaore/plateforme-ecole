@@ -1,3 +1,5 @@
+import { VignetteComponent } from '../../partage/photo-identite.component';
+import { PhotosApi } from '../../partage/photos-api.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -35,7 +37,7 @@ const GROUPES_PROPOSES = ['Matières générales', 'Matières techniques', 'Mati
 /** Une classe : son programme (matières, coefficients, enseignants) et ses élèves. */
 @Component({
   selector: 'app-classe',
-  imports: [FormsModule, RouterLink, AdminNavComponent, RechercheComponent],
+  imports: [FormsModule, RouterLink, AdminNavComponent, RechercheComponent, VignetteComponent],
   templateUrl: './classe.page.html',
   styles: `
     .comptes-parents {
@@ -62,6 +64,10 @@ const GROUPES_PROPOSES = ['Matières générales', 'Matières techniques', 'Mati
     .moyen {
       width: 12rem;
     }
+    td.photo {
+      width: 40px;
+      padding-block: 0.2rem;
+    }
   `,
 })
 export class ClassePage implements OnInit {
@@ -70,6 +76,7 @@ export class ClassePage implements OnInit {
   private readonly api = inject(AdminApi);
   private readonly router = inject(Router);
   private readonly session = inject(SessionService);
+  private readonly photos = inject(PhotosApi);
 
   protected readonly types = LIBELLE_TYPE_MATIERE;
   protected readonly dateCourte = dateCourte;
@@ -81,6 +88,9 @@ export class ClassePage implements OnInit {
   protected readonly matieres = signal<MatiereVue[]>([]);
   protected readonly enseignants = signal<EnseignantVue[]>([]);
   protected readonly eleves = signal<InscriptionVue[]>([]);
+  /** Élèves qui ont une photo d'identité (v0.44) : seules leurs miniatures sont demandées. */
+  protected readonly avecPhoto = signal<Set<string>>(new Set());
+  protected readonly actionCartes = new Action();
   protected readonly brouillons = signal<Record<string, Brouillon>>({});
   protected readonly enregistre = signal<string | null>(null);
 
@@ -139,6 +149,28 @@ export class ClassePage implements OnInit {
       this.enseignants.set(enseignants);
       this.eleves.set(eleves);
     });
+    const c = this.classe();
+    if (c) {
+      this.avecPhoto.set(new Set(await this.photos.elevesAvecPhoto(c.id).catch(() => [] as string[])));
+    }
+  }
+
+  /** Cartes d'identité scolaires de la classe, huit par page A4 (v0.44). */
+  protected async cartesScolaires(): Promise<void> {
+    const c = this.classe();
+    if (!c) {
+      return;
+    }
+    const pdf = await this.actionCartes.executer(async () => {
+      try {
+        return await this.photos.cartesClasse(c.id);
+      } catch (e) {
+        throw await problemeDepuisBlob(e);
+      }
+    });
+    if (pdf) {
+      enregistrerFichier(pdf, `cartes-scolaires-${c.code}.pdf`);
+    }
   }
 
   private majProgramme(programme: MatiereDeClasseVue[]): void {

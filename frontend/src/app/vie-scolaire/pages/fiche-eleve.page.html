@@ -3,7 +3,9 @@
 
   @if (dossier(); as d) {
     <header class="entete">
-      <div>
+      <div class="identite">
+        <app-photo-identite [chemin]="'/eleves/' + d.eleve.id + '/photo'" [nom]="d.eleve.prenoms + ' ' + d.eleve.nom" />
+        <div>
         <h1>{{ d.eleve.nom }} {{ d.eleve.prenoms }}</h1>
         <p class="doux">
           @if (inscription(); as i) {
@@ -11,6 +13,7 @@
           }
           @if (d.eleve.matricule) { · matricule {{ d.eleve.matricule }} }
         </p>
+        </div>
       </div>
       @if (inscriptions().length > 1) {
         <label class="annee">

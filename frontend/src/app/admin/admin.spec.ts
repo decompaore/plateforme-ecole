@@ -60,7 +60,12 @@ describe('Espace d’administration', () => {
     ({ http } = configurer());
   });
 
-  afterEach(() => http.verify());
+  afterEach(() => {
+    // Listes « qui a une photo » (v0.44), sans objet pour ces scénarios
+    http.match((r) => r.method === 'GET' && r.url.endsWith('/photos')).forEach((r) => r.flush([]));
+    http.match((r) => r.method === 'GET' && r.url.endsWith('/photo')).forEach((r) => r.flush(null, { status: 404, statusText: 'Not Found' }));
+    http.verify();
+  });
 
   it('super administrateur : crée un établissement et affiche une seule fois le mot de passe de son administrateur', async () => {
     await session(http, true);
@@ -186,6 +191,15 @@ describe('Espace d’administration', () => {
     saisir(f, '#naissance', '2010-03-14');
     saisir(f, '#pTel', '70 12 34 56');
     saisir(f, '#pPrenoms', 'Issa');
+    // Photo d'identité prise dans le formulaire (v0.44.1)
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:apercu');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const champPhoto = (f.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#photoEleve')!;
+    expect(champPhoto.getAttribute('capture')).toBe('user');
+    Object.defineProperty(champPhoto, 'files', { value: [new File(['jpg'], 'rasmata.jpg', { type: 'image/jpeg' })] });
+    champPhoto.dispatchEvent(new Event('change'));
+    f.detectChanges();
+    expect((f.nativeElement as HTMLElement).querySelector('img[alt="Photo choisie"]')).not.toBeNull();
     cliquer(f, 'Enregistrer l’élève');
     await attendre();
 
@@ -200,15 +214,168 @@ describe('Espace d’administration', () => {
     });
     creation.flush({ eleve: { id: 'el1', matricule: '2026-00001', nom: 'ZONGO', prenoms: 'Rasmata' }, responsables: [], inscriptions: [] });
     await attendre();
+    const photo = http.expectOne((r) => r.method === 'POST' && r.url === '/api/v1/eleves/el1/photo');
+    expect((photo.request.body as FormData).get('fichier')).toBeInstanceOf(Blob);
+    photo.flush(null);
+    await attendre();
     const inscription = http.expectOne('/api/v1/inscriptions');
     expect(inscription.request.body).toEqual({ eleveId: 'el1', classeId: 'c2', redoublant: false, statutBourse: 'NON_BOURSIER' });
     inscription.flush({ id: 'i1', classeCode: '2nde F3' });
     await attendre();
     http.expectOne((r) => r.url === '/api/v1/eleves' && r.method === 'GET').flush({ elements: [], page: 0, taille: 20, total: 0, nombrePages: 0 });
     await attendre();
+    // v0.44 : le dossier s'ouvre pour ajouter la photo d'identité
+    http.expectOne('/api/v1/eleves/el1').flush({
+      eleve: { id: 'el1', matricule: '2026-00001', nom: 'ZONGO', prenoms: 'Rasmata', dateNaissance: '2010-03-14' },
+      responsables: [],
+      inscriptions: [{ id: 'i1', anneeId: 'a1', anneeLibelle: '2026-2027', classeId: 'c2', classeCode: '2nde F3', statut: 'ACTIVE' }],
+    });
+    await attendre();
 
-    expect(texte(f)).toContain('ZONGO Rasmata inscrit(e) en 2nde F3 (matricule 2026-00001)');
+    expect(texte(f)).toContain('ZONGO Rasmata inscrit(e) en 2nde F3 (matricule 2026-00001). Photo enregistrée.');
     expect((f.nativeElement.querySelector('#nom') as HTMLInputElement).value).toBe('');
+    expect((f.nativeElement as HTMLElement).querySelector('img[alt="Photo choisie"]')).toBeNull(); // formulaire vidé
+    vi.restoreAllMocks();
+  });
+
+  it('élèves (v0.44.1) : colonne Photo de la recherche, « + Photo » ouvre le dossier', async () => {
+    await session(http);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:photo');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const f = TestBed.createComponent(ElevesPage);
+    f.detectChanges();
+    http.expectOne((r) => r.url === '/api/v1/eleves' && r.method === 'GET').flush({
+      elements: [
+        { id: 'el1', matricule: '2026-00001', nom: 'ZONGO', prenoms: 'Rasmata', sexe: 'F', dateNaissance: '2010-03-14' },
+        { id: 'el2', matricule: '2026-00002', nom: 'SAWADOGO', prenoms: 'Ali', sexe: 'M', dateNaissance: '2010-05-01' },
+      ],
+      page: 0, taille: 20, total: 2, nombrePages: 1,
+    });
+    http.expectOne('/api/v1/annees/a1/classes').flush([]);
+    await attendre();
+    const parmi = http.expectOne((r) => r.url === '/api/v1/eleves/photos');
+    expect(parmi.request.params.get('ids')).toBe('el1,el2');
+    parmi.flush(['el1']);
+    await attendre();
+    f.detectChanges();
+    await attendre();
+    http.expectOne((r) => r.url === '/api/v1/eleves/el1/photo' && r.params.get('miniature') === 'true').flush(new Blob(['jpg']));
+    await attendre();
+    f.detectChanges();
+    const el = f.nativeElement as HTMLElement;
+    expect(el.querySelector('th.col-photo')?.textContent).toBe('Photo');
+    expect(el.querySelectorAll('img.vignette')).toHaveLength(1);
+    const ajouter = el.querySelector<HTMLButtonElement>('button[aria-label="Ajouter la photo de Ali SAWADOGO"]')!;
+    expect(ajouter.textContent).toContain('Photo');
+    ajouter.click();
+    await attendre();
+    http.expectOne('/api/v1/eleves/el2').flush({
+      eleve: { id: 'el2', matricule: '2026-00002', nom: 'SAWADOGO', prenoms: 'Ali', dateNaissance: '2010-05-01' },
+      responsables: [],
+      inscriptions: [],
+    });
+    await attendre();
+    http.expectOne((r) => r.url === '/api/v1/eleves/el2/photo' && !r.params.has('miniature')).flush(null, { status: 404, statusText: 'Not Found' });
+    await attendre();
+    expect(texte(f)).toContain('Ajouter une photo');
+    vi.restoreAllMocks();
+  });
+
+  it('personnel (v0.44) : miniatures, photo d’un membre et cartes professionnelles', async () => {
+    await session(http);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:photo');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    const f = TestBed.createComponent(PersonnelPage);
+    f.detectChanges();
+    http.expectOne('/api/v1/enseignants').flush([
+      { engagementId: 'e1', enseignantId: 'en1', utilisateurId: 'u5', nom: 'SANOU', prenoms: 'Paul', telephone: '70000005', sexe: 'M', specialite: 'Maths', type: 'TITULAIRE', statut: 'ACTIF', debut: '2026-10-01', fin: null },
+    ]);
+    http.expectOne('/api/v1/membres').flush([
+      { id: 'm1', utilisateurId: 'u6', nom: 'KONE', prenoms: 'Awa', telephone: '70000006', role: 'SECRETARIAT', actif: true },
+    ]);
+    await attendre();
+    http.expectOne('/api/v1/personnes/photos').flush(['u5']);
+    await attendre();
+    f.detectChanges();
+    await attendre();
+    // Seul Paul SANOU a une photo : sa miniature est demandée
+    const mini = http.expectOne((r) => r.url === '/api/v1/personnes/u5/photo');
+    expect(mini.request.params.get('miniature')).toBe('true');
+    mini.flush(new Blob(['jpg'], { type: 'image/jpeg' }));
+    await attendre();
+
+    const boutons = (f.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>('button.photo');
+    expect(boutons).toHaveLength(2);
+    boutons[1].click(); // Awa KONE
+    f.detectChanges();
+    await attendre();
+    http.expectOne((r) => r.url === '/api/v1/personnes/u6/photo' && !r.params.has('miniature')).flush(null, { status: 404, statusText: 'Not Found' });
+    await attendre();
+    expect(texte(f)).toContain('Photo de Awa KONE');
+    expect(texte(f)).toContain('Ajouter une photo');
+
+    cliquer(f, 'Carte professionnelle (PDF)');
+    await attendre();
+    http.expectOne((r) => r.url === '/api/v1/personnes/cartes' && r.params.get('utilisateur') === 'u6').flush(new Blob(['%PDF']));
+    await attendre();
+    cliquer(f, 'Cartes professionnelles (PDF)');
+    await attendre();
+    http.expectOne((r) => r.url === '/api/v1/personnes/cartes' && !r.params.has('utilisateur')).flush(new Blob(['%PDF']));
+    await attendre();
+    expect(URL.createObjectURL).toHaveBeenCalledTimes(3); // la miniature de Paul + 2 PDF
+    vi.restoreAllMocks();
+  });
+
+  it('personnel (v0.44.1) : la photo prise dans le formulaire d’ajout part avec le nouveau compte', async () => {
+    await session(http);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:apercu');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+    const f = TestBed.createComponent(PersonnelPage);
+    f.detectChanges();
+    http.expectOne('/api/v1/enseignants').flush([]);
+    http.expectOne('/api/v1/membres').flush([]);
+    await attendre();
+    http.expectOne('/api/v1/personnes/photos').flush([]);
+    await attendre();
+    cliquer(f, 'Ajouter une personne');
+    f.detectChanges();
+    await f.whenStable();
+    saisir(f, '#mTel', '70000008');
+    saisir(f, '#mNom', 'KONE');
+    saisir(f, '#mPrenoms', 'Awa');
+    const champ = (f.nativeElement as HTMLElement).querySelector<HTMLInputElement>('#mPhoto')!;
+    Object.defineProperty(champ, 'files', { value: [new File(['jpg'], 'awa.jpg', { type: 'image/jpeg' })] });
+    champ.dispatchEvent(new Event('change'));
+    f.detectChanges();
+    expect(texte(f)).toContain('Changer');
+    ((f.nativeElement as HTMLElement).querySelector('form.nouveau button[type=submit]') as HTMLButtonElement).click();
+    await attendre();
+    http.expectOne((r) => r.method === 'POST' && r.url === '/api/v1/membres').flush({
+      membre: { id: 'm8', utilisateurId: 'u8', nom: 'KONE', prenoms: 'Awa', telephone: '70000008', role: 'SECRETARIAT', actif: true },
+      motDePasseTemporaire: null,
+    });
+    await attendre();
+    const photo = http.expectOne((r) => r.method === 'POST' && r.url === '/api/v1/personnes/u8/photo');
+    expect((photo.request.body as FormData).get('fichier')).toBeInstanceOf(Blob);
+    photo.flush(null);
+    await attendre();
+    http.expectOne('/api/v1/enseignants').flush([]);
+    http.expectOne('/api/v1/membres').flush([
+      { id: 'm8', utilisateurId: 'u8', nom: 'KONE', prenoms: 'Awa', telephone: '70000008', role: 'SECRETARIAT', actif: true },
+    ]);
+    await attendre();
+    http.expectOne('/api/v1/personnes/photos').flush(['u8']);
+    await attendre();
+    f.detectChanges();
+    await attendre();
+    http.expectOne((r) => r.url === '/api/v1/personnes/u8/photo' && r.params.get('miniature') === 'true').flush(new Blob(['jpg']));
+    await attendre();
+    const el = f.nativeElement as HTMLElement;
+    expect([...el.querySelectorAll('th.col-photo')].map((t) => t.textContent)).toEqual(['Photo', 'Photo']);
+    expect(el.querySelector('button[aria-label="Photo de Awa KONE"] img.vignette')).not.toBeNull();
+    expect(texte(f)).not.toContain('Photo non enregistrée');
+    vi.restoreAllMocks();
   });
 
   it('personnel : un enseignant inconnu reçoit un compte, un enseignant déjà inscrit une invitation', async () => {

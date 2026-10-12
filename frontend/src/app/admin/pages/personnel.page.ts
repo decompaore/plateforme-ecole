@@ -1,6 +1,7 @@
-import { Component, computed, inject, OnInit, signal } from '@angular/core';
+import { Component, computed, inject, OnInit, signal, WritableSignal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 
+import { messageErreur } from '../../core/erreurs';
 import { dateCourte, dateLocale, dateLongue, lendemain } from '../../core/outils';
 import { filtrer } from '../../core/recherche';
 import { RechercheComponent } from '../../partage/recherche.component';
@@ -21,6 +22,9 @@ import {
   LIBELLE_CATEGORIE,
 } from '../modeles-admin';
 import { MotDePasseTemporaireComponent } from '../mot-de-passe-temporaire.component';
+import { ChoixPhotoComponent, PhotoIdentiteComponent, VignetteComponent } from '../../partage/photo-identite.component';
+import { PhotosApi } from '../../partage/photos-api.service';
+import { enregistrerFichier } from '../../scolarite/scolarite-api.service';
 
 /** Rôles attribués depuis cet écran ; les enseignants passent par l'engagement, les parents par le dossier élève. */
 const ROLES_PERSONNEL: Role[] = ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SECRETARIAT', 'INTENDANT', 'SURVEILLANT'];
@@ -28,7 +32,7 @@ const ROLES_PERSONNEL: Role[] = ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SECR
 /** Personnel : enseignants (engagements) et membres de l'administration. */
 @Component({
   selector: 'app-personnel',
-  imports: [FormsModule, AdminNavComponent, MotDePasseTemporaireComponent, RechercheComponent],
+  imports: [FormsModule, AdminNavComponent, MotDePasseTemporaireComponent, RechercheComponent, PhotoIdentiteComponent, VignetteComponent, ChoixPhotoComponent],
   templateUrl: './personnel.page.html',
   styles: `
     h3 {
@@ -50,10 +54,36 @@ const ROLES_PERSONNEL: Role[] = ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SECR
     .actions-cellule {
       white-space: nowrap;
     }
+    .col-photo {
+      width: 48px;
+      padding-block: 0.2rem;
+    }
+    .champ-photo {
+      margin: 0.25rem 0 0.75rem;
+    }
+    button.photo {
+      appearance: none;
+      border: 0;
+      padding: 0;
+      background: none;
+      cursor: pointer;
+    }
+    .barre-cartes {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 0.5rem;
+    }
+    .fiche-photo-contenu {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+      flex-wrap: wrap;
+    }
   `,
 })
 export class PersonnelPage implements OnInit {
   private readonly api = inject(AdminApi);
+  private readonly photos = inject(PhotosApi);
 
   protected readonly libelleRole = LIBELLE_ROLE;
   protected readonly libelleStatut = LIBELLE_STATUT_ENGAGEMENT;
@@ -67,6 +97,14 @@ export class PersonnelPage implements OnInit {
   protected readonly membres = signal<MembreVue[]>([]);
   protected readonly secret = signal<{ titre: string; telephone: string; motDePasse: string } | null>(null);
   protected readonly message = signal<string | null>(null);
+
+  // Photos d'identité et cartes professionnelles (v0.44)
+  protected readonly avecPhoto = signal<Set<string>>(new Set());
+  protected readonly photoCible = signal<{ utilisateurId: string; nom: string } | null>(null);
+  protected readonly actionCartes = new Action();
+  /** Photos choisies dans les formulaires d'engagement et d'ajout, envoyées une fois le compte connu. */
+  protected readonly ePhoto = signal<File | null>(null);
+  protected readonly mPhoto = signal<File | null>(null);
 
   /** Recherche commune aux deux tableaux : nom, prénoms, téléphone, spécialité ou rôle. */
   protected readonly filtre = signal('');
@@ -131,6 +169,54 @@ export class PersonnelPage implements OnInit {
       );
       this.membres.set(membres);
     });
+    this.avecPhoto.set(new Set(await this.photos.personnesAvecPhoto().catch(() => [] as string[])));
+  }
+
+  protected ouvrirPhoto(utilisateurId: string, nom: string): void {
+    this.photoCible.set({ utilisateurId, nom: nom.trim() });
+    window.scrollTo?.({ top: 0, behavior: 'smooth' });
+  }
+
+  protected photoChangee(utilisateurId: string, presente: boolean): void {
+    const s = new Set(this.avecPhoto());
+    if (presente) {
+      s.add(utilisateurId);
+    } else {
+      s.delete(utilisateurId);
+    }
+    this.avecPhoto.set(s);
+  }
+
+  /**
+   * Envoie la photo choisie dans un formulaire : « ok », « differee » (compte pas encore connu : invitation),
+   * le message d'erreur, ou null s'il n'y avait pas de photo.
+   */
+  private async deposerPhotoChoisie(choix: WritableSignal<File | null>, utilisateurId: string | null): Promise<string | null> {
+    const fichier = choix();
+    if (!fichier) {
+      return null;
+    }
+    choix.set(null);
+    if (!utilisateurId) {
+      return 'differee';
+    }
+    try {
+      await this.photos.deposerPhoto(`/personnes/${utilisateurId}/photo`, fichier);
+      return 'ok';
+    } catch (e) {
+      return messageErreur(e, "La photo n'a pas pu être enregistrée");
+    }
+  }
+
+  /** Cartes professionnelles de tous les membres actifs, ou d'une personne. */
+  protected async cartes(utilisateurId?: string): Promise<void> {
+    const pdf = await this.actionCartes.executer(
+      () => this.photos.cartesPersonnel(utilisateurId),
+      "Les cartes n'ont pas pu être préparées.",
+    );
+    if (pdf) {
+      enregistrerFichier(pdf, utilisateurId ? 'carte-professionnelle.pdf' : 'cartes-personnel.pdf');
+    }
   }
 
   protected async engager(): Promise<void> {
@@ -153,11 +239,17 @@ export class PersonnelPage implements OnInit {
     if (!r) {
       return;
     }
+    const photoE = await this.deposerPhotoChoisie(this.ePhoto, r.invitation ? null : r.enseignant.utilisateurId ?? null);
     if (r.invitation) {
       this.message.set(
         'Cet enseignant a déjà un compte sur la plateforme : une invitation lui a été envoyée. ' +
-          'Il l’accepte depuis son compte, puis vous pourrez lui affecter des matières.',
+          'Il l’accepte depuis son compte, puis vous pourrez lui affecter des matières.' +
+          (photoE === 'differee' ? ' Sa photo s’ajoutera depuis la liste quand il aura accepté.' : ''),
       );
+    } else if (photoE === 'differee') {
+      this.message.set('Photo non enregistrée : ajoutez-la depuis la colonne Photo de la liste.');
+    } else if (photoE && photoE !== 'ok') {
+      this.message.set(`Photo non enregistrée : ${photoE}`);
     } else if (r.motDePasseTemporaire) {
       this.secret.set({
         titre: `Compte de ${r.enseignant.prenoms} ${r.enseignant.nom} créé.`,
@@ -277,6 +369,10 @@ export class PersonnelPage implements OnInit {
       this.message.set(
         `${r.membre.prenoms} ${r.membre.nom} avait déjà un compte : le rôle ${LIBELLE_ROLE[r.membre.role]} lui est ajouté, avec son mot de passe habituel.`,
       );
+    }
+    const photoM = await this.deposerPhotoChoisie(this.mPhoto, r.membre.utilisateurId);
+    if (photoM && photoM !== 'ok' && photoM !== 'differee') {
+      this.message.set(`Photo non enregistrée : ${photoM}`);
     }
     for (const s of [this.mTelephone, this.mNom, this.mPrenoms]) {
       s.set('');
