@@ -350,6 +350,10 @@ class PassageIntegrationTest {
                 .andExpect(status().isForbidden());
         mvc.perform(post("/api/v1/annees/{id}/plan-passage", annee.id()).with(jeton(secretaire, "SECRETARIAT"))
                         .contentType(MediaType.APPLICATION_JSON).content(corps.toString()))
+                .andExpect(status().isForbidden());
+        // v0.47 : le censeur répartit les élèves dans les classes
+        mvc.perform(post("/api/v1/annees/{id}/plan-passage", annee.id()).with(jeton(membre(Role.CENSEUR), "CENSEUR"))
+                        .contentType(MediaType.APPLICATION_JSON).content(corps.toString()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.reinscrits").value(5))
                 .andExpect(jsonPath("$.redoublants").value(1))

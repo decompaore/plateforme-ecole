@@ -38,13 +38,13 @@ public final class Vues {
     public record InscriptionVue(UUID id, UUID eleveId, String matricule, String nom, String prenoms, Sexe sexe,
             LocalDate dateNaissance, UUID anneeId, String anneeLibelle, UUID classeId, String classeCode,
             StatutInscription statut, boolean redoublant, StatutBourse statutBourse, LocalDate inscritLe,
-            LocalDate dateSortie, String motifSortie) {
+            LocalDate dateSortie, String motifSortie, ModeAdmission modeAdmission) {
 
         static InscriptionVue depuis(Inscription i, Eleve e, String anneeLibelle, String classeCode) {
             return new InscriptionVue(i.getId(), e.getId(), e.getMatricule(), e.getNom(), e.getPrenoms(),
                     e.getSexe(), e.getDateNaissance(), i.getAnneeId(), anneeLibelle, i.getClasseId(), classeCode,
                     i.getStatut(), i.isRedoublant(), i.getStatutBourse(), i.getInscritLe(), i.getDateSortie(),
-                    i.getMotifSortie());
+                    i.getMotifSortie(), i.getModeAdmission());
         }
     }
 

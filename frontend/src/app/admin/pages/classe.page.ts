@@ -95,8 +95,17 @@ export class ClassePage implements OnInit {
   protected readonly enregistre = signal<string | null>(null);
 
   protected readonly peutModifier = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'CENSEUR'));
-  /** Dossiers des élèves et comptes des parents : administration et secrétariat. */
-  protected readonly gestionEleves = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'SECRETARIAT'));
+  /** Saisie des dossiers (inscription, photo) : l'intendance et le chef d'établissement (v0.47). */
+  protected readonly saisie = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'INTENDANT'));
+  /** Documents remis aux familles : cartes scolaires, comptes des parents. */
+  protected readonly documents = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'INTENDANT', 'SECRETARIAT'));
+  /** Répartition des élèves entre les classes : le censeur (même niveau), le chef d'établissement. */
+  protected readonly peutRepartir = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'CENSEUR'));
+  protected readonly estChef = computed(() => this.session.aLeRole('ADMIN_ECOLE'));
+  protected readonly repartition = signal(false);
+  protected readonly classesCibles = signal<ClasseVue[]>([]);
+  protected readonly cibles = signal<Record<string, string>>({});
+  protected readonly messageRepartition = signal<string | null>(null);
   protected readonly espaceParent = this.session.moduleActif('ESPACE_PARENT');
   protected readonly actionParents = new Action();
   protected readonly confirmationParents = signal(false);
@@ -297,6 +306,39 @@ export class ClassePage implements OnInit {
     if (r?.body) {
       enregistrerFichier(r.body, nomDuFichier(r.headers.get('Content-Disposition'), `acces-parents-${c.code}.${format}`));
       this.messageParents.set('Comptes des parents ouverts : la fiche de remise des accès est téléchargée.');
+    }
+  }
+  // ---------- Répartition (v0.47)
+
+  protected async ouvrirRepartition(): Promise<void> {
+    const c = this.classe();
+    if (!c) {
+      return;
+    }
+    const toutes = await this.action.executer(() => this.api.classes(c.anneeId));
+    if (toutes) {
+      const chef = this.session.aLeRole('ADMIN_ECOLE');
+      this.classesCibles.set(
+        toutes.filter((x) => x.id !== c.id && (chef || x.niveau === c.niveau)).sort((a, b) => a.code.localeCompare(b.code)),
+      );
+      this.repartition.set(true);
+    }
+  }
+
+  protected choisirCible(inscriptionId: string, classeId: string): void {
+    this.cibles.set({ ...this.cibles(), [inscriptionId]: classeId });
+  }
+
+  protected async deplacer(e: InscriptionVue): Promise<void> {
+    const cible = this.cibles()[e.id];
+    if (!cible) {
+      return;
+    }
+    this.messageRepartition.set(null);
+    const apres = await this.action.executer(() => this.api.changerClasse(e.id, cible));
+    if (apres) {
+      this.eleves.set(this.eleves().filter((x) => x.id !== e.id));
+      this.messageRepartition.set(`${e.prenoms} ${e.nom} passe en ${apres.classeCode}.`);
     }
   }
 }

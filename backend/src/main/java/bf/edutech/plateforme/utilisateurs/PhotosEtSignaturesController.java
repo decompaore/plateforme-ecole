@@ -37,7 +37,7 @@ public class PhotosEtSignaturesController {
 
     private static final Map<Role, String> FONCTIONS = Map.of(
             Role.ADMIN_ECOLE, "Chef d'établissement", Role.CENSEUR, "Censeur", Role.CHEF_TRAVAUX, "Chef des travaux",
-            Role.SECRETARIAT, "Secrétariat", Role.INTENDANT, "Intendant", Role.SURVEILLANT, "Surveillant",
+            Role.SECRETARIAT, "Secrétariat", Role.INTENDANT, "Intendant", Role.SURVEILLANT, "CPE",
             Role.ENSEIGNANT, "Enseignant");
 
     private final PhotosPersonnes photos;

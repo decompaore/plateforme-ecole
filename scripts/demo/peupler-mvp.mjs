@@ -330,7 +330,7 @@ const PERSONNEL = [
   { role: 'CHEF_TRAVAUX', sexe: 'M', libelle: 'Chef des travaux' },
   { role: 'SECRETARIAT', sexe: 'F', libelle: 'Secrétariat' },
   { role: 'INTENDANT', sexe: 'M', libelle: 'Intendant' },
-  { role: 'SURVEILLANT', sexe: 'M', libelle: 'Surveillant' },
+  { role: 'SURVEILLANT', sexe: 'M', libelle: 'Conseiller principal d’éducation (CPE)' },
 ];
 
 // ===================================================================== outils
@@ -804,9 +804,9 @@ async function recruterPersonnel(e) {
     const roles = {
       CENSEUR: e.chefTravaux ? 'grille horaire et emploi du temps des matières générales, publication ; vise les progressions des matières générales, bulletins' : 'grille horaire et tout l’emploi du temps, publication ; vise toutes les progressions, bulletins',
       CHEF_TRAVAUX: 'emploi du temps des matières techniques et pratiques ; vise les progressions techniques et pratiques ; ateliers, besoins à arbitrer (campagne des examens), état pour la DR, exports Excel et PDF',
-      SECRETARIAT: 'dossiers des élèves',
+      SECRETARIAT: 'consultation des dossiers, cartes scolaires, accès des parents',
       INTENDANT: e.definition.ateliers?.length ? 'guichet, journal de caisse, relances ; catalogue des prix, commandes des ateliers' : 'guichet, journal de caisse, relances',
-      SURVEILLANT: 'absences du jour, justificatifs, convocations',
+      SURVEILLANT: 'CPE : absences du jour, justificatifs, incidents, convocations (seul à saisir la vie scolaire)',
     };
     noterCompte(e, p.libelle, qui, qui.telephone, roles[p.role]);
   }
@@ -1724,7 +1724,6 @@ async function competences(e) {
 
 async function vieScolaire(e) {
   const surveillant = e.personnel.SURVEILLANT.session;
-  const censeur = e.personnel.CENSEUR.session;
 
   etape('Justificatifs d’absence');
   let justifies = 0;
@@ -1759,20 +1758,20 @@ async function vieScolaire(e) {
     await tenter('Incidents', async () => {
       await api('POST', `/inscriptions/${el.inscriptionId}/incidents`, {
         type: 'AVERTISSEMENT', date, motif: choisir(t, ['Bavardages répétés pendant le cours', 'Téléphone utilisé en classe', 'Travail non fait à trois reprises', 'Refus de participer aux travaux pratiques']), prevenirFamille: true,
-      }, m.enseignant.session);
+      }, surveillant);
       faits.push('avertissement');
     });
   }
   const blame = pioche();
   const incidentBlame = await tenter('Incidents', () =>
-    api('POST', `/inscriptions/${blame.inscriptionId}/incidents`, { type: 'BLAME', date, motif: 'Insolence envers un surveillant', prevenirFamille: true }, censeur));
+    api('POST', `/inscriptions/${blame.inscriptionId}/incidents`, { type: 'BLAME', date, motif: 'Insolence envers un surveillant', prevenirFamille: true }, surveillant));
   if (incidentBlame) faits.push('blâme');
   if (e.exclusion) {
     const el = pioche();
     await tenter('Incidents', async () => {
       await api('POST', `/inscriptions/${el.inscriptionId}/incidents`, {
         type: 'EXCLUSION_TEMPORAIRE', date, motif: 'Bagarre dans la cour de récréation', debutExclusion: jourOuvre(ajouterJours(AUJOURDHUI, 1)), joursExclusion: 3, prevenirFamille: true,
-      }, censeur);
+      }, surveillant);
       faits.push('exclusion temporaire');
     });
   }
@@ -1987,7 +1986,7 @@ function bilanFinal(debutChrono) {
     const p = e.personnel;
     const prof = e.enseignants[e.retardataire];
     console.log(`    ${e.nom}`);
-    console.log(`      administrateur ${e.admin.telephone} · censeur ${p.CENSEUR?.telephone}${p.CHEF_TRAVAUX ? ` · chef des travaux ${p.CHEF_TRAVAUX.telephone}` : ''} · intendant ${p.INTENDANT?.telephone} · surveillant ${p.SURVEILLANT?.telephone}`);
+    console.log(`      administrateur ${e.admin.telephone} · censeur ${p.CENSEUR?.telephone}${p.CHEF_TRAVAUX ? ` · chef des travaux ${p.CHEF_TRAVAUX.telephone}` : ''} · intendant ${p.INTENDANT?.telephone} · CPE ${p.SURVEILLANT?.telephone}`);
     console.log(`      enseignant en retard ${prof?.telephone} · parent ${COMPTES.find((c) => c.ecole === e.nom && c.role === 'Parent')?.telephone ?? '—'}`);
   }
   console.log('\n  Comptes de développement uniquement.\n');

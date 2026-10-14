@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { API } from '../core/session.service';
-import { FicheVue, SaisieSequence, SeanceVue, SuiviProgressionVue } from './modeles-progression';
+import { FicheVue, SaisieSequence, SeanceVue, SuiviCahierVue, SuiviProgressionVue, VisaCahierVue } from './modeles-progression';
 
 /** Appels de l'API des fiches de progression (en ligne). */
 @Injectable({ providedIn: 'root' })
@@ -39,5 +39,21 @@ export class ProgressionApi {
 
   seances(classeId: string, matiereId: string): Promise<SeanceVue[]> {
     return firstValueFrom(this.http.get<SeanceVue[]>(`${API}/classes/${classeId}/matieres/${matiereId}/cahier-textes`));
+  }
+
+  // ---------- Visa mensuel des cahiers de textes (v0.47)
+
+  visasCahier(classeId: string, matiereId: string): Promise<VisaCahierVue[]> {
+    return firstValueFrom(this.http.get<VisaCahierVue[]>(`${API}/classes/${classeId}/matieres/${matiereId}/cahier-textes/visas`));
+  }
+
+  viserCahier(classeId: string, matiereId: string, mois: string, observation: string | null): Promise<VisaCahierVue> {
+    return firstValueFrom(
+      this.http.post<VisaCahierVue>(`${API}/classes/${classeId}/matieres/${matiereId}/cahier-textes/visas`, { mois, observation }),
+    );
+  }
+
+  suiviCahiers(anneeId: string, mois: string): Promise<SuiviCahierVue[]> {
+    return firstValueFrom(this.http.get<SuiviCahierVue[]>(`${API}/annees/${anneeId}/cahiers-textes`, { params: { mois } }));
   }
 }

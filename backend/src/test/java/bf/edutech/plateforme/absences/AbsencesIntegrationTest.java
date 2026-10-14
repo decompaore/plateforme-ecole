@@ -280,7 +280,7 @@ class AbsencesIntegrationTest {
                 appelEn(maths, jour, "08:00", "10:00", marque(inscriptionAwa, "ABSENCE", null)),
                 appelEn(francais, jour, "10:00", "11:00", marque(inscriptionAwa, "RETARD", 5)),
                 appel(UUID.randomUUID(), aujourdhui, "15:00", "16:00", marque(inscriptionInes, "ABSENCE", null))),
-                membre(Role.CENSEUR), "CENSEUR");
+                membre(Role.SURVEILLANT), "SURVEILLANT");      // v0.47 : le CPE, pas le censeur
 
         // Liste du jour : la discipline de chaque créneau, « appel général » sans matière
         mvc.perform(get("/api/v1/absences/jour").param("date", jour).with(jeton(surveillant, "SURVEILLANT")))

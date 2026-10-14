@@ -122,7 +122,7 @@ export class ConvocationsPage implements OnInit {
   protected readonly convocations = signal<ConvocationVue[]>([]);
   protected readonly message = signal<string | null>(null);
   protected readonly encadrement = computed(() =>
-    this.session.roles().some((r) => ['SURVEILLANT', 'CENSEUR', 'ADMIN_ECOLE'].includes(r)),
+    this.session.roles().includes('SURVEILLANT'),
   );
 
   protected readonly parJour = computed(() => {

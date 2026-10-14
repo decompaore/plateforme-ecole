@@ -33,3 +33,5 @@ V29__moyens_paiement_virements.sql -1780778853
 V30__categorie_enseignant.sql -1880565203
 V31__personnel_tous_etablissements.sql 602136955
 V32__photos_signatures_visas.sql 122418955
+V33__messagerie_examens.sql 654843200
+V34__roles_dossiers_visas_interim.sql -334144464

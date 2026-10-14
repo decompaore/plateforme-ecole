@@ -200,8 +200,8 @@ describe('Fin d’année (v0.45)', () => {
     expect(bouton(f, 'Réinscrire')).toBeUndefined();
   });
 
-  it('listes de l’année suivante en Excel ; le censeur ne réinscrit pas', async () => {
-    await session(http, 'CENSEUR');
+  it('listes de l’année suivante en Excel ; le secrétariat ne réinscrit pas (v0.47 : le censeur répartit)', async () => {
+    await session(http, 'SECRETARIAT');
     const f = await ouvrirFinAnnee(http);
     http.expectOne('/api/v1/annees/a1/plan-passage').flush(PLAN);
     await attendre();

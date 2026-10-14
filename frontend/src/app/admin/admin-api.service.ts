@@ -12,6 +12,7 @@ import {
   CompteVue,
   DonneesResponsable,
   DossierEleveVue,
+  DossierInscriptionVue,
   EleveVue,
   EspaceParentVue,
   EnseignantVue,
@@ -20,14 +21,18 @@ import {
   FicheEnseignantVue,
   FiliereVue,
   InscriptionVue,
+  InterimVue,
   LienExport,
+  LigneDossierVue,
   LienParente,
   MatiereDeClasseVue,
   MatiereVue,
+  ModeAdmission,
   ModuleEtablissementVue,
   MembreVue,
   Page,
   PeriodeVue,
+  PieceVue,
   ProfilVue,
   RapportImport,
   ResultatAjoutMembre,
@@ -310,8 +315,55 @@ export class AdminApi {
     return this.post('/eleves', d);
   }
 
-  inscrire(d: { eleveId: string; classeId: string; redoublant: boolean; statutBourse: StatutBourse | null }): Promise<InscriptionVue> {
+  inscrire(d: {
+    eleveId: string;
+    classeId: string;
+    redoublant: boolean;
+    statutBourse: StatutBourse | null;
+    modeAdmission?: ModeAdmission | null;
+  }): Promise<InscriptionVue> {
     return this.post('/inscriptions', d);
+  }
+
+  /** Répartition (v0.47) : le censeur dans un même niveau, le chef d'établissement partout. */
+  changerClasse(inscriptionId: string, classeId: string): Promise<InscriptionVue> {
+    return this.patch(`/inscriptions/${inscriptionId}/classe`, { classeId });
+  }
+
+  // ---------- Dossier d'inscription (v0.47)
+
+  piecesDossier(): Promise<PieceVue[]> {
+    return this.get('/pieces-dossier');
+  }
+
+  definirPieces(pieces: { id: string | null; libelle: string; modes: ModeAdmission[]; obligatoire: boolean }[]): Promise<PieceVue[]> {
+    return this.put('/pieces-dossier', pieces);
+  }
+
+  dossierInscription(inscriptionId: string): Promise<DossierInscriptionVue> {
+    return this.get(`/inscriptions/${inscriptionId}/dossier`);
+  }
+
+  enregistrerDossier(inscriptionId: string, modeAdmission: ModeAdmission | null, piecesRecues: string[]): Promise<DossierInscriptionVue> {
+    return this.put(`/inscriptions/${inscriptionId}/dossier`, { modeAdmission, piecesRecues });
+  }
+
+  dossiersInscription(anneeId: string, incomplets: boolean): Promise<LigneDossierVue[]> {
+    return this.get(`/annees/${anneeId}/dossiers-inscription`, { incomplets });
+  }
+
+  // ---------- Intérim du chef d'établissement (v0.47)
+
+  interims(): Promise<InterimVue[]> {
+    return this.get('/interims');
+  }
+
+  designerInterim(d: { utilisateurId: string; du: string; au: string; motif: string }): Promise<InterimVue> {
+    return this.post('/interims', d);
+  }
+
+  terminerInterim(id: string): Promise<InterimVue> {
+    return this.post(`/interims/${id}/fin`);
   }
 
   inscriptions(classeId: string): Promise<InscriptionVue[]> {

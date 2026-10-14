@@ -4,7 +4,7 @@ Avant une mise en production, la recette vérifie l'application **comme ses util
 
 Elle a deux volets :
 
-1. **La recette automatisée** (environ 290 scénarios) appelle l'API réelle pour chaque parcours, avec les droits de chaque rôle, l'isolation entre établissements, les règles métier et les cas d'erreur.
+1. **La recette automatisée** (environ 300 scénarios) appelle l'API réelle pour chaque parcours, avec les droits de chaque rôle, l'isolation entre établissements, les règles métier et les cas d'erreur.
 2. **La recette manuelle** (check-list ci-dessous) couvre ce qu'un script ne peut pas juger : l'interface, le hors connexion, l'impression, les SMS réellement reçus, le téléphone.
 
 > Développement uniquement : la recette s'exécute sur la base locale. Le peuplement **efface** cette base.
@@ -51,9 +51,12 @@ Code de sortie : 0 si tout est réussi, 1 s'il y a des échecs, 2 si la recette 
 | 06 | SCO, GUI, PAI, MMO | Frais, échéanciers, bourses et organismes, guichet et reçus, moyens de paiement choisis par l'établissement, virements déclarés puis validés, Mobile Money (simulateur), rapprochement |
 | 07 | ATE, BES | Ateliers, catalogue, responsables, équipements et pannes, stock, inventaires, campagnes de besoins, commandes et livraisons |
 | 08 | PLA, DON, ADO, ESP | Établissements gérés par le super administrateur (création, modules, dépannage, suspension), identité et logo, exports complets (réversibilité), statistiques, adoption (avec rattachement territorial, v0.39), choix d'espace d'un administrateur qui est aussi parent (v0.41) |
-| 09 | FIN | Une année complète dans un collège de recette : préparation, notes des trois trimestres, verrouillage, bulletins, décisions du conseil, validation, clôture, année suivante, réinscriptions, archivage, résiliation |
+| 09 | FIN | Une année complète dans un collège de recette : préparation, notes des trois trimestres, verrouillage, bulletins, décisions du conseil, validation, clôture, année suivante, plan de passage et réinscriptions (v0.45), archivage, résiliation |
+| 10 | MSG, EXA | Messagerie (v0.46) : décompte avant l'envoi, message aux enseignants et aux parents, lu / non lu, annuaire ; taux de réussite aux examens, saisie d'une année antérieure, export |
+| 11 | CAH, INT | Organisation des rôles (v0.47) : visa mensuel des cahiers de textes (droits et refus, sans figer les données de démonstration), intérim du chef d'établissement (prévu puis annulé). Les lots 01, 03 et 05 vérifient aussi l'intendant qui inscrit, le chef d'établissement seul à modifier, le censeur qui répartit et le CPE seul à saisir la vie scolaire |
 
 **Ce que la recette laisse dans la base** (elle reste rejouable) :
+- des messages « [Recette] … » (sans SMS) dans les boîtes des enseignants et des parents du lycée Horizon ;
 - des élèves `RECETTE …` sortis de l'établissement ;
 - un enseignant de test dont l'engagement est terminé ;
 - des matières `REC-…` désactivées ;
@@ -88,6 +91,13 @@ Cochez chaque point sur l'interface (`cd frontend && npm start`, puis http://loc
 - [ ] **v0.40** : un enseignant technique rattaché à un atelier voit la tuile Ateliers, un enseignant général ne la voit pas.
 - [ ] La fiche de remise des accès parents d'une classe (PDF) est lisible et se découpe ligne par ligne ; les mots de passe n'apparaissent qu'une fois.
 - [ ] Import Excel des élèves : remplir le modèle téléchargé avec 5 élèves, dont 2 en erreur ; le contrôle signale les lignes fautives, l'import n'enregistre que les lignes valides.
+- [ ] **v0.47** : l'intendant saisit un nouvel élève (mode « Affectation de l'État »), ouvre « Pièces du dossier », coche les pièces reçues ; il ne peut plus décocher une pièce enregistrée ni changer le mode ; le chef d'établissement le peut. « Dossiers d'inscription incomplets » liste les pièces manquantes ; « Pièces demandées à l'inscription » se règle (chef d'établissement).
+- [ ] **v0.47** : le censeur ouvre une classe, « Répartir » ne propose que les classes du même niveau ; il déplace un élève. Le secrétariat ne voit plus « Nouvel élève » mais imprime les cartes scolaires.
+- [ ] **v0.47** : le CPE (rôle affiché « Conseiller principal d'éducation ») saisit un retard, un blâme, une convocation ; le censeur et le chef des travaux ouvrent la même fiche sans bouton de saisie.
+- [ ] **v0.47** : le censeur vise le cahier de textes d'une matière pour le mois écoulé ; l'enseignant ne peut plus modifier une séance de ce mois (message « visé par la direction ») ; le tableau « Visa mensuel » montre ce qui reste à viser.
+- [ ] **v0.47** : le chef d'établissement désigne le censeur pour un intérim commençant aujourd'hui ; le censeur se reconnecte et voit les onglets du chef d'établissement (Personnel, Comptes…) ; il ne peut pas désigner d'intérim ; « Mettre fin » : à la reconnexion suivante, il retrouve ses seuls droits de censeur.
+- [ ] **v0.46** : le chef d'établissement écrit aux enseignants, puis aux parents d'une classe avec l'envoi par SMS coché ; le décompte annonce les parents sans compte ; l'enseignant voit la pastille ✉ et lit le message ; un parent sans compte reçoit le SMS (passerelle réelle) ; le chef suit les lectures dans « Envoyés ».
+- [ ] **v0.46** : l'onglet Examens montre le taux du BEPC (ou BAC, CAP) de l'année, filles et garçons, le détail par classe ; on saisit les deux années précédentes et l'évolution s'affiche.
 - [ ] **v0.45** : en fin d'année, le censeur calcule les propositions de toutes les classes, tient le conseil d'une classe (une décision changée exige un motif), valide (SMS) ; l'administrateur crée l'année suivante ; l'onglet Fin d'année montre les listes de l'an prochain, équilibrées entre classes parallèles ; on déplace un élève, on télécharge les listes (Excel, PDF), on réinscrit en une fois ; on clôture puis on ouvre la nouvelle année.
 - [ ] **v0.44.1** : dans « Nouvel élève », « Engager un enseignant » et « Ajouter une personne », le cadre « + Photo » ouvre la caméra du téléphone ; la photo apparaît dans la colonne Photo des listes (élèves, classe, personnel). Un clic sur « + Photo » dans une liste ouvre le dossier pour l'ajouter.
 - [ ] **v0.44** : la secrétaire photographie un nouvel élève avec un téléphone (caméra frontale) depuis son dossier ; la miniature apparaît dans la liste de la classe ; les cartes scolaires de la classe s'impriment (8 par page, format carte bancaire, découpe nette).

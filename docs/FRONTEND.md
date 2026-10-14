@@ -1,4 +1,4 @@
-# Application web (v0.41)
+# Application web (v0.47)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -267,6 +267,24 @@ l'adresse demandée et la session reprend grâce au cookie ; les autres erreurs 
 la console. En développement, si le problème persiste : arrêter `npm start`, supprimer `frontend/.angular`,
 relancer, puis recharger la page avec Ctrl+Maj+R.
 
+## Messages et examens nationaux (v0.46)
+
+- **Messages** (`/messages`, menu « Messages » et tuile de l'accueil, pour tout compte d'un établissement, en ligne) :
+  boîte de réception (non lus en gras, point bleu), lecture d'un message. Pastille **✉ n** dans la barre du haut quand
+  des messages sont non lus (relue à la connexion et toutes les 5 minutes).
+- Le **chef d'établissement** a deux onglets de plus :
+  - **Écrire** : objet, message (compteur), destinataires par groupes (tout le personnel, enseignants,
+    administration, tous les parents), par rôles, parents de certaines classes, ou personnes cherchées dans
+    l'annuaire (nom, rôle, enfant et classe) ; option SMS avec l'estimation du nombre de SMS ; décompte recalculé à
+    chaque changement (parents sans compte non joints sans SMS, en rouge) ; envoi confirmé ;
+  - **Envoyés** : date, objet, cibles, lus / comptes, détail des destinataires (lu le…, SMS).
+- **Examens** (`/admin/examens`, onglet de l'administration, chef d'établissement et censeur) : une carte par examen
+  (taux de la dernière année, admis sur candidats, résultats en attente, évolution en points, filles et garçons,
+  barres des huit dernières années), tableau de toutes les années (source plateforme ou saisie, détail par classe),
+  export Excel ou PDF, saisie et correction des années antérieures (chef d'établissement).
+- Budget du paquet initial relevé à 550 ko (avertissement) : la pastille des messages est chargée au démarrage.
+- Tests : `messagerie/messagerie.spec.ts`, `fin-annee/examens.spec.ts`.
+
 ## Fin d'année (v0.45)
 
 Onglet **Fin d'année** (`/admin/fin-annee`, tuile de l'accueil et menu) pour le chef d'établissement, le censeur et
@@ -457,6 +475,22 @@ connexion.
 - **Établissements → Données** (super administrateur) : même composant (`app-exports-donnees` avec
   `etablissementId`), pour un établissement actif, suspendu ou résilié.
 - Détails du contenu de l'archive : [API_REVERSIBILITE.md](API_REVERSIBILITE.md).
+
+## Organisation des rôles (v0.47)
+
+Ce que voit chaque rôle suit l'organisation des établissements (le serveur vérifie de toute façon chaque appel) :
+
+| Écran | Changement |
+|---|---|
+| Élèves | « Nouvel élève », import Excel, photo, « Pièces du dossier » : chef d'établissement et **intendant** (onglet Élèves ouvert à l'intendance) ; parents ajoutés ou retirés : chef d'établissement ; cartes scolaires et comptes parents : + secrétariat. Mode d'admission dans le formulaire ; « Dossiers d'inscription incomplets » ; « Pièces demandées à l'inscription » (chef d'établissement) |
+| Classe | « Répartir » (censeur : classes du même niveau ; chef d'établissement : toutes) ; « Inscrire des élèves » réservé à la saisie |
+| Fin d'année | « Réinscrire » (plan de passage) : chef d'établissement et censeur |
+| Vie scolaire | Saisie (incidents, convocations, clôtures, justificatifs) : le CPE (rôle SURVEILLANT) seul ; le chef des travaux consulte (route ouverte) |
+| Progressions | « Visa mensuel des cahiers de textes » (`/progression/cahiers`) et visa dans le cahier d'une matière |
+| Personnel | « Intérim du chef d'établissement » : désigner le censeur ou le chef des travaux, mettre fin |
+
+Le rôle `SURVEILLANT` s'affiche « Conseiller principal d'éducation (CPE) ». Tests : `admin/roles-etablissement.spec.ts`,
+visa dans `progression/progression.spec.ts`.
 
 ## Sécurité des appareils (v0.32)
 

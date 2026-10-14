@@ -211,11 +211,11 @@ scenario('STR-05', D_STR, 'Pendant l’année, une classe ne se supprime pas, ne
 
 // ===================================================================== élèves et inscriptions
 
-scenario('ELV-01', D_ELV, 'La secrétaire crée le dossier d’une élève avec sa mère : matricule généré, contact prioritaire, espace parent fermé', async (ctx) => {
+scenario('ELV-01', D_ELV, 'L’intendant crée le dossier d’une élève avec sa mère (v0.47) : matricule généré, contact prioritaire, espace parent fermé', async (ctx) => {
   const e = horizon(ctx);
   const suf = lettres(suffixe());
   const telephone = telephoneUnique('7');
-  const d = await exiger(role(e, 'SECRETARIAT'), 'POST', '/eleves', dossierEleve(`Awa ${suf}`, telephone));
+  const d = await exiger(role(e, 'INTENDANT'), 'POST', '/eleves', dossierEleve(`Awa ${suf}`, telephone));
   vrai(/^\d{4}-\d{5}$/.test(d.eleve.matricule), `Matricule généré inattendu : ${d.eleve.matricule}`);
   egal(d.eleve.nom, 'RECETTE', 'Nom en majuscules');
   egal(d.responsables.length, 1, 'Un responsable');
@@ -230,7 +230,7 @@ scenario('ELV-01', D_ELV, 'La secrétaire crée le dossier d’une élève avec 
 scenario('ELV-02', D_ELV, 'Un dossier mal saisi est refusé : sexe ou date manquants, naissance future, matricule mal formé ou déjà attribué', async (ctx) => {
   const e = horizon(ctx);
   const A = eleveA(ctx);
-  const sec = role(e, 'SECRETARIAT');
+  const sec = role(e, 'INTENDANT');
   const base = { nom: 'RECETTE', prenoms: 'Invalide', sexe: 'M', dateNaissance: '2011-01-01' };
   statut(await appel(sec, 'POST', '/eleves', { ...base, sexe: undefined }), 400);
   statut(await appel(sec, 'POST', '/eleves', { ...base, dateNaissance: undefined }), 400);
@@ -242,28 +242,30 @@ scenario('ELV-02', D_ELV, 'Un dossier mal saisi est refusé : sexe ou date manqu
   statut(await appel(sec, 'POST', '/eleves', { ...base, responsables: [{ nom: 'X', prenoms: 'Y', telephone: telephoneUnique('7') }] }), 400);
 });
 
-scenario('ELV-03', D_ELV, 'L’identifiant national est unique : un second élève avec le même numéro est refusé', async (ctx) => {
+scenario('ELV-03', D_ELV, 'L’identifiant national est unique ; le dossier enregistré ne se modifie que par le chef d’établissement (v0.47)', async (ctx) => {
   const e = horizon(ctx);
   const A = eleveA(ctx);
-  const sec = role(e, 'SECRETARIAT');
+  const sec = role(e, 'INTENDANT');
+  const chef = role(e, 'ADMIN_ECOLE');
   const identifiant = `REC${suffixe().toUpperCase()}`;
   const actuel = await exiger(sec, 'GET', `/eleves/${A.eleveId}`);
   const identite = { ...actuel.eleve, identifiantNational: identifiant };
   delete identite.id;
-  await exiger(sec, 'PUT', `/eleves/${A.eleveId}`, identite);
+  statut(await appel(sec, 'PUT', `/eleves/${A.eleveId}`, identite), 403);
+  await exiger(chef, 'PUT', `/eleves/${A.eleveId}`, identite);
   statut(await appel(sec, 'POST', '/eleves', { nom: 'RECETTE', prenoms: 'Doublon', sexe: 'M', dateNaissance: '2011-01-01', identifiantNational: identifiant }),
     409, 'IDENTIFIANT_EXISTANT');
   return identifiant;
 });
 
-scenario('ELV-04', D_ELV, 'Dossiers : le personnel administratif les consulte, seuls l’administration et le secrétariat les créent', async (ctx) => {
+scenario('ELV-04', D_ELV, 'Dossiers : le personnel administratif les consulte, seuls le chef d’établissement et l’intendance les créent (v0.47)', async (ctx) => {
   const e = horizon(ctx);
   const A = eleveA(ctx);
   for (const r of ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'INTENDANT', 'SURVEILLANT']) {
     await exiger(role(e, r), 'GET', `/eleves/${A.eleveId}`);
   }
   const corps = { nom: 'RECETTE', prenoms: 'Refus', sexe: 'M', dateNaissance: '2011-01-01' };
-  for (const r of ['CENSEUR', 'INTENDANT', 'SURVEILLANT']) {
+  for (const r of ['CENSEUR', 'SECRETARIAT', 'SURVEILLANT']) {
     statut(await appel(role(e, r), 'POST', '/eleves', corps), 403);
   }
   const prof = e.enseignant(e.enseignants.find((p) => !p.partage)?.matiere);
@@ -289,13 +291,17 @@ scenario('ELV-05', D_ELV, 'La recherche retrouve l’élève par matricule ou pa
   return `${page.total} élèves au lycée Horizon`;
 });
 
-scenario('ELV-06', D_ELV, 'Fratrie : le même téléphone retrouve la même mère ; un rattachement en double est refusé ; le nouveau contact prioritaire remplace l’ancien', async (ctx) => {
+scenario('ELV-06', D_ELV, 'Fratrie : le même téléphone retrouve la même mère ; ajouter un parent à un dossier enregistré revient au chef d’établissement ; le nouveau contact prioritaire remplace l’ancien', async (ctx) => {
   const e = horizon(ctx);
   const A = eleveA(ctx);
-  const sec = role(e, 'SECRETARIAT');
-  const B = await exiger(sec, 'POST', '/eleves', dossierEleve(`Issa ${A.suf}`, A.telephone, { sexe: 'M' }));
+  const int = role(e, 'INTENDANT');
+  const sec = role(e, 'ADMIN_ECOLE');
+  const B = await exiger(int, 'POST', '/eleves', dossierEleve(`Issa ${A.suf}`, A.telephone, { sexe: 'M' }));
   egal(B.responsables[0].responsableId, A.responsableId, 'Même responsable pour la fratrie');
   partage(ctx).B = { eleveId: B.eleve.id, matricule: B.eleve.matricule };
+  statut(await appel(int, 'POST', `/eleves/${A.eleveId}/responsables`, {
+    nom: 'RECETTE', prenoms: 'Refus', telephone: telephoneUnique('7'), lien: 'TUTEUR',
+  }), 403);
   statut(await appel(sec, 'POST', `/eleves/${A.eleveId}/responsables`, {
     nom: 'RECETTE', prenoms: 'Doublon', telephone: A.telephone, lien: 'MERE',
   }), 409, 'RESPONSABLE_DEJA_LIE');
@@ -310,14 +316,14 @@ scenario('ELV-06', D_ELV, 'Fratrie : le même téléphone retrouve la même mèr
   A.pere = { responsableId: prioritaires[0].responsableId, telephone: telPere };
 });
 
-scenario('ELV-07', D_ELV, 'L’élève est inscrite dans une classe : inscription active, visible dans la liste de la classe ; une seconde inscription est refusée', async (ctx) => {
+scenario('ELV-07', D_ELV, 'L’intendant inscrit l’élève (affectée par l’État) : inscription active, visible dans la liste de la classe ; une seconde inscription est refusée', async (ctx) => {
   const e = horizon(ctx);
   const A = eleveA(ctx);
-  const sec = role(e, 'SECRETARIAT');
+  const sec = role(e, 'INTENDANT');
   let ins = null;
   let derniere = null;
   for (const c of e.classes) {
-    const r = await appel(sec, 'POST', '/inscriptions', { eleveId: A.eleveId, classeId: c.id, statutBourse: 'NON_BOURSIER' });
+    const r = await appel(sec, 'POST', '/inscriptions', { eleveId: A.eleveId, classeId: c.id, statutBourse: 'NON_BOURSIER', modeAdmission: 'AFFECTATION_ETAT' });
     if (r.ok) {
       ins = r.donnees;
       break;
@@ -329,6 +335,7 @@ scenario('ELV-07', D_ELV, 'L’élève est inscrite dans une classe : inscriptio
   egal(ins.statut, 'ACTIVE', 'Statut');
   egal(ins.anneeId, e.anneeId, 'Année de l’inscription');
   egal(ins.redoublant, false, 'Non redoublante par défaut');
+  egal(ins.modeAdmission, 'AFFECTATION_ETAT', 'Mode d’admission');
   A.inscriptionId = ins.id;
   A.classeId = ins.classeId;
   const liste = await exiger(role(e, 'CENSEUR'), 'GET', `/classes/${ins.classeId}/inscriptions`);
@@ -337,7 +344,7 @@ scenario('ELV-07', D_ELV, 'L’élève est inscrite dans une classe : inscriptio
   statut(await appel(sec, 'POST', '/inscriptions', { eleveId: A.eleveId, classeId: autreClasse.id }), 409, 'DEJA_INSCRIT');
   // Une classe d'un autre établissement n'existe pas ici
   refuse(await appel(sec, 'POST', '/inscriptions', { eleveId: A.eleveId, classeId: ctx.ecole(1).classes[0].id }), 'Classe d’un autre établissement');
-  statut(await appel(role(e, 'INTENDANT'), 'POST', '/inscriptions', { eleveId: A.eleveId, classeId: autreClasse.id }), 403);
+  statut(await appel(role(e, 'SECRETARIAT'), 'POST', '/inscriptions', { eleveId: A.eleveId, classeId: autreClasse.id }), 403);
   // Le frère est inscrit aussi (il sert à la sortie en fin de lot)
   const B = partage(ctx).B;
   if (B) {
@@ -347,11 +354,20 @@ scenario('ELV-07', D_ELV, 'L’élève est inscrite dans une classe : inscriptio
   return `${ins.classeCode}`;
 });
 
-scenario('ELV-08', D_ELV, 'L’élève change de classe dans la même année et la liste de chaque classe suit', async (ctx) => {
+scenario('ELV-08', D_ELV, 'Le censeur répartit (v0.47) : l’élève change de classe du même niveau et la liste de chaque classe suit ; un changement de niveau revient au chef d’établissement', async (ctx) => {
   const e = horizon(ctx);
   const A = inscriptionA(ctx);
-  const sec = role(e, 'SECRETARIAT');
-  const cible = e.classes.find((c) => c.id !== A.classeId);
+  const actuelle = e.classes.find((c) => c.id === A.classeId);
+  const memeNiveau = e.classes.find((c) => c.id !== A.classeId && c.niveau === actuelle?.niveau);
+  const autreNiveau = e.classes.find((c) => c.niveau !== actuelle?.niveau);
+  const cens = role(e, 'CENSEUR');
+  if (autreNiveau) {
+    statut(await appel(cens, 'PATCH', `/inscriptions/${A.inscriptionId}/classe`, { classeId: autreNiveau.id }), 409, 'CHANGEMENT_DE_NIVEAU');
+  }
+  statut(await appel(role(e, 'SECRETARIAT'), 'PATCH', `/inscriptions/${A.inscriptionId}/classe`, { classeId: (memeNiveau ?? autreNiveau ?? actuelle).id }), 403);
+  // Sans seconde classe du même niveau, le chef d'établissement fait le déplacement
+  const sec = memeNiveau ? cens : role(e, 'ADMIN_ECOLE');
+  const cible = memeNiveau ?? autreNiveau;
   if (!cible) ignorer('Une seule classe au lycée Horizon');
   const r = await appel(sec, 'PATCH', `/inscriptions/${A.inscriptionId}/classe`, { classeId: cible.id });
   if (r.code === 'CLASSE_COMPLETE') ignorer(`La classe ${cible.code} est complète`);
@@ -366,15 +382,18 @@ scenario('ELV-08', D_ELV, 'L’élève change de classe dans la même année et 
   return `${cible.code} puis retour`;
 });
 
-scenario('ELV-09', D_ELV, 'Le statut de bourse se change à l’intendance ; le surveillant ne le peut pas et une valeur inconnue est refusée', async (ctx) => {
+scenario('ELV-09', D_ELV, 'Après l’inscription, le statut de bourse ne se change que par le chef d’établissement (v0.47) ; une valeur inconnue est refusée', async (ctx) => {
   const e = horizon(ctx);
   const A = inscriptionA(ctx);
   const chemin = `/inscriptions/${A.inscriptionId}/bourse`;
-  statut(await appel(role(e, 'SURVEILLANT'), 'PATCH', chemin, { statutBourse: 'BOURSIER' }), 403);
-  statut(await appel(role(e, 'INTENDANT'), 'PATCH', chemin, { statutBourse: 'MIRACLE' }), 400);
-  const r = await exiger(role(e, 'INTENDANT'), 'PATCH', chemin, { statutBourse: 'SEMI_BOURSIER' });
+  for (const r of ['SURVEILLANT', 'INTENDANT', 'SECRETARIAT']) {
+    statut(await appel(role(e, r), 'PATCH', chemin, { statutBourse: 'BOURSIER' }), 403);
+  }
+  const chef = role(e, 'ADMIN_ECOLE');
+  statut(await appel(chef, 'PATCH', chemin, { statutBourse: 'MIRACLE' }), 400);
+  const r = await exiger(chef, 'PATCH', chemin, { statutBourse: 'SEMI_BOURSIER' });
   egal(r.statutBourse, 'SEMI_BOURSIER', 'Statut de bourse');
-  await exiger(role(e, 'SECRETARIAT'), 'PATCH', chemin, { statutBourse: 'NON_BOURSIER' });
+  await exiger(chef, 'PATCH', chemin, { statutBourse: 'NON_BOURSIER' });
 });
 
 scenario('ELV-10', D_ELV, 'L’espace parent s’ouvre : mot de passe provisoire une seule fois, la mère voit ses deux enfants, son téléphone ne se modifie plus', async (ctx) => {
@@ -394,16 +413,18 @@ scenario('ELV-10', D_ELV, 'L’espace parent s’ouvre : mot de passe provisoire
   if (B?.inscriptionId) vrai(enfants.some((x) => x.eleveId === B.eleveId), 'Le frère figure aussi');
   vrai(enfants.every((x) => [A.eleveId, B?.eleveId].includes(x.eleveId)), 'Aucun autre enfant');
   A.mere = mere;
-  // Le téléphone sert désormais à la connexion
-  statut(await appel(sec, 'PUT', `/responsables/${A.responsableId}`, {
+  // Le téléphone sert désormais à la connexion ; un responsable enregistré se modifie par le chef d'établissement
+  const chef = role(e, 'ADMIN_ECOLE');
+  statut(await appel(sec, 'PUT', `/responsables/${A.responsableId}`, { nom: 'RECETTE', prenoms: 'Refus', telephone: A.telephone }), 403);
+  statut(await appel(chef, 'PUT', `/responsables/${A.responsableId}`, {
     nom: 'RECETTE', prenoms: `Mère ${A.prenoms}`, telephone: telephoneUnique('7'),
   }), 409, 'ESPACE_PARENT_OUVERT');
   // Le père ne peut pas prendre un numéro déjà utilisé par un autre responsable
   if (A.pere) {
-    statut(await appel(sec, 'PUT', `/responsables/${A.pere.responsableId}`, {
+    statut(await appel(chef, 'PUT', `/responsables/${A.pere.responsableId}`, {
       nom: 'RECETTE', prenoms: 'Père', telephone: A.telephone,
     }), 409, 'TELEPHONE_EXISTANT');
-    statut(await appel(sec, 'PUT', `/responsables/${A.pere.responsableId}`, {
+    statut(await appel(chef, 'PUT', `/responsables/${A.pere.responsableId}`, {
       nom: 'RECETTE', prenoms: 'Père modifié', telephone: A.pere.telephone, profession: 'Mécanicien',
     }), 204);
   }
@@ -413,7 +434,8 @@ scenario('ELV-11', D_ELV, 'Un responsable se retire du dossier ; retirer quelqu�
   const e = horizon(ctx);
   const A = eleveA(ctx);
   if (!A.pere) ignorer('Père non rattaché (ELV-06)');
-  const sec = role(e, 'SECRETARIAT');
+  statut(await appel(role(e, 'INTENDANT'), 'DELETE', `/eleves/${A.eleveId}/responsables/${A.pere.responsableId}`), 403);
+  const sec = role(e, 'ADMIN_ECOLE');
   const d = await exiger(sec, 'DELETE', `/eleves/${A.eleveId}/responsables/${A.pere.responsableId}`);
   vrai(!d.responsables.some((r) => r.responsableId === A.pere.responsableId), 'Le père n’est plus rattaché');
   statut(await appel(sec, 'DELETE', `/eleves/${A.eleveId}/responsables/${A.pere.responsableId}`), 404);
@@ -425,13 +447,13 @@ scenario('ELV-12', D_ELV, 'La fiche des accès parents d’une classe refuse un 
   // Le format est lu avant toute ouverture de compte : aucun effet sur les familles de démonstration
   statut(await appel(role(e, 'SECRETARIAT'), 'POST', `/classes/${c.id}/espaces-parents`, undefined, { params: { format: 'docx' } }), 400);
   statut(await appel(role(e, 'SURVEILLANT'), 'POST', `/classes/${c.id}/espaces-parents`), 403);
-  statut(await appel(role(e, 'INTENDANT'), 'POST', `/classes/${c.id}/espaces-parents`), 403);
+  statut(await appel(role(e, 'CENSEUR'), 'POST', `/classes/${c.id}/espaces-parents`), 403);
   return 'génération réelle de la fiche : recette manuelle (elle ouvre les comptes des familles)';
 });
 
-scenario('ELV-13', D_ELV, 'Import des élèves : le modèle Excel se télécharge, se contrôle sans rien importer ; fichier vide ou illisible refusés', async (ctx) => {
+scenario('ELV-13', D_ELV, 'Import des élèves (intendance) : le modèle Excel se télécharge, se contrôle sans rien importer ; fichier vide ou illisible refusés', async (ctx) => {
   const e = horizon(ctx);
-  const sec = role(e, 'SECRETARIAT');
+  const sec = role(e, 'INTENDANT');
   const modele = await exiger(sec, 'GET', `/annees/${e.anneeId}/eleves/import/modele`, undefined, { fichier: true });
   vrai(modele.octets?.length > 0 && modele.octets.subarray(0, 2).toString() === 'PK', 'Le modèle doit être un classeur Excel (.xlsx)');
   const envoyer = (contenu, nom, type, simulation = true) => {
@@ -463,10 +485,32 @@ scenario('ELV-14', D_ELV, 'Un enseignant consulte la liste de ses classes, pas c
   return `${t.classe.code} oui, ${t.autre.code} non`;
 });
 
-scenario('ELV-16', D_ELV, 'Photo d’identité (v0.44) : déposée par le secrétariat, vue par les enseignants de la classe seulement, imprimée sur la carte scolaire, puis retirée', async (ctx) => {
+scenario('ELV-17', D_ELV, 'Dossier d’inscription (v0.47) : pièces attendues selon le mode d’admission, cochées par l’intendant ; le mode enregistré ne se change que par le chef d’établissement', async (ctx) => {
   const e = horizon(ctx);
   const A = inscriptionA(ctx);
-  const sec = role(e, 'SECRETARIAT');
+  const int = role(e, 'INTENDANT');
+  const pieces = await exiger(int, 'GET', '/pieces-dossier');
+  vrai(pieces.length > 0, 'Liste des pièces de l’établissement');
+  const dossier = await exiger(int, 'GET', `/inscriptions/${A.inscriptionId}/dossier`);
+  egal(dossier.modeAdmission, 'AFFECTATION_ETAT', 'Mode d’admission enregistré à l’inscription (ELV-07)');
+  const attendues = dossier.pieces.filter((p) => p.obligatoire).map((p) => p.pieceId);
+  vrai(attendues.length > 0, 'Des pièces obligatoires pour une affectation de l’État');
+  statut(await appel(role(e, 'SECRETARIAT'), 'PUT', `/inscriptions/${A.inscriptionId}/dossier`, { modeAdmission: null, piecesRecues: attendues }), 403);
+  const complet = await exiger(int, 'PUT', `/inscriptions/${A.inscriptionId}/dossier`, { modeAdmission: null, piecesRecues: attendues });
+  egal([complet.complet, complet.manquantes], [true, 0], 'Dossier complet');
+  statut(await appel(int, 'PUT', `/inscriptions/${A.inscriptionId}/dossier`, { modeAdmission: 'TRANSFERT', piecesRecues: attendues }), 403);
+  statut(await appel(int, 'PUT', `/inscriptions/${A.inscriptionId}/dossier`, { modeAdmission: null, piecesRecues: attendues.slice(1) }), 403);
+  statut(await appel(int, 'PUT', '/pieces-dossier', []), 403);
+  const incomplets = await exiger(int, 'GET', `/annees/${e.anneeId}/dossiers-inscription`, undefined, { params: { incomplets: true } });
+  vrai(!incomplets.some((l) => l.inscriptionId === A.inscriptionId), 'L’élève n’est plus parmi les dossiers incomplets');
+  return `${attendues.length} pièce(s) reçue(s) ; ${incomplets.length} dossier(s) incomplet(s) dans l’année`;
+});
+
+scenario('ELV-16', D_ELV, 'Photo d’identité : déposée par l’intendance avec le dossier (v0.47), vue par les enseignants de la classe seulement, imprimée sur la carte scolaire (secrétariat), puis retirée par le chef d’établissement', async (ctx) => {
+  const e = horizon(ctx);
+  const A = inscriptionA(ctx);
+  const sec = role(e, 'INTENDANT');
+  const secretariat = role(e, 'SECRETARIAT');
   const chemin = `/eleves/${A.eleveId}/photo`;
   const deposer = (qui, fichier) => {
     const f = new FormData();
@@ -476,6 +520,7 @@ scenario('ELV-16', D_ELV, 'Photo d’identité (v0.44) : déposée par le secré
   statut(await appel(sec, 'GET', chemin), 404);
   statut(await deposer(sec, new Blob([Buffer.from('pas une image')], { type: 'image/png' })), 400);
   statut(await deposer(role(e, 'SURVEILLANT'), fichierPng()), 403);
+  statut(await deposer(secretariat, fichierPng()), 403);
   statut(await deposer(sec, fichierPng()), 204);
   const photo = await exiger(role(e, 'SURVEILLANT'), 'GET', chemin, undefined, { fichier: true });
   egal(photo.type, 'image/jpeg', 'Photo ré-encodée en JPEG');
@@ -496,21 +541,23 @@ scenario('ELV-16', D_ELV, 'Photo d’identité (v0.44) : déposée par le secré
   if (parent) statut(await appel(parent, 'GET', chemin), 403);
   refuse(await appel(ctx.ecole(1).session('ADMIN_ECOLE'), 'GET', chemin), 'Photo lue par un autre établissement');
   // Carte scolaire (élève et classe)
-  const carte = await exiger(sec, 'GET', `/eleves/${A.eleveId}/carte`, undefined, { fichier: true });
+  const carte = await exiger(secretariat, 'GET', `/eleves/${A.eleveId}/carte`, undefined, { fichier: true });
   vrai(carte.octets.subarray(0, 4).toString() === '%PDF', 'Carte scolaire en PDF');
-  const cartes = await exiger(sec, 'GET', `/classes/${A.classeId}/cartes`, undefined, { fichier: true });
+  const cartes = await exiger(secretariat, 'GET', `/classes/${A.classeId}/cartes`, undefined, { fichier: true });
   vrai(cartes.octets.subarray(0, 4).toString() === '%PDF', 'Cartes de la classe en PDF');
   statut(await appel(role(e, 'CENSEUR'), 'GET', `/classes/${A.classeId}/cartes`), 403);
-  statut(await appel(sec, 'DELETE', chemin), 204);
+  statut(await appel(sec, 'DELETE', chemin), 403);
+  statut(await appel(role(e, 'ADMIN_ECOLE'), 'DELETE', chemin), 204);
   statut(await appel(sec, 'GET', chemin), 404);
   return `${classe?.code ?? ''} : photo ${photo.octets.length} octets`;
 });
 
-scenario('ELV-15', D_ELV, 'Sortie de l’élève (abandon) : inscription figée, absente de la liste sauf à demander les sorties ; saisies invalides refusées', async (ctx) => {
+scenario('ELV-15', D_ELV, 'Sortie de l’élève (abandon), par le chef d’établissement : inscription figée, absente de la liste sauf à demander les sorties ; saisies invalides refusées', async (ctx) => {
   const e = horizon(ctx);
   const A = inscriptionA(ctx);
-  const sec = role(e, 'SECRETARIAT');
+  const sec = role(e, 'ADMIN_ECOLE');
   const chemin = `/inscriptions/${A.inscriptionId}/sortie`;
+  statut(await appel(role(e, 'INTENDANT'), 'POST', chemin, { statut: 'ABANDON', date: ctx.aujourdhui }), 403);
   statut(await appel(sec, 'POST', chemin, { statut: 'ACTIVE', date: ctx.aujourdhui }), 400);
   statut(await appel(sec, 'POST', chemin, { statut: 'ABANDON', date: '2000-01-01' }), 400);
   statut(await appel(sec, 'POST', chemin, { statut: 'ABANDON' }), 400);

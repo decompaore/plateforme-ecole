@@ -6,7 +6,9 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -72,6 +74,7 @@ class ElevesIntegrationTest {
     @Autowired private InscriptionsService inscriptions;
     @Autowired private ImportElevesService imports;
     @Autowired private EspaceParentService espaceParent;
+    @Autowired private DossiersInscriptionService dossiers;
     @Autowired private WebApplicationContext contexte;
 
     private MockMvc mvc;
@@ -240,7 +243,7 @@ class ElevesIntegrationTest {
                         .file(new MockMultipartFile("fichier", "eleves.xlsx", ImportElevesController.XLSX.toString(),
                                 fichier))
                         .param("simulation", "true")
-                        .with(jeton(ecole, UUID.randomUUID(), "SECRETARIAT")))
+                        .with(jeton(ecole, UUID.randomUUID(), "INTENDANT")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.simulation").value(true))
                 .andExpect(jsonPath("$.valides").value(0));
@@ -279,7 +282,7 @@ class ElevesIntegrationTest {
                         .with(jeton(ecole, UUID.randomUUID(), "SURVEILLANT")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].nom").value("BAMBARA"));
-        mvc.perform(post("/api/v1/eleves").with(jeton(ecole, UUID.randomUUID(), "SECRETARIAT"))
+        mvc.perform(post("/api/v1/eleves").with(jeton(ecole, UUID.randomUUID(), "INTENDANT"))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"nom":"Compaore","prenoms":"Nina","sexe":"F","dateNaissance":"2013-05-20",
@@ -288,6 +291,129 @@ class ElevesIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.eleve.nom").value("COMPAORE"))
                 .andExpect(jsonPath("$.responsables[0].contactPrioritaire").value(true));
+    }
+
+    /**
+     * v0.47 : l'intendant inscrit ; une fois l'inscription enregistrée, seul le chef d'établissement modifie ; le
+     * censeur répartit entre classes d'un même niveau ; le secrétariat ne saisit plus.
+     */
+    @Test
+    void lesRolesSuiventLOrganisationDeLEtablissement() throws Exception {
+        ClasseVue a = dans(ecole, () -> classes.creer(annee.id(), filiere, "6e R1", "6e", null));
+        ClasseVue b = dans(ecole, () -> classes.creer(annee.id(), filiere, "6e R2", "6e", null));
+        ClasseVue cinquieme = dans(ecole, () -> classes.creer(annee.id(), filiere, "5e R1", "5e", null));
+        String corps = """
+                {"nom":"Tapsoba","prenoms":"Rose","sexe":"F","dateNaissance":"2013-02-11",
+                 "responsables":[{"nom":"Tapsoba","prenoms":"Jean","telephone":"%s","lien":"PERE"}]}
+                """.formatted(telephone());
+        for (String role : List.of("SECRETARIAT", "CENSEUR", "SURVEILLANT")) {
+            mvc.perform(post("/api/v1/eleves").with(jeton(ecole, UUID.randomUUID(), role))
+                    .contentType(MediaType.APPLICATION_JSON).content(corps)).andExpect(status().isForbidden());
+        }
+        String dossier = mvc.perform(post("/api/v1/eleves").with(jeton(ecole, UUID.randomUUID(), "INTENDANT"))
+                        .contentType(MediaType.APPLICATION_JSON).content(corps))
+                .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+        String eleveId = dossier.replaceAll("(?s).*?\"eleve\":\\{\"id\":\"([0-9a-f-]+)\".*", "$1");
+        String inscription = mvc.perform(post("/api/v1/inscriptions").with(jeton(ecole, UUID.randomUUID(), "INTENDANT"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"eleveId\":\"%s\",\"classeId\":\"%s\",\"modeAdmission\":\"AFFECTATION_ETAT\"}"
+                                .formatted(eleveId, a.id())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.modeAdmission").value("AFFECTATION_ETAT"))
+                .andReturn().getResponse().getContentAsString();
+        String inscriptionId = inscription.replaceAll("(?s)^\\{\"id\":\"([0-9a-f-]+)\".*", "$1");
+
+        // Modifier le dossier : le chef d'établissement seul
+        String modification = corps.replace("Rose", "Rosine");
+        mvc.perform(put("/api/v1/eleves/{id}", eleveId).with(jeton(ecole, UUID.randomUUID(), "INTENDANT"))
+                .contentType(MediaType.APPLICATION_JSON).content(modification)).andExpect(status().isForbidden());
+        mvc.perform(put("/api/v1/eleves/{id}", eleveId).with(jeton(ecole, UUID.randomUUID(), "ADMIN_ECOLE"))
+                        .contentType(MediaType.APPLICATION_JSON).content(modification))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.eleve.prenoms").value("Rosine"));
+        mvc.perform(patch("/api/v1/inscriptions/{id}/bourse", inscriptionId)
+                .with(jeton(ecole, UUID.randomUUID(), "INTENDANT")).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"statutBourse\":\"BOURSIER\"}")).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/inscriptions/{id}/sortie", inscriptionId)
+                .with(jeton(ecole, UUID.randomUUID(), "INTENDANT")).contentType(MediaType.APPLICATION_JSON)
+                .content("{\"statut\":\"ABANDON\",\"date\":\"%s\"}".formatted(LocalDate.now(ZoneOffset.UTC))))
+                .andExpect(status().isForbidden());
+
+        // Répartition : le censeur dans un même niveau ; le chef d'établissement change de niveau
+        String changement = "{\"classeId\":\"%s\"}";
+        mvc.perform(patch("/api/v1/inscriptions/{id}/classe", inscriptionId)
+                .with(jeton(ecole, UUID.randomUUID(), "INTENDANT")).contentType(MediaType.APPLICATION_JSON)
+                .content(changement.formatted(b.id()))).andExpect(status().isForbidden());
+        mvc.perform(patch("/api/v1/inscriptions/{id}/classe", inscriptionId)
+                        .with(jeton(ecole, UUID.randomUUID(), "CENSEUR")).contentType(MediaType.APPLICATION_JSON)
+                        .content(changement.formatted(b.id())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.classeCode").value("6e R2"));
+        mvc.perform(patch("/api/v1/inscriptions/{id}/classe", inscriptionId)
+                        .with(jeton(ecole, UUID.randomUUID(), "CENSEUR")).contentType(MediaType.APPLICATION_JSON)
+                        .content(changement.formatted(cinquieme.id())))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("CHANGEMENT_DE_NIVEAU"));
+        mvc.perform(patch("/api/v1/inscriptions/{id}/classe", inscriptionId)
+                        .with(jeton(ecole, UUID.randomUUID(), "ADMIN_ECOLE")).contentType(MediaType.APPLICATION_JSON)
+                        .content(changement.formatted(cinquieme.id())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.classeCode").value("5e R1"));
+
+        // Dossier d'inscription : pièces attendues selon le mode d'admission ; l'intendant complète,
+        // le chef d'établissement seul retire une pièce ou change le mode
+        List<DossiersInscriptionService.PieceVue> pieces = dans(ecole, () -> dossiers.pieces());
+        assertThat(pieces).hasSize(8);
+        UUID acte = piece(pieces, "acte de naissance");
+        UUID decision = piece(pieces, "affectation de l'État");
+        UUID photos = piece(pieces, "Photos");
+        mvc.perform(get("/api/v1/inscriptions/{id}/dossier", inscriptionId).with(jeton(ecole, UUID.randomUUID(), "SECRETARIAT")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.modeAdmission").value("AFFECTATION_ETAT"))
+                .andExpect(jsonPath("$.pieces.length()").value(3))
+                .andExpect(jsonPath("$.complet").value(false));
+        String dossierPieces = "{\"modeAdmission\":%s,\"piecesRecues\":[%s]}";
+        mvc.perform(put("/api/v1/inscriptions/{id}/dossier", inscriptionId).with(jeton(ecole, UUID.randomUUID(), "SECRETARIAT"))
+                .contentType(MediaType.APPLICATION_JSON).content(dossierPieces.formatted("null", "")))
+                .andExpect(status().isForbidden());
+        mvc.perform(put("/api/v1/inscriptions/{id}/dossier", inscriptionId).with(jeton(ecole, UUID.randomUUID(), "INTENDANT"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(dossierPieces.formatted("null", "\"" + acte + "\",\"" + decision + "\"")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.complet").value(false)).andExpect(jsonPath("$.manquantes").value(1));
+        mvc.perform(get("/api/v1/annees/{id}/dossiers-inscription", annee.id()).param("incomplets", "true")
+                        .with(jeton(ecole, UUID.randomUUID(), "INTENDANT")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.inscriptionId == '%s')].manquantes[0]".formatted(inscriptionId))
+                        .value("Photos d'identité"));
+        mvc.perform(put("/api/v1/inscriptions/{id}/dossier", inscriptionId).with(jeton(ecole, UUID.randomUUID(), "INTENDANT"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(dossierPieces.formatted("null", "\"" + acte + "\",\"" + decision + "\",\"" + photos + "\"")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.complet").value(true));
+        mvc.perform(put("/api/v1/inscriptions/{id}/dossier", inscriptionId).with(jeton(ecole, UUID.randomUUID(), "INTENDANT"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(dossierPieces.formatted("\"TRANSFERT\"", "\"" + acte + "\",\"" + decision + "\",\"" + photos + "\"")))
+                .andExpect(status().isForbidden());
+        mvc.perform(put("/api/v1/inscriptions/{id}/dossier", inscriptionId).with(jeton(ecole, UUID.randomUUID(), "INTENDANT"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(dossierPieces.formatted("null", "\"" + acte + "\"")))
+                .andExpect(status().isForbidden());
+        mvc.perform(put("/api/v1/inscriptions/{id}/dossier", inscriptionId).with(jeton(ecole, UUID.randomUUID(), "ADMIN_ECOLE"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(dossierPieces.formatted("\"TRANSFERT\"", "\"" + acte + "\",\"" + photos + "\"")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.modeAdmission").value("TRANSFERT"))
+                .andExpect(jsonPath("$.complet").value(false))
+                .andExpect(jsonPath("$.manquantes").value(4));
+        mvc.perform(put("/api/v1/pieces-dossier").with(jeton(ecole, UUID.randomUUID(), "INTENDANT"))
+                .contentType(MediaType.APPLICATION_JSON).content("[]")).andExpect(status().isForbidden());
+        // Le chef d'établissement règle la liste : une pièce retirée n'est plus demandée
+        List<DossiersInscriptionService.PieceVue> reglees = dans(ecole, () -> dossiers.definirPieces(pieces.stream()
+                .filter(p -> !p.libelle().startsWith("Certificat de non-redevance"))
+                .map(p -> new DossiersInscriptionService.DonneesPiece(p.id(), p.libelle(), p.modes(), p.obligatoire()))
+                .toList()));
+        assertThat(reglees).hasSize(7);
+        assertThat(dans(ecole, () -> dossiers.dossier(UUID.fromString(inscriptionId))).manquantes()).isEqualTo(3);
+    }
+
+    private static UUID piece(List<DossiersInscriptionService.PieceVue> pieces, String extrait) {
+        return pieces.stream().filter(p -> p.libelle().contains(extrait)).findFirst().orElseThrow().id();
     }
 
     @Test

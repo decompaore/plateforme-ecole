@@ -12,11 +12,11 @@ import bf.edutech.plateforme.socle.securite.UtilisateurConnecte;
 @Component
 class Autorisations {
 
-    /** Vie scolaire : fait l'appel de toute classe et modifie un appel à tout moment. */
-    static final String[] VIE_SCOLAIRE = { "ADMIN_ECOLE", "CENSEUR", "SURVEILLANT" };
+    /** Vie scolaire (v0.47 : le CPE, rôle SURVEILLANT) : fait l'appel de toute classe et le modifie à tout moment. */
+    static final String[] VIE_SCOLAIRE = { "SURVEILLANT" };
 
     /** Personnel qui consulte les absences de toutes les classes. */
-    static final String[] PERSONNEL = { "ADMIN_ECOLE", "CENSEUR", "SURVEILLANT", "SECRETARIAT", "INTENDANT" };
+    static final String[] PERSONNEL = { "ADMIN_ECOLE", "CENSEUR", "CHEF_TRAVAUX", "SURVEILLANT", "SECRETARIAT", "INTENDANT" };
 
     private final EnseignantsService enseignants;
 

@@ -34,7 +34,8 @@ public class InscriptionsController {
             @NotNull UUID eleveId,
             @NotNull UUID classeId,
             Boolean redoublant,
-            StatutBourse statutBourse) {
+            StatutBourse statutBourse,
+            ModeAdmission modeAdmission) {
 
         public DemandeInscription {
             redoublant = Boolean.TRUE.equals(redoublant); // facultatif : non redoublant
@@ -74,9 +75,9 @@ public class InscriptionsController {
 
     @PostMapping("/api/v1/inscriptions")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize(Roles.GESTION)
+    @PreAuthorize(Roles.SAISIE)
     public InscriptionVue inscrire(@Valid @RequestBody DemandeInscription d) {
-        return service.inscrire(d.eleveId(), d.classeId(), d.redoublant(), d.statutBourse());
+        return service.inscrire(d.eleveId(), d.classeId(), d.redoublant(), d.statutBourse(), d.modeAdmission());
     }
 
     @GetMapping("/api/v1/inscriptions/{id}")
@@ -86,20 +87,20 @@ public class InscriptionsController {
     }
 
     @PatchMapping("/api/v1/inscriptions/{id}/classe")
-    @PreAuthorize(Roles.GESTION)
+    @PreAuthorize(Roles.REPARTITION)
     public InscriptionVue changerClasse(@PathVariable UUID id, @Valid @RequestBody DemandeChangementClasse d) {
         return service.changerClasse(id, d.classeId());
     }
 
     @PatchMapping("/api/v1/inscriptions/{id}/bourse")
-    @PreAuthorize(Roles.BOURSE)
+    @PreAuthorize(Roles.MODIFICATION)
     public InscriptionVue changerStatutBourse(@PathVariable UUID id, @Valid @RequestBody DemandeBourse d) {
         return service.changerStatutBourse(id, d.statutBourse());
     }
 
     /** Sortie en cours d'année (transfert ou abandon). */
     @PostMapping("/api/v1/inscriptions/{id}/sortie")
-    @PreAuthorize(Roles.GESTION)
+    @PreAuthorize(Roles.MODIFICATION)
     public InscriptionVue sortir(@PathVariable UUID id, @Valid @RequestBody DemandeSortie d) {
         return service.sortir(id, d.statut(), d.date(), d.motif());
     }
@@ -118,7 +119,7 @@ public class InscriptionsController {
 
     /** Réinscrit dans cette classe des élèves inscrits une année précédente (identifiants d'inscription). */
     @PostMapping("/api/v1/classes/{id}/reinscriptions")
-    @PreAuthorize(Roles.GESTION)
+    @PreAuthorize(Roles.REPARTITION)
     public ResultatReinscription reinscrire(@PathVariable UUID id, @Valid @RequestBody DemandeReinscription d) {
         return service.reinscrire(id, d.inscriptions(), d.redoublant(), d.conserverStatutBourse());
     }

@@ -12,7 +12,7 @@
     <div class="alerte succes" role="status">{{ m }}</div>
   }
 
-  @if (peutModifier()) {
+  @if (peutSaisir()) {
     <section class="carte">
       <div class="entete-section">
         <h2>Nouvel élève</h2>
@@ -61,6 +61,12 @@
                 @for (c of classes(); track c.id) {
                   <option [value]="c.id">{{ c.code }}</option>
                 }
+              </select>
+            </div>
+            <div class="champ">
+              <label for="mode">Mode d'admission</label>
+              <select id="mode" name="mode" [(ngModel)]="modeAdmission">
+                @for (m of modes; track m) { <option [value]="m">{{ libelleMode[m] }}</option> }
               </select>
             </div>
             <div class="champ">
@@ -125,7 +131,7 @@
               <tr class="ligne" (click)="ouvrir(e)" [class.doux]="dossier()?.eleve?.id === e.id">
                 <td class="col-photo">
                   <button type="button" class="photo" [attr.aria-label]="(avecPhoto().has(e.id) ? 'Photo de ' : 'Ajouter la photo de ') + e.prenoms + ' ' + e.nom" (click)="ouvrir(e); $event.stopPropagation()">
-                    <app-vignette [chemin]="avecPhoto().has(e.id) ? '/eleves/' + e.id + '/photo' : null" [initiales]="e.nom.charAt(0) + e.prenoms.charAt(0)" [ajout]="peutModifier()" />
+                    <app-vignette [chemin]="avecPhoto().has(e.id) ? '/eleves/' + e.id + '/photo' : null" [initiales]="e.nom.charAt(0) + e.prenoms.charAt(0)" [ajout]="peutSaisir()" />
                   </button>
                 </td>
                 <td>{{ e.matricule }}</td>
@@ -155,10 +161,10 @@
           <button type="button" class="bouton discret petit" (click)="dossier.set(null)">Fermer</button>
         </div>
         <div class="identite-eleve">
-          <app-photo-identite [chemin]="'/eleves/' + d.eleve.id + '/photo'" [nom]="d.eleve.prenoms + ' ' + d.eleve.nom" [modifiable]="peutModifier()" (change)="photoChangee(d.eleve.id, $event)" />
+          <app-photo-identite [chemin]="'/eleves/' + d.eleve.id + '/photo'" [nom]="d.eleve.prenoms + ' ' + d.eleve.nom" [modifiable]="peutSaisir()" (change)="photoChangee(d.eleve.id, $event)" />
           <div>
             <p class="doux">Matricule {{ d.eleve.matricule }} · né(e) le {{ d.eleve.dateNaissance }}@if (d.eleve.lieuNaissance) { à {{ d.eleve.lieuNaissance }} }</p>
-            @if (peutModifier() && d.inscriptions.length) {
+            @if (peutDocuments() && d.inscriptions.length) {
               <button type="button" class="bouton secondaire petit" (click)="carteScolaire()" [disabled]="action.enCours()">Carte scolaire (PDF)</button>
             }
           </div>
@@ -174,13 +180,65 @@
             <li class="doux">Aucune inscription.</li>
           }
         </ul>
-        @if (!inscriptionCourante() && peutModifier() && annee(); as a) {
+        @if (!inscriptionCourante() && peutSaisir() && annee(); as a) {
           <div class="actions-ligne">
             <select [(ngModel)]="classeId" name="classeDossier" aria-label="Classe" style="width:auto">
               @for (c of classes(); track c.id) { <option [value]="c.id">{{ c.code }}</option> }
             </select>
+            <select [(ngModel)]="modeAdmission" name="modeDossier" aria-label="Mode d'admission" style="width:auto">
+              @for (m of modes; track m) { <option [value]="m">{{ libelleMode[m] }}</option> }
+            </select>
             <button type="button" class="bouton petit" (click)="inscrireDossier()">Inscrire en {{ a.libelle }}</button>
           </div>
+        }
+        @if (inscriptionCourante(); as ic) {
+          <div class="entete-section">
+            <h3>Dossier d'inscription</h3>
+            @if (!dossierInscription()) {
+              <button type="button" class="bouton secondaire petit" [disabled]="action.enCours()" (click)="ouvrirDossierInscription(ic.id)">Pièces du dossier</button>
+            }
+          </div>
+          @if (dossierInscription(); as di) {
+            <div class="sous-formulaire dossier-pieces">
+              <div class="champ">
+                <label for="dMode">Mode d'admission</label>
+                <select id="dMode" name="dMode" [ngModel]="dMode()" (ngModelChange)="dMode.set($event)" [disabled]="!peutSaisir() || (!!di.modeAdmission && !peutModifier())">
+                  @if (!di.modeAdmission) { <option [ngValue]="null">— à préciser —</option> }
+                  @for (m of modes; track m) { <option [ngValue]="m">{{ libelleMode[m] }}</option> }
+                </select>
+              </div>
+              <ul class="liste">
+                @for (p of piecesAffichees(); track p.id) {
+                  <li>
+                    <label class="case">
+                      <input type="checkbox" [checked]="dRecues().has(p.id)" (change)="basculerPiece(p.id)"
+                        [disabled]="!peutSaisir() || (recuesInitiales().has(p.id) && !peutModifier())" />
+                      {{ p.libelle }}
+                      @if (!p.obligatoire) { <span class="doux">(facultative)</span> }
+                    </label>
+                  </li>
+                } @empty {
+                  <li class="doux">Précisez le mode d'admission pour voir les pièces attendues.</li>
+                }
+              </ul>
+              <p>
+                @if (manquantesDossier() === 0) {
+                  <span class="pastille present">dossier complet</span>
+                } @else {
+                  <span class="pastille">{{ manquantesDossier() }} pièce(s) manquante(s)</span>
+                }
+              </p>
+              <div class="actions-ligne">
+                @if (peutSaisir()) {
+                  <button type="button" class="bouton petit" [disabled]="action.enCours()" (click)="enregistrerDossierInscription()">Enregistrer le dossier</button>
+                }
+                <button type="button" class="bouton discret petit" (click)="dossierInscription.set(null)">Fermer</button>
+              </div>
+              @if (peutSaisir() && !peutModifier()) {
+                <p class="doux">Une pièce enregistrée ou le mode d'admission ne se corrigent ensuite que par le chef d'établissement.</p>
+              }
+            </div>
+          }
         }
         <div class="entete-section">
           <h3>Parents et tuteurs</h3>
@@ -202,12 +260,12 @@
                   <span class="pastille">pas de compte parent</span>
                 }
               </span>
-              @if (peutModifier()) {
+              @if (peutDocuments()) {
                 <span class="actions-ligne">
                   @if (!r.espaceParentOuvert && espaceParent) {
                     <button type="button" class="bouton petit" [disabled]="action.enCours()" (click)="ouvrirEspaceParent(r)">Créer le compte parent</button>
                   }
-                  @if (d.responsables.length > 1) {
+                  @if (peutModifier() && d.responsables.length > 1) {
                     <button type="button" class="bouton discret petit" [disabled]="action.enCours()" (click)="retirerResponsable(r)">Retirer</button>
                   }
                 </span>
@@ -248,7 +306,80 @@
     }
   </section>
 
-  @if (peutModifier() && annee(); as a) {
+  @if (annee(); as a) {
+    <section class="carte">
+      <div class="entete-section">
+        <h2>Dossiers d'inscription incomplets</h2>
+        <button type="button" class="bouton secondaire petit" [disabled]="action.enCours()" (click)="chargerIncomplets(a.id)">
+          {{ incomplets() ? 'Actualiser' : 'Afficher' }}
+        </button>
+      </div>
+      @if (incomplets(); as liste) {
+        <div class="tableau-defilant">
+          <table class="tableau">
+            <thead><tr><th>Classe</th><th>Élève</th><th>Mode d'admission</th><th>Pièces manquantes</th></tr></thead>
+            <tbody>
+              @for (l of liste; track l.inscriptionId) {
+                <tr class="ligne" (click)="ouvrir({ id: l.eleveId })">
+                  <td>{{ l.classeCode }}</td>
+                  <td><strong>{{ l.nom }}</strong> {{ l.prenoms }}</td>
+                  <td>{{ l.modeAdmission ? libelleMode[l.modeAdmission] : '—' }}</td>
+                  <td>{{ l.manquantes.join(' ; ') }}</td>
+                </tr>
+              } @empty {
+                <tr><td colspan="4" class="doux">Tous les dossiers de {{ a.libelle }} sont complets.</td></tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  }
+
+  @if (peutModifier()) {
+    <section class="carte">
+      <div class="entete-section">
+        <h2>Pièces demandées à l'inscription</h2>
+        @if (!reglagePieces()) {
+          <button type="button" class="bouton secondaire petit" [disabled]="action.enCours()" (click)="ouvrirReglagePieces()">Régler la liste</button>
+        }
+      </div>
+      @if (reglagePieces(); as lignes) {
+        <p class="doux">Pour chaque pièce, cochez les modes d'admission qui la demandent. Une pièce facultative n'empêche pas le dossier d'être complet.</p>
+        <div class="tableau-defilant">
+          <table class="tableau">
+            <thead>
+              <tr>
+                <th>Pièce</th>
+                @for (m of modes; track m) { <th class="centre">{{ libelleMode[m] }}</th> }
+                <th class="centre">Obligatoire</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (l of lignes; track $index; let i = $index) {
+                <tr>
+                  <td><input [attr.aria-label]="'Pièce ' + (i + 1)" [value]="l.libelle" (input)="libellePiece(i, $any($event.target).value)" maxlength="150" /></td>
+                  @for (m of modes; track m) {
+                    <td class="centre"><input type="checkbox" [attr.aria-label]="l.libelle + ' : ' + libelleMode[m]" [checked]="l.modes.includes(m)" (change)="basculerMode(i, m)" /></td>
+                  }
+                  <td class="centre"><input type="checkbox" [attr.aria-label]="l.libelle + ' obligatoire'" [checked]="l.obligatoire" (change)="basculerObligatoire(i)" /></td>
+                  <td><button type="button" class="bouton discret petit" (click)="retirerPiece(i)">Retirer</button></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="actions-ligne">
+          <button type="button" class="bouton secondaire petit" (click)="ajouterPiece()">Ajouter une pièce</button>
+          <button type="button" class="bouton petit" [disabled]="action.enCours()" (click)="enregistrerPieces()">Enregistrer la liste</button>
+          <button type="button" class="bouton discret petit" (click)="reglagePieces.set(null)">Fermer</button>
+        </div>
+      }
+    </section>
+  }
+
+  @if (peutSaisir() && annee(); as a) {
     <section class="carte">
       <h2>Importer depuis Excel</h2>
       <p class="doux">

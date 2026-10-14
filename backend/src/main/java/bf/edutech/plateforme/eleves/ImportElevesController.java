@@ -21,7 +21,7 @@ import bf.edutech.plateforme.eleves.ImportElevesService.RapportImport;
 
 /** Import des élèves d'une année depuis Excel : modèle, simulation, import réel. */
 @RestController
-@PreAuthorize(Roles.GESTION)
+@PreAuthorize(Roles.SAISIE)
 public class ImportElevesController {
 
     static final MediaType XLSX =

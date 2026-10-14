@@ -56,7 +56,7 @@ public class PlanPassageController {
     }
 
     @PostMapping("/api/v1/annees/{anneeId}/plan-passage")
-    @PreAuthorize("hasAnyRole('ADMIN_ECOLE','SECRETARIAT')")
+    @PreAuthorize("hasAnyRole('ADMIN_ECOLE','CENSEUR')")       // v0.47 : le censeur répartit
     public ResultatPlan appliquer(@PathVariable UUID anneeId, @Valid @RequestBody DemandePlan d) {
         return plan.appliquer(anneeId, d.affectations(), Boolean.TRUE.equals(d.conserverStatutBourse()));
     }

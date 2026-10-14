@@ -75,11 +75,10 @@ export class FicheElevePage implements OnInit {
   protected readonly message = signal<string | null>(null);
 
   private readonly roles = computed(() => this.session.roles());
-  protected readonly encadrement = computed(() => this.roles().some((r) => ['SURVEILLANT', 'CENSEUR', 'ADMIN_ECOLE'].includes(r)));
-  protected readonly direction = computed(() => this.roles().some((r) => ['CENSEUR', 'ADMIN_ECOLE'].includes(r)));
-  protected readonly peutJustifier = computed(() =>
-    this.roles().some((r) => ['SURVEILLANT', 'CENSEUR', 'ADMIN_ECOLE', 'SECRETARIAT'].includes(r)),
-  );
+  /** Saisie de la vie scolaire : le CPE (rôle SURVEILLANT) seul, v0.47 ; les autres consultent. */
+  protected readonly encadrement = computed(() => this.roles().includes('SURVEILLANT'));
+  protected readonly direction = this.encadrement;
+  protected readonly peutJustifier = this.encadrement;
 
   /** Inscriptions de la plus récente à la plus ancienne. */
   protected readonly inscriptions = computed(() =>
