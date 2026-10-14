@@ -5,6 +5,8 @@ ceux de chaque établissement qui dépend d'elle (à tout niveau) et leurs cumul
 restent dans les établissements. Le même tableau de bord sert à l'administrateur pays (son pays) et au super
 administrateur (tout pays).
 
+> **v0.48** : les mêmes comptes reçoivent aussi les états des besoins des établissements, les arbitrent, les transmettent et gèrent les dotations. Toujours sans aucune donnée d'élève. Voir [API_BESOINS_DOTATIONS.md](API_BESOINS_DOTATIONS.md).
+
 ## Comptes des directions
 
 Créés par l'administrateur du pays de la direction ou par le super administrateur.

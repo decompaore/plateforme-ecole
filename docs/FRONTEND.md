@@ -1,4 +1,4 @@
-# Application web (v0.47.2)
+# Application web (v0.48)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -475,6 +475,25 @@ connexion.
 - **Établissements → Données** (super administrateur) : même composant (`app-exports-donnees` avec
   `etablissementId`), pour un établissement actif, suspendu ou résilié.
 - Détails du contenu de l'archive : [API_REVERSIBILITE.md](API_REVERSIBILITE.md).
+
+## Besoins et dotations (v0.48)
+
+- **Établissement** : écran « Besoins et dotations » (`/besoins`), pour le proviseur, le censeur, le chef des travaux et l'intendant.
+  - Rubrique « État des besoins » :
+    - un état par année, groupé par catégorie ;
+    - le censeur saisit le domaine général, le chef des travaux le domaine technique ;
+    - le proviseur transmet ; en cas de renvoi, le motif s'affiche.
+  - Rubrique « Dotations reçues » : détail, puis accusé de réception avec les quantités reçues et conformes.
+- **Directions et niveau central** : onglets « Besoins » (`/pilotage/besoins`) et « Dotations » (`/pilotage/dotations`).
+  - Besoins :
+    - état de chaque établissement, transmissions des directions inférieures, besoins consolidés ;
+    - arbitrage ligne par ligne, plafonné au niveau inférieur ;
+    - renvoi, transmission, export Excel ou PDF.
+  - Dotations :
+    - dotations reçues et émises ;
+    - préparation libre ou répartition d'une dotation reçue (quantités disponibles) ;
+    - envoi et accusé de réception.
+- Tests : `moyens/moyens.spec.ts`. Détails : `API_BESOINS_DOTATIONS.md`.
 
 ## Travaux pratiques dans les ateliers (v0.47.2)
 

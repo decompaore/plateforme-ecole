@@ -204,6 +204,26 @@ export const routes: Routes = [
         loadComponent: () => import('./admin/pages/adoption-plateforme.page').then((m) => m.AdoptionPlateformePage),
       },
       {
+        // Besoins remontés et dotations (v0.48) : directions et niveau central
+        path: 'pilotage/besoins',
+        canActivate: [pilote],
+        title: 'Besoins des établissements',
+        loadComponent: () => import('./moyens/pages/besoins-pilotage.page').then((m) => m.BesoinsPilotagePage),
+      },
+      {
+        path: 'pilotage/dotations',
+        canActivate: [pilote],
+        title: 'Dotations',
+        loadComponent: () => import('./moyens/pages/dotations-pilotage.page').then((m) => m.DotationsPilotagePage),
+      },
+      {
+        // État annuel des besoins de l'établissement et dotations reçues (v0.48)
+        path: 'besoins',
+        canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'INTENDANT')],
+        title: 'Besoins et dotations',
+        loadComponent: () => import('./moyens/pages/besoins.page').then((m) => m.BesoinsPage),
+      },
+      {
         path: 'pilotage',
         canActivate: [pilote],
         title: 'Pilotage',

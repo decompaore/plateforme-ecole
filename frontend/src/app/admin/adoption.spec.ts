@@ -204,6 +204,6 @@ describe('Mesure de l’adoption (v0.34)', () => {
     expect((f.nativeElement as HTMLElement).querySelector('#adoptionDirection')).toBeNull();
     expect(bouton(f, 'Recalculer la période')).toBeUndefined();
     const onglets = [...(f.nativeElement as HTMLElement).querySelectorAll('app-plateforme-nav a')].map((a) => a.textContent?.trim());
-    expect(onglets).toEqual(['Pilotage', 'Adoption']);
+    expect(onglets).toEqual(['Pilotage', 'Adoption', 'Besoins', 'Dotations']);
   });
 });
