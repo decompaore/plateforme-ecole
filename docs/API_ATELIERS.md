@@ -1,4 +1,4 @@
-# Ateliers, équipements, matière d'œuvre et besoins (v0.25, v0.26)
+# Ateliers, équipements, matière d'œuvre, besoins et travaux pratiques (v0.25, v0.26, v0.47.2)
 
 Module `ateliers`, supervisé par le chef des travaux. Migrations `V18__ateliers.sql` et `V19__besoins_commandes.sql`.
 
@@ -165,3 +165,68 @@ ceux de la page correspondante.
 | `/api/v1/campagnes-besoins/{id}/export` | État des besoins pour la direction régionale : une feuille par filière (photo, désignation, spécifications, normes, prix, quantités), récapitulatif, détail par atelier, signatures |
 | `/api/v1/commandes/{id}/export` | Bon de commande |
 | `/api/v1/livraisons/{id}/export` | Procès-verbaux de réception (conformité) et de répartition entre les ateliers |
+
+## Travaux pratiques : chef d'atelier et enseignants (v0.47.2)
+
+Migration `V36__seances_tp.sql`. Le **chef d'atelier** (le responsable de l'atelier, sous mandat) détient l'autorité
+logistique, de sécurité et administrative de l'atelier ; l'**enseignant** garde l'autorité pédagogique sur sa classe ;
+le **chef des travaux** supervise. Tout tourne autour de la **séance de TP** datée :
+
+```
+DEMANDEE (enseignant) → PLANIFIEE (validée par le chef d'atelier) → préparée → REALISEE (compte rendu) → bilan
+          ↘ REFUSEE (motif, l'enseignant est prévenu)      ↘ ANNULEE (matière servie remise en stock)
+```
+
+### 1. Planning d'occupation
+
+| Appel | Qui |
+|---|---|
+| `GET /api/v1/ateliers/{id}/seances-tp?du=&au=` (7 jours par défaut) | Lecture de l'atelier ; chaque séance porte ses `conflits` (si demandée), les équipements en panne ou manquants (si planifiée) et les `droits` de la personne |
+| `GET /api/v1/ateliers/{id}/seances-tp/options` | Classes et matières techniques programmables (toutes pour le chef d'atelier, les siennes pour un enseignant) |
+| `POST /api/v1/ateliers/{id}/seances-tp` `{"classeId","matiereId","date","heureDebut":"08:00","heureFin":"10:00","groupe":null,"titre":"Tournage","effectif":24,"productionId":null,"besoins":[{"articleId","quantite":4}]}` | L'enseignant de la classe et de la matière → `DEMANDEE` ; le chef d'atelier ou la direction → `PLANIFIEE` (sans conflit). Refus : `CONSIGNES_A_LIRE`, `CLASSE_HORS_ATELIER`, `MATIERE_GENERALE`, `ATELIER_FERME` |
+| `PUT /api/v1/seances-tp/{id}` | Demande en attente (son enseignant) ou séance planifiée non préparée (chef d'atelier) |
+| `POST /api/v1/seances-tp/{id}/validation` `{"accordees":[{"articleId","quantite":3}]}` | Chef d'atelier ; `409 CONFLIT_ATELIER` (autre séance planifiée, ou classe placée dans l'atelier par l'emploi du temps à cette heure) |
+| `POST /api/v1/seances-tp/{id}/refus` `{"motif"}` | Chef d'atelier ; message à l'enseignant dans sa messagerie |
+| `POST /api/v1/seances-tp/{id}/annulation` `{"motif"}` | L'enseignant tant que la séance n'est pas préparée (`409 SEANCE_PREPAREE` sinon), le chef d'atelier toujours |
+| `POST /api/v1/ateliers/{id}/seances-tp/generation` `{"du","au"}` (62 jours au plus, à partir d'aujourd'hui) | Chef d'atelier : chaque séance hebdomadaire placée dans l'atelier par l'emploi du temps devient une séance datée planifiée (sans doublon) |
+| `GET /api/v1/seances-tp?du=&au=` | Chef des travaux, administration : tous les ateliers |
+| `GET /api/v1/seances-tp/miennes` | Enseignant |
+
+### 2. Fiche de préparation (matière d'œuvre)
+
+L'enseignant joint à sa demande la matière d'œuvre nécessaire. À la validation, le chef d'atelier **accorde** les
+quantités ; ce que le stock ne couvre pas est noté **à acheter** (`GET /api/v1/seances-tp/achats` : direction,
+intendance). À la **préparation**, la quantité accordée sort du stock (dans la limite du disponible). Après la séance,
+l'enseignant déclare la **consommation réelle** ; au **bilan**, le chef d'atelier remet en stock le surplus.
+
+### 3. Mise à disposition et restitution
+
+| Appel | Qui |
+|---|---|
+| `POST /api/v1/seances-tp/{id}/preparation` `{"observations":"Clés remises"}` | Chef d'atelier : atelier prêt, matière servie |
+| `POST /api/v1/seances-tp/{id}/compte-rendu` `{"nettoyage":true,"rangement":true,"epiRespectes":false,"quantiteProduite":4,"observations","consommation":[{"articleId","quantite":1.5}],"pannes":[{"equipementId","description"}]}` | L'enseignant de la séance (ou le chef d'atelier), le jour même ou après (`409 SEANCE_A_VENIR`) ; consommation ≤ quantité servie (`409 CONSOMMATION_EXCESSIVE`). Chaque panne ouvre une fiche de panne rattachée à la séance |
+| `POST /api/v1/seances-tp/{id}/bilan` | Chef d'atelier, une fois (`409 BILAN_DEJA_FAIT`) |
+
+### 4. Hygiène, sécurité, environnement
+
+| Appel | Qui |
+|---|---|
+| `GET /api/v1/ateliers/{id}/consignes` → consignes, `aLire` pour l'enseignant connecté | Lecture de l'atelier |
+| `PUT /api/v1/ateliers/{id}/consignes` `[{"categorie":"EPI","equipementId":null,"texte":"…"}]` (zone de danger, extincteurs, arrêt d'urgence, EPI, machine, hygiène) | Chef d'atelier ; chaque enseignant devra en reprendre connaissance |
+| `POST /api/v1/ateliers/{id}/consignes/lecture` | Enseignant de l'atelier (briefing reçu) — obligatoire avant toute demande de séance |
+| `GET /api/v1/ateliers/{id}/consignes/lectures` | Chef d'atelier : qui est à jour |
+| `GET /api/v1/ateliers/{id}/hse`, `POST …/hse` `{"seanceId","gravite":"DANGER_IMMINENT","description","mesures"}` | Lecture ; saisie par le chef d'atelier (droit de regard et d'intervention). Danger imminent ou accident : message immédiat au chef des travaux et à l'enseignant de la séance |
+
+### 5. Production
+
+| Appel | Qui |
+|---|---|
+| `GET /api/v1/productions[?atelier=]`, `GET /api/v1/productions/{id}` | Direction, intendance ; chefs d'atelier et enseignants de l'atelier |
+| `POST /api/v1/productions` `{"atelierId","client","typeClient":"PUBLIC","objet":"Tables-bancs","quantite":20,"unite":"pièce","montant":1000000,"echeance"}` → numéro `PR-2026-001` | Chef d'atelier, direction |
+| `PUT /api/v1/productions/{id}`, `POST …/{id}/statut` `{"statut":"LIVREE"}` (`EN_COURS → TERMINEE → LIVREE`, `ANNULEE`) | Chef d'atelier, direction |
+
+Les séances rattachées à une commande alimentent sa **quantité produite** (comptes rendus). L'encaissement relève de
+l'intendance.
+
+Écrans : « Travaux pratiques » d'un atelier (planning de la semaine, sécurité, production), « Mes TP » (enseignant),
+« Planning des TP » (chef des travaux, avec la matière à acheter).

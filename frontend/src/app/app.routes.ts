@@ -472,6 +472,24 @@ export const routes: Routes = [
             loadComponent: () => import('./ateliers/pages/livraison.page').then((m) => m.LivraisonPage),
           },
           {
+            // Travaux pratiques (v0.47.2) : séances, sécurité, production
+            path: 'mes-tp',
+            canActivate: [role('ENSEIGNANT')],
+            title: 'Mes travaux pratiques',
+            loadComponent: () => import('./ateliers/pages/mes-tp.page').then((m) => m.MesTpPage),
+          },
+          {
+            path: 'planning',
+            canActivate: [role('ADMIN_ECOLE', 'CHEF_TRAVAUX')],
+            title: 'Planning des travaux pratiques',
+            loadComponent: () => import('./ateliers/pages/planning-tp.page').then((m) => m.PlanningTpPage),
+          },
+          {
+            path: ':atelierId/travaux-pratiques',
+            title: 'Travaux pratiques',
+            loadComponent: () => import('./ateliers/pages/travaux-pratiques.page').then((m) => m.TravauxPratiquesPage),
+          },
+          {
             path: ':atelierId',
             title: 'Atelier',
             loadComponent: () => import('./ateliers/pages/atelier.page').then((m) => m.AtelierPage),
