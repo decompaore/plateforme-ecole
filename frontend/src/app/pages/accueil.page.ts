@@ -39,11 +39,14 @@ const TUILES: Tuile[] = [
   { titre: 'Saisie des notes', texte: 'Marche aussi sans réseau', lien: '/notes', roles: ['ENSEIGNANT'] },
   { titre: 'Vie scolaire', texte: 'Absences du jour, incidents, convocations', lien: '/vie-scolaire', roles: ['SURVEILLANT', 'CENSEUR', 'CHEF_TRAVAUX', 'ADMIN_ECOLE', 'SECRETARIAT'], module: 'VIE_SCOLAIRE' },
   { titre: 'Scolarité et paiements', texte: 'Guichet, reçus, retards, journal de caisse', lien: '/scolarite', roles: ['INTENDANT', 'ADMIN_ECOLE', 'SECRETARIAT'], module: 'SCOLARITE' },
-  { titre: 'Bulletins', texte: 'Conseil de classe, verrouillage, génération, publication', lien: '/admin/bulletins', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT'] },
+  { titre: 'Bulletins', texte: 'Conseil de classe, verrouillage, génération, publication', lien: '/admin/bulletins', roles: ['ADMIN_ECOLE', 'CENSEUR'] },
   { titre: 'Examens nationaux', texte: 'Taux de réussite par examen et par année, filles et garçons', lien: '/admin/examens', roles: ['ADMIN_ECOLE', 'CENSEUR'] },
   { titre: 'Messages', texte: "Messages de l'établissement ; le chef d'établissement écrit au personnel et aux parents", lien: '/messages', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SECRETARIAT', 'INTENDANT', 'SURVEILLANT', 'ENSEIGNANT', 'PARENT'] },
   { titre: "Fin d'année", texte: 'Décisions des conseils, listes de l’année prochaine, réinscriptions, clôture', lien: '/admin/fin-annee', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT'] },
   { titre: 'Statistiques', texte: 'Effectifs, bourses, recouvrement, résultats', lien: '/admin/statistiques', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'INTENDANT'] },
+  { titre: 'Secrétariat', texte: 'Courrier, documents à signer, demandes du personnel, accueil, réunions, archives, certificats', lien: '/secretariat', roles: ['ADMIN_ECOLE', 'SECRETARIAT'] },
+  { titre: 'Courrier', texte: 'Courrier transmis à votre service', lien: '/secretariat/courrier', roles: ['CENSEUR', 'CHEF_TRAVAUX', 'INTENDANT', 'SURVEILLANT'] },
+  { titre: "Tableau d'affichage", texte: 'Notes de service, communiqués, convocations ; mes demandes', lien: '/affichage', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SECRETARIAT', 'INTENDANT', 'SURVEILLANT', 'ENSEIGNANT', 'PARENT'] },
   { titre: 'Suivi de mes enfants', texte: 'Absences, bulletins, scolarité', lien: '/parent', roles: ['PARENT'], module: 'ESPACE_PARENT' },
 ];
 

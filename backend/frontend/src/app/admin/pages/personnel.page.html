@@ -1,0 +1,363 @@
+<div class="page large">
+  <h1>Personnel</h1>
+  <app-admin-nav />
+
+  @if (secret(); as s) {
+    <app-mot-de-passe-temporaire [titre]="s.titre" [telephone]="s.telephone" [motDePasse]="s.motDePasse" (fermer)="secret.set(null)" />
+  }
+  @if (message(); as m) {
+    <div class="alerte" role="status">{{ m }}</div>
+  }
+  @if (action.erreur()) {
+    <div class="alerte erreur" role="alert">{{ action.erreur() }}</div>
+  }
+
+  @if (photoCible(); as p) {
+    <section class="carte fiche-photo" aria-label="Photo d'identité">
+      <div class="entete-section">
+        <h2>Photo de {{ p.nom }}</h2>
+        <button type="button" class="bouton discret petit" (click)="photoCible.set(null)">Fermer</button>
+      </div>
+      <div class="fiche-photo-contenu">
+        <app-photo-identite [chemin]="'/personnes/' + p.utilisateurId + '/photo'" [nom]="p.nom" [modifiable]="true" (change)="photoChangee(p.utilisateurId, $event)" />
+        <button type="button" class="bouton secondaire petit" [disabled]="actionCartes.enCours()" (click)="cartes(p.utilisateurId)">Carte professionnelle (PDF)</button>
+      </div>
+    </section>
+  }
+  @if (actionCartes.erreur(); as e) {
+    <div class="alerte erreur" role="alert">{{ e }}</div>
+  }
+  <div class="barre-cartes">
+    <button type="button" class="bouton secondaire petit" [disabled]="actionCartes.enCours()" (click)="cartes()">
+      {{ actionCartes.enCours() ? 'Préparation…' : 'Cartes professionnelles (PDF)' }}
+    </button>
+  </div>
+
+  <app-recherche
+    libelle="Rechercher une personne (nom, téléphone, spécialité, rôle)"
+    [(valeur)]="filtre"
+    [total]="enseignants().length + administration().length"
+    [trouves]="enseignantsAffiches().length + administrationAffichee().length"
+  />
+
+  <section class="carte">
+    <div class="entete-section">
+      <h2>Enseignants ({{ enseignants().length }})</h2>
+      <button type="button" class="bouton" (click)="formEnseignant.set(!formEnseignant())">
+        {{ formEnseignant() ? 'Annuler' : 'Engager un enseignant' }}
+      </button>
+    </div>
+
+    @if (formEnseignant()) {
+      <form (ngSubmit)="engager()" class="nouveau">
+        <div class="grille-champs">
+          <div class="champ">
+            <label for="eTel">Téléphone</label>
+            <input id="eTel" name="eTel" type="tel" inputmode="tel" required [(ngModel)]="eTelephone" />
+          </div>
+          <div class="champ">
+            <label for="eNom">Nom</label>
+            <input id="eNom" name="eNom" required [(ngModel)]="eNom" />
+          </div>
+          <div class="champ">
+            <label for="ePrenoms">Prénoms</label>
+            <input id="ePrenoms" name="ePrenoms" required [(ngModel)]="ePrenoms" />
+          </div>
+          <div class="champ">
+            <label for="eSexe">Sexe</label>
+            <select id="eSexe" name="eSexe" [(ngModel)]="eSexe">
+              <option value="M">Homme</option>
+              <option value="F">Femme</option>
+            </select>
+          </div>
+          <div class="champ">
+            <label for="eSpec">Spécialité</label>
+            <input id="eSpec" name="eSpec" placeholder="Électrotechnique" [(ngModel)]="eSpecialite" />
+          </div>
+          <div class="champ">
+            <label for="eCategorie">Enseignement</label>
+            <select id="eCategorie" name="eCategorie" [(ngModel)]="eCategorie">
+              <option value="GENERAL">Général</option>
+              <option value="TECHNIQUE">Technique et professionnel</option>
+            </select>
+          </div>
+          <div class="champ">
+            <label for="eType">Engagement</label>
+            <select id="eType" name="eType" [(ngModel)]="eType">
+              <option value="TITULAIRE">Titulaire</option>
+              <option value="VACATAIRE">Vacataire</option>
+            </select>
+          </div>
+          <div class="champ">
+            <label for="eDebut">Début</label>
+            <input id="eDebut" name="eDebut" type="date" required [(ngModel)]="eDebut" />
+          </div>
+          @if (eType() === 'VACATAIRE') {
+            <div class="champ">
+              <label for="eFin">Fin</label>
+              <input id="eFin" name="eFin" type="date" [(ngModel)]="eFin" />
+            </div>
+            <div class="champ">
+              <label for="eTaux">Taux horaire (FCFA)</label>
+              <input id="eTaux" name="eTaux" type="number" min="1" step="1" [(ngModel)]="eTaux" />
+            </div>
+          }
+        </div>
+        <p class="doux">
+          Seul un enseignant du technique et professionnel peut être rattaché à un atelier (responsable, travaux
+          pratiques) et voir l'onglet Ateliers.
+          Un enseignant déjà inscrit sur la plateforme (dans un autre établissement) reçoit une invitation à accepter.
+          Un titulaire ne l'est que dans un seul établissement.
+        </p>
+        <div class="champ-photo">
+          <app-choix-photo champ="ePhoto" [(fichier)]="ePhoto" />
+        </div>
+        <button type="submit" class="bouton" [disabled]="action.enCours()">Engager</button>
+      </form>
+    }
+
+    <div class="tableau-defilant">
+      <table class="tableau">
+        <thead><tr><th class="col-photo">Photo</th><th>Nom et prénoms</th><th>Téléphone</th><th>Spécialité</th><th>Enseignement</th><th>Engagement</th><th>Statut</th><th></th></tr></thead>
+        <tbody>
+          @for (e of enseignantsAffiches(); track e.engagementId) {
+            <tr [class.doux]="e.statut !== 'ACTIF'">
+              <td class="col-photo">
+                @if (e.utilisateurId; as u) {
+                  <button type="button" class="photo" [attr.aria-label]="'Photo de ' + (e.prenoms ?? '') + ' ' + (e.nom ?? '')" (click)="ouvrirPhoto(u, (e.prenoms ?? '') + ' ' + (e.nom ?? ''))">
+                    <app-vignette [chemin]="avecPhoto().has(u) ? '/personnes/' + u + '/photo' : null" [initiales]="(e.nom ?? '').charAt(0) + (e.prenoms ?? '').charAt(0)" [ajout]="e.statut === 'ACTIF'" />
+                  </button>
+                }
+              </td>
+              <td>
+                @if (e.nom) { <strong>{{ e.nom }}</strong> {{ e.prenoms }} } @else { <em>Invitation en attente</em> }
+              </td>
+              <td>{{ e.telephone }}</td>
+              <td>{{ e.specialite }}</td>
+              <td>
+                {{ libelleCategorie[e.categorie ?? 'GENERAL'] }}
+                @if (e.suggestionTechnique && e.statut === 'ACTIF') {
+                  <div class="doux">Assure une matière technique ou pratique.</div>
+                  <button type="button" class="bouton secondaire petit" [disabled]="action.enCours()" (click)="classer(e, 'TECHNIQUE')">Classer en technique</button>
+                } @else if (e.statut === 'ACTIF' || e.statut === 'INVITE') {
+                  <button type="button" class="bouton discret petit" [disabled]="action.enCours()"
+                    (click)="classer(e, e.categorie === 'TECHNIQUE' ? 'GENERAL' : 'TECHNIQUE')">
+                    {{ e.categorie === 'TECHNIQUE' ? 'Passer en général' : 'Passer en technique' }}
+                  </button>
+                }
+              </td>
+              <td>
+                {{ e.type === 'TITULAIRE' ? 'Titulaire' : 'Vacataire' }}
+                @if (e.fin && !e.finProgrammee && e.statut !== 'TERMINE') { <span class="doux">jusqu'au {{ dateCourte(e.fin) }}</span> }
+              </td>
+              <td>
+                @if (e.finProgrammee && e.fin) {
+                  <span class="pastille">part le {{ dateCourte(e.fin) }}</span>
+                  @if (e.motifFin) { <div class="doux">{{ e.motifFin }}</div> }
+                } @else {
+                  <span class="pastille" [class.present]="e.statut === 'ACTIF'">{{ libelleStatut[e.statut] }}</span>
+                  @if (e.statut === 'TERMINE' && e.fin) {
+                    <div class="doux">le {{ dateCourte(e.fin) }}@if (e.motifFin) { · {{ e.motifFin }} }</div>
+                  }
+                }
+              </td>
+              <td class="nombre actions-cellule">
+                @if (e.statut === 'ACTIF') {
+                  <button type="button" class="bouton secondaire petit" [disabled]="action.enCours()" (click)="preparerFin(e)">
+                    {{ e.finProgrammee ? 'Modifier la fin' : 'Terminer…' }}
+                  </button>
+                  @if (e.finProgrammee) {
+                    <button type="button" class="bouton discret petit" [disabled]="action.enCours()" (click)="annulerFin(e)">Annuler la fin</button>
+                  }
+                } @else if (e.statut === 'INVITE') {
+                  <button type="button" class="bouton discret petit" [disabled]="action.enCours()" (click)="annulerInvitation(e)">Annuler l'invitation</button>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="8" class="doux">{{ enseignants().length ? 'Aucun enseignant ne correspond.' : 'Aucun enseignant.' }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    @if (finCible(); as e) {
+      <form class="carte fin-engagement" (ngSubmit)="terminer()" aria-label="Fin d'engagement">
+        <h3>Fin d'engagement : {{ e.prenoms }} {{ e.nom }}</h3>
+        <div class="grille-champs">
+          <div class="champ">
+            <label for="finDate">Dernier jour de travail</label>
+            <input id="finDate" name="finDate" type="date" required [min]="e.debut" [(ngModel)]="finDate" />
+          </div>
+          <div class="champ">
+            <label for="finMotif">Motif</label>
+            <select id="finMotif" name="finMotif" [(ngModel)]="finMotif">
+              @for (m of motifsFin; track m) { <option [value]="m">{{ m }}</option> }
+            </select>
+          </div>
+          @if (finMotif() === 'Autre') {
+            <div class="champ">
+              <label for="finAutre">Précisez</label>
+              <input id="finAutre" name="finAutre" maxlength="200" [(ngModel)]="finAutreMotif" />
+            </div>
+          }
+        </div>
+
+        @if (finImmediate()) {
+          <p class="alerte attention">Date passée : l'engagement se termine <strong>tout de suite</strong>.</p>
+        } @else if (finDate()) {
+          <p>
+            L'enseignant garde l'accès jusqu'au <strong>{{ dateLongue(finDate()) }}</strong> inclus (appel, notes),
+            puis l'engagement se termine automatiquement.
+            @if (finMotif() === 'Mutation' && e.type === 'TITULAIRE') {
+              Son nouvel établissement pourra l'inviter comme titulaire à partir du {{ dateLongue(lendemain(finDate())) }}.
+            }
+          </p>
+        }
+
+        @if (finMatieres(); as matieres) {
+          @if (matieres.length > 0) {
+            <p>
+              <strong>{{ matieres.length }} matière(s) à réaffecter</strong> : elles passeront « sans enseignant »
+              {{ finImmediate() ? 'tout de suite' : 'le ' + dateLongue(lendemain(finDate())) }}. Pensez à les confier à un autre enseignant (onglet « Classes »).
+            </p>
+            <ul>
+              @for (a of matieres; track a.classeId + a.matiereId) {
+                <li>{{ a.classeCode }} · {{ a.matiereLibelle }}@if (a.volumeHebdo) { ({{ a.volumeHebdo }} h / semaine) }</li>
+              }
+            </ul>
+          } @else {
+            <p class="doux">Aucune matière confiée cette année.</p>
+          }
+        } @else {
+          <p class="doux">Chargement des matières…</p>
+        }
+
+        <div class="actions-ligne">
+          <button type="submit" class="bouton danger" [disabled]="action.enCours() || !finDate()">
+            {{ finImmediate() ? 'Terminer maintenant' : 'Programmer la fin' }}
+          </button>
+          <button type="button" class="bouton secondaire" (click)="fermerFin()">Fermer</button>
+        </div>
+      </form>
+    }
+
+    <p class="doux">Les matières se confient aux enseignants dans le programme de chaque classe (onglet « Classes »).</p>
+  </section>
+
+  <section class="carte">
+    <div class="entete-section">
+      <h2>Administration</h2>
+      <button type="button" class="bouton" (click)="formMembre.set(!formMembre())">
+        {{ formMembre() ? 'Annuler' : 'Ajouter une personne' }}
+      </button>
+    </div>
+
+    @if (formMembre()) {
+      <form (ngSubmit)="ajouterMembre()" class="nouveau">
+        <div class="grille-champs">
+          <div class="champ">
+            <label for="mTel">Téléphone</label>
+            <input id="mTel" name="mTel" type="tel" inputmode="tel" required [(ngModel)]="mTelephone" />
+          </div>
+          <div class="champ">
+            <label for="mNom">Nom</label>
+            <input id="mNom" name="mNom" required [(ngModel)]="mNom" />
+          </div>
+          <div class="champ">
+            <label for="mPrenoms">Prénoms</label>
+            <input id="mPrenoms" name="mPrenoms" required [(ngModel)]="mPrenoms" />
+          </div>
+          <div class="champ">
+            <label for="mRole">Rôle</label>
+            <select id="mRole" name="mRole" [(ngModel)]="mRole">
+              @for (r of rolesPersonnel; track r) { <option [value]="r">{{ libelleRole[r] }}</option> }
+            </select>
+          </div>
+        </div>
+        <div class="champ-photo">
+          <app-choix-photo champ="mPhoto" [(fichier)]="mPhoto" />
+        </div>
+        <button type="submit" class="bouton" [disabled]="action.enCours()">Ajouter</button>
+      </form>
+    }
+
+    <div class="tableau-defilant">
+      <table class="tableau">
+        <thead><tr><th class="col-photo">Photo</th><th>Nom et prénoms</th><th>Téléphone</th><th>Rôle</th><th></th></tr></thead>
+        <tbody>
+          @for (m of administrationAffichee(); track m.id) {
+            <tr [class.doux]="!m.actif">
+              <td class="col-photo">
+                <button type="button" class="photo" [attr.aria-label]="'Photo de ' + m.prenoms + ' ' + m.nom" (click)="ouvrirPhoto(m.utilisateurId, m.prenoms + ' ' + m.nom)">
+                  <app-vignette [chemin]="avecPhoto().has(m.utilisateurId) ? '/personnes/' + m.utilisateurId + '/photo' : null" [initiales]="m.nom.charAt(0) + m.prenoms.charAt(0)" [ajout]="m.actif" />
+                </button>
+              </td>
+              <td><strong>{{ m.nom }}</strong> {{ m.prenoms }}</td>
+              <td>{{ m.telephone }}</td>
+              <td>{{ libelleRole[m.role] }}@if (!m.actif) { (retiré) }</td>
+              <td class="nombre">
+                @if (m.actif) {
+                  <button type="button" class="bouton danger petit" (click)="desactiver(m)">Retirer</button>
+                }
+              </td>
+            </tr>
+          } @empty {
+            <tr><td colspan="5" class="doux">{{ administration().length ? 'Personne ne correspond.' : 'Personne.' }}</td></tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="carte">
+    <div class="entete-section">
+      <h2>Intérim du chef d'établissement</h2>
+      @if (!interims()) {
+        <button type="button" class="bouton secondaire petit" [disabled]="action.enCours()" (click)="chargerInterims()">Afficher</button>
+      }
+    </div>
+    @if (interims(); as liste) {
+      <p class="doux">
+        En votre absence, le censeur (ou, à défaut, le chef des travaux) assure la suppléance : pendant la période,
+        il dispose des droits du chef d'établissement, à sa prochaine connexion.
+      </p>
+      <ul class="liste">
+        @for (i of liste; track i.id) {
+          <li class="ligne-lien">
+            <span>
+              <strong>{{ i.interimaire }}</strong> · du {{ dateCourte(i.du) }} au {{ dateCourte(i.au) }} · {{ i.motif }}
+            </span>
+            <span class="actions-ligne">
+              @if (i.enCours) { <span class="pastille present">en cours</span> }
+              @else if (i.termine) { <span class="pastille">terminé</span> }
+              @else { <span class="pastille">prévu</span> }
+              @if (!i.termine) {
+                <button type="button" class="bouton discret petit" [disabled]="action.enCours()" (click)="terminerInterim(i.id)">{{ i.enCours ? 'Mettre fin' : 'Annuler' }}</button>
+              }
+            </span>
+          </li>
+        } @empty {
+          <li class="doux">Aucun intérim.</li>
+        }
+      </ul>
+      <form class="sous-formulaire" (ngSubmit)="designerInterim()">
+        <div class="grille-champs">
+          <div class="champ">
+            <label for="iPersonne">Intérimaire</label>
+            <select id="iPersonne" name="iPersonne" [(ngModel)]="iPersonne">
+              <option value="">— choisir —</option>
+              @for (m of interimairesPossibles(); track m.id) {
+                <option [value]="m.utilisateurId">{{ m.nom }} {{ m.prenoms }} ({{ libelleRole[m.role] }})</option>
+              }
+            </select>
+          </div>
+          <div class="champ"><label for="iDu">Du</label><input id="iDu" name="iDu" type="date" [min]="aujourdhui" [(ngModel)]="iDu" /></div>
+          <div class="champ"><label for="iAu">Au</label><input id="iAu" name="iAu" type="date" [min]="iDu()" [(ngModel)]="iAu" /></div>
+          <div class="champ"><label for="iMotif">Motif</label><input id="iMotif" name="iMotif" maxlength="200" placeholder="Mission, congé…" [(ngModel)]="iMotif" /></div>
+        </div>
+        <button type="submit" class="bouton petit" [disabled]="action.enCours() || !iPersonne() || !iDu() || !iAu() || !iMotif().trim()">Désigner</button>
+      </form>
+    }
+  </section>
+</div>

@@ -1,0 +1,305 @@
+<div class="page large">
+  <h1>Emplois du temps</h1>
+  <app-emploi-nav />
+
+  @if (annees.annees().length > 1) {
+    <div class="champ annee">
+      <label for="annee">Année scolaire</label>
+      <select id="annee" [value]="annees.annee()?.id" (change)="choisirAnnee($event)">
+        @for (a of annees.annees(); track a.id) { <option [value]="a.id" [selected]="a.id === annees.annee()?.id">{{ a.libelle }}</option> }
+      </select>
+    </div>
+  }
+
+  @if (action.erreur()) {
+    <div class="alerte erreur" role="alert">{{ action.erreur() }}</div>
+  }
+
+  @if (emploi(); as e) {
+    @if (!e.creneaux.length) {
+      <section class="carte">
+        <p>La grille horaire de {{ e.annee }} n'est pas encore définie.</p>
+        @if (e.droits.grille) {
+          <a class="bouton petit" routerLink="/emploi-du-temps/grille">Définir la grille horaire</a>
+        } @else {
+          <p class="doux">Le censeur la fixe dans « Grille horaire ».</p>
+        }
+      </section>
+    } @else {
+      <!-- Publication et bilan -->
+      <section class="carte">
+        <div class="entete-section">
+          <p class="etat">
+            <strong>{{ e.annee }}</strong>
+            @if (e.publieLe) {
+              <span class="pastille present">Publié le {{ dateHeureCourte(e.publieLe) }}</span>
+            } @else {
+              <span class="pastille">Version de travail, non publiée</span>
+            }
+          </p>
+          @if (e.droits.publier) {
+            <div class="actions-ligne">
+              <button type="button" class="bouton petit" [disabled]="enregistrement.enCours() || bilan().conflits > 0" (click)="publier()">
+                {{ e.publieLe ? 'Republier' : 'Publier aux enseignants' }}
+              </button>
+              @if (e.publieLe) {
+                <button type="button" class="bouton discret petit" [disabled]="enregistrement.enCours()" (click)="retirerPublication()">Retirer la publication</button>
+              }
+            </div>
+          }
+        </div>
+        <div class="chiffres">
+          <div><strong>{{ duree(bilan().place) }}</strong><span>placées sur {{ duree(bilan().prevu) }}</span></div>
+          <div><strong>{{ bilan().completes }} / {{ bilan().classes }}</strong><span>classes complètes</span></div>
+          <div [class.alerte-valeur]="bilan().conflits > 0"><strong>{{ bilan().conflits }}</strong><span>conflit(s)</span></div>
+        </div>
+        @if (droits()?.domaines?.length) {
+          <p class="doux">Vous placez les {{ mesDomaines() }}. Les autres matières sont placées par {{ droits()!.domaines.includes('GENERAL') ? responsable.TECHNIQUE : responsable.GENERAL }}.</p>
+        } @else {
+          <p class="doux">Consultation : les matières générales sont placées par le censeur, les matières techniques et pratiques par le chef des travaux.</p>
+        }
+        @if (e.droits.publier && bilan().conflits > 0) {
+          <p class="doux">Réglez les conflits avant de publier.</p>
+        }
+      </section>
+
+      @if (e.conflits.length) {
+        <section class="alerte erreur conflits" role="alert">
+          <strong>Conflits à régler</strong>
+          <ul>
+            @for (c of e.conflits; track $index) { <li>{{ c.message }}</li> }
+          </ul>
+        </section>
+      }
+
+      @if (message()) {
+        <div class="alerte succes" role="status">{{ message() }}</div>
+      }
+      @if (enregistrement.erreur() && !edition()) {
+        <div class="alerte erreur" role="alert">{{ enregistrement.erreur() }}</div>
+      }
+
+      <!-- Choix de la vue -->
+      <section class="carte">
+        <div class="choix">
+          <div class="bascule" role="group" aria-label="Afficher par">
+            <button type="button" [class.actif]="vue() === 'classe'" (click)="choisirVue('classe')">Par classe</button>
+            <button type="button" [class.actif]="vue() === 'enseignant'" (click)="choisirVue('enseignant')">Par enseignant</button>
+            @if (e.ateliers.length) {
+              <button type="button" [class.actif]="vue() === 'atelier'" (click)="choisirVue('atelier')">Par atelier</button>
+            }
+          </div>
+          <div class="champ selection">
+            <label for="selection" class="visuellement-cache">{{ vue() === 'classe' ? 'Classe' : vue() === 'enseignant' ? 'Enseignant' : 'Atelier' }}</label>
+            <select id="selection" [value]="selection()" (change)="choisir($event)">
+              @switch (vue()) {
+                @case ('classe') { @for (c of e.classes; track c.id) { <option [value]="c.id" [selected]="c.id === selection()">{{ c.code }}</option> } }
+                @case ('enseignant') { @for (x of e.enseignants; track x.engagementId) { <option [value]="x.engagementId" [selected]="x.engagementId === selection()">{{ x.nom }}</option> } }
+                @case ('atelier') { @for (a of e.ateliers; track a.id) { <option [value]="a.id" [selected]="a.id === selection()">{{ a.code }} – {{ a.nom }}</option> } }
+              }
+            </select>
+          </div>
+        </div>
+
+        @if (selection()) {
+          <div class="barre-export">
+            <span>{{ titreSelection() }} :</span>
+            <app-export [chemin]="'/annees/' + e.anneeId + '/emploi-du-temps'" [parametres]="parametresExport()" [nom]="'emploi-du-temps'" [libelle]="'l’emploi du temps de ' + titreSelection()" />
+            <span class="doux">Toutes les classes :</span>
+            <app-export [chemin]="'/annees/' + e.anneeId + '/emploi-du-temps'" [nom]="'emplois-du-temps'" libelle="les emplois du temps de toutes les classes" />
+          </div>
+        } @else {
+          <p class="doux">
+            @switch (vue()) {
+              @case ('classe') { Aucune classe pour cette année. }
+              @case ('enseignant') { Aucun enseignant affecté aux matières des classes. }
+              @case ('atelier') { Aucun atelier ouvert. }
+            }
+          </p>
+        }
+
+        <!-- Placement d'une séance -->
+        @if (edition(); as ed) {
+          <div class="edition" role="dialog" aria-label="Placer une séance">
+            <h2>{{ ed.seanceId ? 'Modifier la séance' : 'Placer une séance' }} · {{ classe()?.code }}</h2>
+            <div class="grille-champs">
+              <div class="champ">
+                <label for="eMatiere">Matière</label>
+                <select id="eMatiere" [value]="ed.matiereId" (change)="modifierEdition('matiereId', $event)">
+                  @for (m of matieresPlacables(); track m.matiereId) {
+                    <option [value]="m.matiereId" [selected]="m.matiereId === ed.matiereId">{{ m.libelle }} · {{ duree(m.minutesPlacees) }} / {{ duree(m.minutesPrevues) }}</option>
+                  }
+                </select>
+              </div>
+              <div class="champ">
+                <label for="eJour">Jour</label>
+                <select id="eJour" [value]="ed.jour" (change)="modifierEdition('jour', $event)">
+                  @for (j of e.jours; track j) { <option [value]="j" [selected]="j === ed.jour">{{ jours[j] }}</option> }
+                </select>
+              </div>
+              <div class="champ">
+                <label for="eCreneau">Heure</label>
+                <select id="eCreneau" [value]="ed.creneauId" (change)="modifierEdition('creneauId', $event)">
+                  @for (c of e.creneaux; track c.id) { <option [value]="c.id" [selected]="c.id === ed.creneauId">{{ plage(c.heureDebut, c.heureFin) }}</option> }
+                </select>
+              </div>
+              <div class="champ">
+                <label for="eGroupe">Groupe (demi-classe)</label>
+                <input id="eGroupe" maxlength="20" placeholder="Toute la classe" [value]="ed.groupe" (input)="modifierEdition('groupe', $event)" />
+              </div>
+              @if (matiereEditee()?.domaine === 'TECHNIQUE') {
+                <div class="champ">
+                  <label for="eAtelier">Atelier</label>
+                  <select id="eAtelier" [value]="ed.atelierId" (change)="modifierEdition('atelierId', $event)">
+                    <option value="" [selected]="!ed.atelierId">Aucun (salle de cours)</option>
+                    @for (a of ateliersProposes(); track a.id) { <option [value]="a.id" [selected]="a.id === ed.atelierId">{{ a.code }} – {{ a.nom }}</option> }
+                  </select>
+                </div>
+              }
+              @if (!ed.atelierId) {
+                <div class="champ">
+                  <label for="eSalle">Salle</label>
+                  <input id="eSalle" maxlength="40" placeholder="Facultatif" [value]="ed.salle" (input)="modifierEdition('salle', $event)" />
+                </div>
+              }
+            </div>
+            @if (matiereEditee(); as m) {
+              <p class="doux">{{ m.enseignant ?? 'Aucun enseignant affecté à cette matière' }} · {{ libelleType[m.type] }}</p>
+            }
+            @if (alerteEdition(); as a) { <p class="alerte attention">{{ a }}</p> }
+            @if (erreurEdition(); as er) { <p class="rouge" role="alert">{{ er }}</p> }
+            @if (enregistrement.erreur()) { <div class="alerte erreur" role="alert">{{ enregistrement.erreur() }}</div> }
+            <div class="actions-ligne">
+              <button type="button" class="bouton petit" [disabled]="!!erreurEdition() || enregistrement.enCours()" (click)="enregistrer()">Enregistrer</button>
+              @if (ed.seanceId) {
+                <button type="button" class="bouton danger petit" [disabled]="enregistrement.enCours()" (click)="retirer()">Retirer la séance</button>
+              }
+              <button type="button" class="bouton discret petit" (click)="edition.set(null)">Annuler</button>
+            </div>
+          </div>
+        }
+
+        <!-- Grille -->
+        @if (selection()) {
+          <div class="tableau-defilant">
+            <table class="grille-edt">
+              <thead>
+                <tr>
+                  <th class="heures">Heures</th>
+                  @for (j of e.jours; track j) { <th>{{ jours[j] }}</th> }
+                </tr>
+              </thead>
+              <tbody>
+                @for (c of e.creneaux; track c.id) {
+                  <tr>
+                    <th class="heures" scope="row">{{ heure(c.heureDebut) }}<br /><span class="doux">{{ heure(c.heureFin) }}</span></th>
+                    @for (j of e.jours; track j) {
+                      @if (existe(c, j)) {
+                        <td>
+                          @for (carte of cartes(j, c); track $index) {
+                            <button type="button" class="seance" [class.general]="carte.domaine === 'GENERAL'" [class.technique]="carte.domaine === 'TECHNIQUE'"
+                              [class.ailleurs]="!carte.seance" [class.conflit]="carte.conflit" [class.figee]="!(carte.seance?.modifiable && vue() === 'classe')"
+                              [disabled]="!(carte.seance?.modifiable && vue() === 'classe')" (click)="ouvrir(carte)">
+                              <strong>{{ carte.titre }}</strong>
+                              @if (carte.groupe) { <span class="pastille">{{ carte.groupe }}</span> }
+                              @for (l of carte.lignes; track $index) { <span class="ligne">{{ l }}</span> }
+                            </button>
+                          }
+                          @if (peutPlacerIci(c, j) && (!cartes(j, c).length || cartes(j, c).every(x => x.groupe))) {
+                            <button type="button" class="placer" (click)="nouvelle(j, c)" [attr.aria-label]="'Placer une séance le ' + jours[j].toLowerCase() + ' à ' + heure(c.heureDebut)">
+                              {{ cartes(j, c).length ? '+ groupe' : '+' }}
+                            </button>
+                          }
+                        </td>
+                      } @else {
+                        <td class="ferme" aria-label="Pas de cours"></td>
+                      }
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <p class="legende doux">
+            <span class="puce general"></span> matières générales (censeur)
+            <span class="puce technique"></span> matières techniques et pratiques (chef des travaux)
+            @if (vue() === 'enseignant') { <span class="puce ailleurs"></span> cours dans un autre établissement }
+          </p>
+        }
+      </section>
+
+      <!-- Couverture de la classe -->
+      @if (classe(); as c) {
+        <section class="carte">
+          <h2>Volume horaire de la {{ c.code }}</h2>
+          <ul class="liste couverture">
+            @for (m of c.matieres; track m.matiereId) {
+              <li>
+                <span>
+                  <strong>{{ m.libelle }}</strong> · {{ m.enseignant ?? 'sans enseignant' }}
+                  <br /><span class="doux">{{ libelleType[m.type] }} · placée par {{ responsable[m.domaine] }}</span>
+                </span>
+                <span class="pastille" [class.present]="etatCouverture(m) === 'complet'" [class.absent]="etatCouverture(m) === 'manque'">
+                  {{ duree(m.minutesPlacees) }} / {{ duree(m.minutesPrevues) }}
+                </span>
+              </li>
+            } @empty {
+              <li class="doux">Aucune matière au programme de cette classe.</li>
+            }
+          </ul>
+        </section>
+      }
+
+      <!-- Génération automatique -->
+      @if (placeur()) {
+        <section class="carte">
+          <h2>Génération automatique</h2>
+          <p class="doux">
+            Place les heures qui manquent à vos matières dans les cases libres : jamais deux cours en même temps pour une
+            classe, un enseignant (y compris dans ses autres établissements) ou un atelier. Les travaux pratiques sont
+            regroupés en blocs dans un atelier de la filière. Vous ajustez ensuite à la main.
+          </p>
+          <div class="options">
+            <label><input type="radio" name="portee" [checked]="toutesLesClasses()" (change)="toutesLesClasses.set(true)" /> Toutes les classes</label>
+            @if (classe(); as c) {
+              <label><input type="radio" name="portee" [checked]="!toutesLesClasses()" (change)="toutesLesClasses.set(false)" /> Seulement la {{ c.code }}</label>
+            }
+          </div>
+          @if (e.droits.domaines.length > 1) {
+            <div class="options">
+              @for (d of e.droits.domaines; track d) {
+                <label><input type="checkbox" [checked]="!domainesGeneration().length || domainesGeneration().includes(d)" (change)="basculerDomaine(d)" /> {{ libelleDomaine[d] }}</label>
+              }
+            </div>
+          }
+          <div class="options">
+            <label><input type="checkbox" [checked]="remplacer()" (change)="remplacer.set(!remplacer())" /> Refaire entièrement : retirer d'abord mes séances déjà placées</label>
+          </div>
+          <button type="button" class="bouton petit" [disabled]="enregistrement.enCours()" (click)="generer()">
+            {{ enregistrement.enCours() ? 'Calcul…' : 'Générer' }}
+          </button>
+          @if (resultat(); as r) {
+            <div class="resultat" role="status">
+              <p>
+                <strong>{{ r.seancesPlacees }} séance(s) placée(s)</strong>
+                @if (r.seancesRetirees) { · {{ r.seancesRetirees }} retirée(s) avant le calcul }
+              </p>
+              @if (r.manques.length) {
+                <p>À placer à la main :</p>
+                <ul>
+                  @for (m of r.manques; track $index) {
+                    <li><strong>{{ m.classe }}</strong> · {{ m.matiere }} : {{ duree(m.minutesManquantes) }} — <span class="doux">{{ m.raison }}</span></li>
+                  }
+                </ul>
+              } @else {
+                <p class="doux">Toutes les heures demandées ont trouvé une place.</p>
+              }
+            </div>
+          }
+        </section>
+      }
+    }
+  } @else if (action.enCours()) {
+    <p class="doux">Chargement…</p>
+  }
+</div>

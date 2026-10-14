@@ -4,7 +4,7 @@ Avant une mise en production, la recette vérifie l'application **comme ses util
 
 Elle a deux volets :
 
-1. **La recette automatisée** (environ 300 scénarios) appelle l'API réelle pour chaque parcours, avec les droits de chaque rôle, l'isolation entre établissements, les règles métier et les cas d'erreur.
+1. **La recette automatisée** (environ 310 scénarios) appelle l'API réelle pour chaque parcours, avec les droits de chaque rôle, l'isolation entre établissements, les règles métier et les cas d'erreur.
 2. **La recette manuelle** (check-list ci-dessous) couvre ce qu'un script ne peut pas juger : l'interface, le hors connexion, l'impression, les SMS réellement reçus, le téléphone.
 
 > Développement uniquement : la recette s'exécute sur la base locale. Le peuplement **efface** cette base.
@@ -53,6 +53,7 @@ Code de sortie : 0 si tout est réussi, 1 s'il y a des échecs, 2 si la recette 
 | 08 | PLA, DON, ADO, ESP | Établissements gérés par le super administrateur (création, modules, dépannage, suspension), identité et logo, exports complets (réversibilité), statistiques, adoption (avec rattachement territorial, v0.39), choix d'espace d'un administrateur qui est aussi parent (v0.41) |
 | 09 | FIN | Une année complète dans un collège de recette : préparation, notes des trois trimestres, verrouillage, bulletins, décisions du conseil, validation, clôture, année suivante, plan de passage et réinscriptions (v0.45), archivage, résiliation |
 | 10 | MSG, EXA | Messagerie (v0.46) : décompte avant l'envoi, message aux enseignants et aux parents, lu / non lu, annuaire ; taux de réussite aux examens, saisie d'une année antérieure, export |
+| 12 | COU, ADM, DEM, ACC, REU, ARC, CER | Secrétariat (v0.47.1) : courrier arrivée et départ, transmission et registre ; note de service signée et affichée ; demande d'autorisation d'absence jusqu'à la hiérarchie ; accueil et message transmis ; compte rendu validé ; archives ; certificat de scolarité et candidats aux examens |
 | 11 | CAH, INT | Organisation des rôles (v0.47) : visa mensuel des cahiers de textes (droits et refus, sans figer les données de démonstration), intérim du chef d'établissement (prévu puis annulé). Les lots 01, 03 et 05 vérifient aussi l'intendant qui inscrit, le chef d'établissement seul à modifier, le censeur qui répartit et le CPE seul à saisir la vie scolaire |
 
 **Ce que la recette laisse dans la base** (elle reste rejouable) :
@@ -91,6 +92,9 @@ Cochez chaque point sur l'interface (`cd frontend && npm start`, puis http://loc
 - [ ] **v0.40** : un enseignant technique rattaché à un atelier voit la tuile Ateliers, un enseignant général ne la voit pas.
 - [ ] La fiche de remise des accès parents d'une classe (PDF) est lisible et se découpe ligne par ligne ; les mots de passe n'apparaissent qu'une fois.
 - [ ] Import Excel des élèves : remplir le modèle téléchargé avec 5 élèves, dont 2 en erreur ; le contrôle signale les lignes fautives, l'import n'enregistre que les lignes valides.
+- [ ] **v0.47.1** : la secrétaire enregistre un courrier arrivé de la DPEPPNF (pièce scannée), le transmet à l'intendance ; l'intendant le voit et le marque traité ; elle le classe ; le registre de l'année s'imprime.
+- [ ] **v0.47.1** : la secrétaire rédige une note de service, le chef la signe (numéro), elle l'affiche « pour tous » : un parent la voit dans « Tableau d'affichage » ; un enseignant dépose une demande d'autorisation d'absence auprès d'elle, le chef donne son avis, elle la transmet à la hiérarchie (courrier départ) et l'enseignant suit sa demande.
+- [ ] **v0.47.1** : la secrétaire n'a plus les onglets Évaluations ni Bulletins ; elle délivre un certificat de scolarité (PDF numéroté) et sort la liste des candidats au BEPC avec les pièces manquantes.
 - [ ] **v0.47** : l'intendant saisit un nouvel élève (mode « Affectation de l'État »), ouvre « Pièces du dossier », coche les pièces reçues ; il ne peut plus décocher une pièce enregistrée ni changer le mode ; le chef d'établissement le peut. « Dossiers d'inscription incomplets » liste les pièces manquantes ; « Pièces demandées à l'inscription » se règle (chef d'établissement).
 - [ ] **v0.47** : le censeur ouvre une classe, « Répartir » ne propose que les classes du même niveau ; il déplace un élève. Le secrétariat ne voit plus « Nouvel élève » mais imprime les cartes scolaires.
 - [ ] **v0.47** : le CPE (rôle affiché « Conseiller principal d'éducation ») saisit un retard, un blâme, une convocation ; le censeur et le chef des travaux ouvrent la même fiche sans bouton de saisie.

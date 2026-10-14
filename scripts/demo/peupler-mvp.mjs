@@ -804,7 +804,7 @@ async function recruterPersonnel(e) {
     const roles = {
       CENSEUR: e.chefTravaux ? 'grille horaire et emploi du temps des matières générales, publication ; vise les progressions des matières générales, bulletins' : 'grille horaire et tout l’emploi du temps, publication ; vise toutes les progressions, bulletins',
       CHEF_TRAVAUX: 'emploi du temps des matières techniques et pratiques ; vise les progressions techniques et pratiques ; ateliers, besoins à arbitrer (campagne des examens), état pour la DR, exports Excel et PDF',
-      SECRETARIAT: 'consultation des dossiers, cartes scolaires, accès des parents',
+      SECRETARIAT: 'courrier arrivée et départ, documents à faire signer et affichage, demandes du personnel, accueil, réunions, archives, certificats de scolarité',
       INTENDANT: e.definition.ateliers?.length ? 'guichet, journal de caisse, relances ; catalogue des prix, commandes des ateliers' : 'guichet, journal de caisse, relances',
       SURVEILLANT: 'CPE : absences du jour, justificatifs, incidents, convocations (seul à saisir la vie scolaire)',
     };

@@ -1,4 +1,4 @@
-# Application web (v0.23)
+# Application web (v0.47.1)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -20,6 +20,14 @@ Application Angular 22 installable sur smartphone (PWA). Elle couvre :
   journal de caisse, frais de l'année, bourses et exonérations ;
 - les **fiches de progression** (v0.23) : préparées par l'enseignant, visées par le censeur (matières générales)
   ou le nouveau **chef des travaux** (matières techniques et pratiques) ;
+- le **cahier de textes, même sans réseau** (v0.24) : après chaque cours, ce qui a été fait et le travail donné,
+  rattaché à une séquence ; réalisé face au prévu pour l'enseignant et la direction ;
+- l'**export complet des données** de l'établissement (v0.33) : archive ZIP de fichiers CSV décrits, pour la
+  réversibilité ;
+- la **mesure de l'adoption** (v0.34) : utilisation de l'application par établissement (super administrateur) et
+  par membre du personnel (administrateur) ;
+- le **rattachement territorial** et les **documents officiels** (v0.35) : pays, ministères et directions
+  (super administrateur), logo et en-tête des documents (administrateur) ;
 - un **accueil par rôle** : chaque personne ne voit que les tuiles de ses rôles.
 
 ## Démarrer en local
@@ -56,6 +64,34 @@ Il crée par l'API un lycée technique complet :
 À la fin, il affiche les téléphones et le mot de passe (`Demo2026`) de l'enseignant, de l'administrateur et du
 parent.
 
+**Test grandeur nature du MVP** (v0.24.1) : une seule commande efface la base locale et la remplit avec trois
+établissements complets, par l'API (comme l'application) :
+
+```bash
+scripts/demo/mvp-grandeur-nature.sh                # demande de taper EFFACER ; démarre l'API avec mvn
+scripts/demo/mvp-grandeur-nature.sh --api-eclipse  # vous lancez l'API depuis Eclipse quand il le demande
+scripts/demo/mvp-grandeur-nature.sh --arreter-api  # arrête l'API lancée par le script
+SEMAINES=6 ELEVES=30 scripts/demo/mvp-grandeur-nature.sh --oui
+```
+
+- seule la base `plateforme` du conteneur `plateforme-postgres` est effacée (pas `plateforme_test`), et seulement
+  sur un Docker local, API arrêtée ;
+- Lycée technique Les Bâtisseurs (profil technique : 2nde F3, 1re F4, Tle G2), Centre de formation professionnelle
+  L'Atelier du Faso (modules : CAP1 ELB, CAP1 MAUTO, BEP1 HAB), Lycée privé Horizon (général : 2nde A4, 1re C,
+  Tle D, sans chef des travaux) ; 60 élèves par classe, fratries, un parent dans deux établissements ;
+- personnel complet, un enseignant par matière (titulaires, vacataires, un enseignant partagé par invitation),
+  emploi du temps sans conflit ;
+- depuis la rentrée (4 semaines par défaut) : appels, fiches de progression (visées, à revoir, à viser, brouillon,
+  non commencée), cahier de textes rattaché aux séquences (un enseignant en retard par établissement), notes ou
+  compétences, relevés du Module 1 publiés ;
+- scolarité : frais (tranches, filières, cantine facultative), bourses et prises en charge, exonérations,
+  encaissements, une annulation, virements d'organismes, Mobile Money (simulateur), relances ;
+- vie scolaire : justificatifs, retards, avertissements, blâme, exclusion, convocations ; espaces parents.
+
+Le bilan s'affiche à la fin (avec les éventuels avertissements regroupés). Les comptes (tous avec le mot de passe
+`Demo2026`) et ce qu'il faut essayer avec chacun sont écrits dans `scripts/demo/comptes-demo.md` (non versionné).
+Le super administrateur passe à `SuperAdmin-Dev-2026`.
+
 **Quelques semaines d'activité** (v0.19.1) : `scripts/demo/activite-enseignant.mjs` fait « vivre » l'enseignant de
 démonstration, par l'API, comme s'il travaillait depuis la rentrée :
 
@@ -81,6 +117,8 @@ exécution crée un nouvel établissement : on peut le relancer sans rien nettoy
 | `npm test` | Tests unitaires (Vitest), en continu. `npx ng test --watch=false` pour une seule exécution |
 | `npm run build` | Construction de production dans `dist/frontend/browser/` (avec service worker) |
 
+Les options Vitest complémentaires (délai de 30 s par test au lieu de 5 s, pour les postes chargés) sont dans `frontend/vitest-base.config.mts`, déclaré par `runnerConfig` dans `angular.json`.
+
 ## Tester sur un téléphone
 
 Le service worker (fonctionnement sans réseau à l'ouverture) n'est actif que sur la **construction de production**,
@@ -99,8 +137,9 @@ puis onglet *Network* → *Offline*.
 | Jeton d'accès (15 min) | **Mémoire** de l'application uniquement : jamais écrit sur le téléphone |
 | Jeton de rafraîchissement | Cookie **HttpOnly**, SameSite=Strict, chemin `/api/v1/auth` : invisible pour le code |
 | Profil affiché (nom, établissement, rôles) | IndexedDB, pour ouvrir l'application sans réseau |
-| Listes de classes de l'enseignant | IndexedDB, **effacées à la déconnexion** |
-| Appels non envoyés | IndexedDB, **conservés** à la déconnexion (envoyés à la connexion suivante) |
+| Listes de classes de l'enseignant | IndexedDB, **chiffrées** (v0.32), **effacées à la déconnexion** |
+| Appels, notes, séances du cahier non envoyés | IndexedDB, **chiffrés** (v0.32), **conservés** à la déconnexion après avertissement (envoyés à la connexion suivante) |
+| Clé de chiffrement (une par compte et par appareil) | IndexedDB, **non exportable** ; détruite à la déconnexion quand plus rien n'attend, et à l'effacement à distance |
 
 - L'établissement ne vient jamais du téléphone : le serveur le lit dans le jeton.
 - Un compte (un téléphone) peut appartenir à plusieurs établissements, avec un rôle propre à chacun : enseignant
@@ -217,6 +256,403 @@ Mise en place d'un établissement, dans l'ordre :
 Comptes créés (administrateur d'un établissement, enseignant, personnel) : le **mot de passe provisoire** s'affiche
 une seule fois, avec un bouton pour le copier. La personne le change à sa première connexion. Un enseignant déjà
 inscrit sur la plateforme reçoit une **invitation** au lieu d'un nouveau compte.
+
+## Onglet qui ne s'ouvre pas (v0.44.1)
+
+Les écrans de l'administration (Classes, Élèves, Bulletins…) sont chargés à la demande. Si le fichier
+JavaScript d'un écran est introuvable (application reconstruite ou mise à jour pendant que l'onglet du
+navigateur était ouvert, `npm start` relancé, cache périmé), Angular annulait la navigation **sans message** :
+le clic sur l'onglet ne faisait rien. Désormais (`core/navigation.ts`), la page se recharge une fois à
+l'adresse demandée et la session reprend grâce au cookie ; les autres erreurs de navigation s'affichent dans
+la console. En développement, si le problème persiste : arrêter `npm start`, supprimer `frontend/.angular`,
+relancer, puis recharger la page avec Ctrl+Maj+R.
+
+## Messages et examens nationaux (v0.46)
+
+- **Messages** (`/messages`, menu « Messages » et tuile de l'accueil, pour tout compte d'un établissement, en ligne) :
+  boîte de réception (non lus en gras, point bleu), lecture d'un message. Pastille **✉ n** dans la barre du haut quand
+  des messages sont non lus (relue à la connexion et toutes les 5 minutes).
+- Le **chef d'établissement** a deux onglets de plus :
+  - **Écrire** : objet, message (compteur), destinataires par groupes (tout le personnel, enseignants,
+    administration, tous les parents), par rôles, parents de certaines classes, ou personnes cherchées dans
+    l'annuaire (nom, rôle, enfant et classe) ; option SMS avec l'estimation du nombre de SMS ; décompte recalculé à
+    chaque changement (parents sans compte non joints sans SMS, en rouge) ; envoi confirmé ;
+  - **Envoyés** : date, objet, cibles, lus / comptes, détail des destinataires (lu le…, SMS).
+- **Examens** (`/admin/examens`, onglet de l'administration, chef d'établissement et censeur) : une carte par examen
+  (taux de la dernière année, admis sur candidats, résultats en attente, évolution en points, filles et garçons,
+  barres des huit dernières années), tableau de toutes les années (source plateforme ou saisie, détail par classe),
+  export Excel ou PDF, saisie et correction des années antérieures (chef d'établissement).
+- Budget du paquet initial relevé à 550 ko (avertissement) : la pastille des messages est chargée au démarrage.
+- Tests : `messagerie/messagerie.spec.ts`, `fin-annee/examens.spec.ts`.
+
+## Fin d'année (v0.45)
+
+Onglet **Fin d'année** (`/admin/fin-annee`, tuile de l'accueil et menu) pour le chef d'établissement, le censeur et
+le secrétariat. Une page, cinq étapes numérotées (vertes quand elles sont faites) :
+
+1. **Notes figées** : périodes encore ouvertes (à verrouiller dans Bulletins).
+2. **Conseils de classe** : état de chaque classe (à calculer, à valider, validées) et répartition ; bouton
+   « Calculer les propositions » pour toutes les classes ; lien vers le **conseil de fin d'année** d'une classe
+   (`/admin/fin-annee/classes/:id`) : moyenne annuelle, rang, redoublements, résultat de l'examen national, proposition,
+   décision du conseil avec **motif obligatoire** pour s'en écarter (la ligne est surlignée), enregistrement des seules
+   lignes modifiées, puis validation confirmée (SMS aux familles).
+3. **Année suivante** : création par copie (libellé et dates proposés, décalés d'un an).
+4. **Listes de l'année suivante** : une carte par classe (effectif prévu / maximal, filles, garçons, redoublants,
+   dépassement en rouge) avec ses élèves ; un menu par élève pour le déplacer vers une classe parallèle ou le retirer ;
+   les élèves sans classe (exclus, orientés, certifiés, fin de cycle) avec un menu pour les placer, sauf les exclus ;
+   téléchargement Excel ou PDF ; « Réinscrire N élève(s) » (administration et secrétariat), avec l'option de garder le
+   statut de bourse.
+5. **Clôture** de l'année puis **ouverture** de l'année suivante (chef d'établissement), chacune confirmée.
+
+Les **réglages** (repliés en bas de page) : seuil d'exclusion et redoublements maximum, poids des périodes par profil,
+nom de l'examen national de chaque classe. Tests : `fin-annee/fin-annee.spec.ts`.
+
+## Photos d'identité, signature et visas des bulletins (v0.44)
+
+En ligne uniquement : photos et signatures ne sont **jamais** gardées sur le téléphone (pas de cache hors
+connexion, pas de photo sur la feuille d'appel, qui doit fonctionner hors ligne).
+
+- **Photo d'un élève** : dossier de l'élève (`/admin/eleves`), cadre « Ajouter une photo ». Sur téléphone, le
+  bouton ouvre directement la caméra frontale (`capture="user"`). Après la création d'un élève, son dossier
+  s'ouvre pour ajouter la photo tout de suite. Le navigateur réduit l'image (JPEG 960 × 1200 au plus) avant
+  l'envoi ; le serveur la ré-encode. Bouton **Carte scolaire (PDF)**.
+- **Liste de la classe** (`/admin/classes/:id`) : miniatures (32 × 40) des élèves qui ont une photo — seules
+  celles-là sont demandées —, nombre d'élèves sans photo, bouton **Cartes scolaires (PDF)** (8 par page A4).
+- **Personnel** (`/admin/personnel`) : miniature devant chaque nom ; un clic ouvre la photo (ajout, changement,
+  retrait) et la **carte professionnelle** de la personne. Bouton **Cartes professionnelles (PDF)** pour tous.
+  Les enseignants invités (pas encore acceptés) n'ont pas de photo.
+- **Ma signature** (`/signature`, menu du compte pour les enseignants, censeurs et chefs d'établissement) :
+  dessinée au doigt ou à la souris dans un cadre (le tracé est recadré avant l'envoi), ou photo d'une signature
+  sur papier blanc. Elle vaut pour tous les établissements du compte.
+- **Visa** (page Appréciations de l'enseignant) : état de la matière, bouton « Viser … », rappel quand aucune
+  signature n'est déposée ou que la période ne semble pas verrouillée ; « Retirer mon visa ». Une appréciation
+  modifiée après le visa le retire : la page le signale.
+- **Bulletins** (`/admin/bulletins`) : tableau « Visas des enseignants » (x / n matières visées ; la direction
+  peut retirer un visa avant publication), alerte des matières non visées après génération, et rappel
+  « régénérez » quand des visas ont été posés après la génération.
+- **v0.44.1 — où insérer les photos** (les cadres de la v0.44 n'étaient visibles qu'en ouvrant un dossier) :
+  - formulaire **Nouvel élève** : cadre « + Photo » (prise de vue ou fichier, aperçu) ; la photo part juste après
+    la création du dossier ;
+  - formulaires **Engager un enseignant** et **Ajouter une personne** : même cadre ; la photo part avec le
+    nouveau compte (pour une invitation, elle s'ajoutera depuis la liste quand l'enseignant aura accepté) ;
+  - colonne **Photo** dans la recherche des élèves, la liste d'une classe et les deux tableaux du Personnel :
+    miniature, ou cadre pointillé « + Photo » qui ouvre le dossier (élève) ou la fiche photo (personnel) ;
+    `/admin/eleves?eleve=<id>` ouvre directement un dossier ;
+  - fiche de **vie scolaire** de l'élève : photo à côté du nom (lecture seule).
+- Composants partagés : `partage/photo-identite.component.ts` (`app-photo-identite`, `app-vignette`, `app-choix-photo`),
+  `partage/photos-api.service.ts` (`PhotosApi`, `reduirePhoto`). Tests : `partage/photos.spec.ts`,
+  `bulletins/bulletins.spec.ts`, `admin/admin.spec.ts`.
+
+## Bulletins : conseil de classe, verrouillage, génération et publication (v0.43)
+
+Onglet **Bulletins** de l'administration (`/admin/bulletins`) et tuile de l'accueil, pour le censeur,
+l'administrateur et le secrétariat. On y choisit la classe, puis la période ; par défaut, c'est la dernière
+période commencée. Le parcours suit l'ordre du conseil :
+
+1. **Période** : son état (saisies ouvertes ou verrouillée). Le censeur ou l'administrateur la verrouille, puis
+   confirme. Le verrouillage vaut pour toutes les classes du profil et fige les notes. Un déverrouillage reste
+   possible tant que les bulletins ne sont pas publiés.
+2. **Conseil de classe** (direction) : rang, moyenne (ou taux de maîtrise), distinction proposée par les seuils,
+   distinction retenue et appréciation générale (300 caractères). Le bouton « Enregistrer le conseil » envoie
+   toute la classe en une fois.
+3. **Bulletins** : génération (période verrouillée), relecture élève par élève ou de toute la classe en PDF,
+   régénération tant que rien n'est publié, puis publication après confirmation. Les bulletins deviennent visibles
+   dans l'espace parent et un SMS part vers chaque famille. Après publication, plus rien n'est modifiable.
+   Le secrétariat ne voit que cette partie, pour consulter et imprimer.
+
+L'enseignant saisit ses **appréciations** depuis la liste de ses évaluations (« Appréciations du bulletin »,
+`/appreciations/:classeId/:matiereId`) : une phrase par élève (200 caractères au plus), pour sa matière et la
+période. Seules les lignes modifiées sont envoyées ; un texte vide efface l'appréciation. Cet écran demande une
+connexion.
+
+## Choix d'espace : administration et parent d'élève (v0.41)
+
+- Un compte, un numéro. Un enseignant ou un membre du personnel qui est aussi parent dans **son** établissement
+  a les deux rôles dans la même session (tuile « Suivi de mes enfants »). Parent dans un autre établissement : il
+  choisit l'établissement à la connexion, puis « Changer d'établissement ».
+- Un compte d'**administration** (super administrateur, administrateur pays, compte de direction) peut aussi être
+  parent d'élève (jamais personnel d'un établissement). À la connexion, « Choisissez votre espace » : son espace
+  d'administration en premier, puis chaque établissement où il est parent. Le menu propose ensuite « Changer
+  d'espace ». Dans un établissement, il n'a que les droits d'un parent.
+- L'établissement de son enfant ne peut ni réinitialiser son mot de passe, ni le déverrouiller, ni fermer ses
+  sessions : ces actions restent au super administrateur (ou à l'administrateur pays pour une direction).
+
+## Enseignants du général et du technique (v0.40)
+
+- **Personnel** : colonne « Enseignement » (Général / Technique et professionnel), choisie à l'engagement et
+  modifiable (« Passer en technique », « Passer en général »). Un enseignant classé « général » qui assure une
+  matière technique, pratique ou un module cette année est signalé, avec « Classer en technique ».
+- **Accueil d'un enseignant** : la tuile Ateliers n'apparaît qu'à un enseignant du technique rattaché à un atelier
+  (responsable, ou matière technique d'une filière de l'atelier). Hors connexion, elle reste cachée.
+
+## Regroupement par territoire (v0.39)
+
+- **Établissements**, **Adoption** et **Pilotage** (super administrateur, administrateur pays, compte de direction) :
+  vue « Par territoire » par défaut, avec un arbre pays › ministère › direction régionale › direction provinciale ›
+  établissements. Chaque niveau se replie ou se déplie (« Tout déplier », « Tout replier ») et affiche ses
+  totaux : statuts des établissements, comptes actifs et taux de l'adoption, élèves, filles, enseignants, taux
+  d'admission et de réussite aux examens (pondérés) du pilotage. Les niveaux communs à tous (le pays et le
+  ministère pour un administrateur pays, sa propre hiérarchie pour une direction) sont écrits en tête. Les
+  établissements non rattachés forment le groupe « Sans rattachement ». Une recherche ou un filtre déplie tout ;
+  la vue « Liste » garde l'ancienne présentation.
+- **Compte de direction** : onglets « Pilotage » et « Adoption » de son ressort (en lecture ; sans filtre de
+  direction ni recalcul), aussi dans le menu et sur l'accueil.
+- **Territoire** : sur chaque direction du dernier niveau, « Nouvel établissement » ouvre le formulaire de création
+  avec ce rattachement déjà choisi.
+
+## Moyens de paiement et virements (v0.38)
+
+- **Scolarité → Moyens de paiement** (administrateur ; lecture pour l'intendance et le secrétariat) : moyens acceptés
+  au guichet ; pour les parents, Mobile Money (opérateurs) et virement (consigne) ; compte marchand Mobile Money
+  (agrégateur, identifiant, clés masquées, adresse de notification) ; comptes bancaires (ajout, modification,
+  désactivation).
+- **Guichet** : seuls les moyens acceptés sont proposés.
+- **Scolarité → Virements** (intendance) : à vérifier / validés / refusés / tous ; preuve ouverte dans un onglet ;
+  « Valider » avec le montant reçu (reçu émis, SMS) ou « Refuser » avec un motif (SMS).
+- **Espace parent → Scolarité** : boutons « Payer par Mobile Money » (opérateurs de l'établissement) et « Payer par
+  virement » (compte, motif à indiquer, déclaration avec preuve facultative) ; liste « Virements déclarés » avec leur
+  statut. Sans moyen en ligne : « Le paiement se fait à l'intendance ».
+- Détails : [API_SCOLARITE.md](API_SCOLARITE.md#7-moyens-de-paiement-et-virements-déclarés-v038).
+
+## Pilotage des directions (v0.37)
+
+- **Comptes des directions** (Territoire, administrateur pays ou super administrateur) : bouton « Comptes » sur chaque
+  direction de l'arbre : créer un compte (téléphone, nom, prénoms ; mot de passe provisoire affiché une fois),
+  réinitialiser le mot de passe, retirer (avec confirmation). Bouton « Tableau de bord » : le pilotage de cette
+  direction.
+- **Pilotage** (`/pilotage`, menu et accueil ; onglet des pages Plateforme) : choix de l'année scolaire (et du pays
+  pour le super administrateur) ; chiffres clés (établissements, élèves et part des filles, enseignants et élèves par
+  enseignant, admission en fin d'année, réussite à chaque examen, utilisation) ; tableaux des examens de fin
+  d'études (garçons, filles), des moyennes par période et des niveaux ; directions du niveau inférieur (« Ouvrir »
+  pour descendre, « ↑ … » pour remonter, jamais au-dessus de la direction du compte) ; établissements avec recherche,
+  filtre par direction et « Détail » ; exports Excel et PDF.
+- **Compte de direction** : à la connexion, accueil avec son rattachement et la tuile « Tableau de bord » ; aucun
+  accès aux pages d'établissement ni de plateforme.
+- Détails : [API_PILOTAGE.md](API_PILOTAGE.md).
+
+## Administrateurs pays (v0.36)
+
+- **Territoire** (super administrateur) : sous les informations du pays, « Administrateurs du pays » : nommer
+  (téléphone, nom, prénoms ; mot de passe provisoire affiché une fois), réinitialiser le mot de passe, retirer (avec
+  confirmation).
+- **Administrateur pays** : mêmes pages que le super administrateur (Établissements, Territoire, Adoption), avec la
+  mention « Administration du pays : … », limitées à son pays ; ni création de pays, ni administrateurs pays, ni
+  recalcul de l'adoption ; le rattachement est obligatoire à la création d'un établissement.
+
+## Territoire et documents officiels (v0.35)
+
+- **Territoire** (super administrateur, onglet entre « Établissements » et « Adoption ») : pays (indicatif, longueur
+  des numéros, fuseau, monnaie, devise nationale) ; ministères avec les noms de leurs niveaux de directions ; arbre des
+  directions (« Ajouter dessous », « Modifier ») ; import d'un fichier CSV avec « Vérifier » (rien n'est enregistré)
+  puis « Importer », possible seulement après une vérification sans erreur.
+- **Établissements** : choix du rattachement à la création, bouton « Rattachement » sur chaque ligne (directions
+  actives du dernier niveau), chemin affiché sous le nom (ou « non rattaché »), filtre par direction (à tout niveau,
+  liste chargée au premier usage).
+- **Adoption** : même filtre par direction ; rattachement sous le nom de chaque établissement.
+- **Administration → Identité** (administrateur) : en-tête des documents tel qu'il sera imprimé (pays, devise,
+  ministère, directions, logo, établissement), aperçu PDF, logo PNG ou JPEG de 500 Ko au plus (contrôlé avant l'envoi),
+  remplacement et suppression confirmée. Avertissement si l'établissement n'est pas encore rattaché.
+- Détails : [API_TERRITOIRE.md](API_TERRITOIRE.md).
+
+## Mesure de l'adoption (v0.34)
+
+- **Administration → Utilisation** (administrateur) : période de 7, 30 ou 90 jours ; membres du personnel,
+  enseignants et parents actifs ; graphique des personnes actives par jour (le nombre au survol de chaque jour, les
+  week-ends plus clairs) ; ce qui a été fait dans l'application ; tableau du personnel (jours actifs, dernière
+  activité, appels, notes, cahier) avec les filtres « Pas actifs sur la période » et « Enseignants sans appel dans
+  l'application ».
+- **Adoption** (super administrateur, tuile de l'accueil, menu et onglet à côté d'« Établissements ») : mêmes
+  chiffres pour toute la plateforme, tableau des établissements (les établissements à accompagner en premier, case
+  « À accompagner seulement »), détail de toutes les actions d'un établissement, bouton « Recalculer la période ».
+- Détails : [API_ADOPTION.md](API_ADOPTION.md).
+
+## Export complet des données (v0.33)
+
+- **Administration → Données** (administrateur) : « Préparer un export complet » avec le mot de passe ; la liste se
+  met à jour toute seule pendant la préparation (toutes les 3 secondes), puis « Télécharger » : le navigateur
+  télécharge lui-même l'archive par un lien signé (progression, reprise). Taille, nombre de tables et de lignes,
+  date d'effacement et empreinte SHA-256 sont affichés.
+- **Établissements → Données** (super administrateur) : même composant (`app-exports-donnees` avec
+  `etablissementId`), pour un établissement actif, suspendu ou résilié.
+- Détails du contenu de l'archive : [API_REVERSIBILITE.md](API_REVERSIBILITE.md).
+
+## Secrétariat (v0.47.1)
+
+Espace « Secrétariat » (`/secretariat`, ADMIN_ECOLE et SECRETARIAT) : Courrier (registre arrivée et départ, pièce
+scannée, transmission, suivi, registre imprimable), Documents administratifs (rédaction, signature par le chef,
+affichage, PDF), Demandes du personnel (circuit jusqu'à la hiérarchie), Accueil et téléphone (registre du jour,
+message transmis par la messagerie), Réunions (comptes rendus), Archives, Certificats et examens. « Tableau
+d'affichage » (`/affichage`) pour tout le personnel (et « Mes demandes »). Les onglets Évaluations et Bulletins ne
+sont plus proposés au secrétariat. Tests : `secretariat/secretariat.spec.ts`. Détails : `API_SECRETARIAT.md`.
+
+## Organisation des rôles (v0.47)
+
+Ce que voit chaque rôle suit l'organisation des établissements (le serveur vérifie de toute façon chaque appel) :
+
+| Écran | Changement |
+|---|---|
+| Élèves | « Nouvel élève », import Excel, photo, « Pièces du dossier » : chef d'établissement et **intendant** (onglet Élèves ouvert à l'intendance) ; parents ajoutés ou retirés : chef d'établissement ; cartes scolaires et comptes parents : + secrétariat. Mode d'admission dans le formulaire ; « Dossiers d'inscription incomplets » ; « Pièces demandées à l'inscription » (chef d'établissement) |
+| Classe | « Répartir » (censeur : classes du même niveau ; chef d'établissement : toutes) ; « Inscrire des élèves » réservé à la saisie |
+| Fin d'année | « Réinscrire » (plan de passage) : chef d'établissement et censeur |
+| Vie scolaire | Saisie (incidents, convocations, clôtures, justificatifs) : le CPE (rôle SURVEILLANT) seul ; le chef des travaux consulte (route ouverte) |
+| Progressions | « Visa mensuel des cahiers de textes » (`/progression/cahiers`) et visa dans le cahier d'une matière |
+| Personnel | « Intérim du chef d'établissement » : désigner le censeur ou le chef des travaux, mettre fin |
+
+Le rôle `SURVEILLANT` s'affiche « Conseiller principal d'éducation (CPE) ». Tests : `admin/roles-etablissement.spec.ts`,
+visa dans `progression/progression.spec.ts`.
+
+## Sécurité des appareils (v0.32)
+
+- **Chiffrement local** : listes de classes et saisies en attente (appels, notes, cahier de textes) sont chiffrées
+  sur l'appareil (AES-GCM 256 bits), avec une clé propre à chaque compte, non exportable. Le profil affiché (nom,
+  établissement, rôles) reste en clair pour ouvrir l'application sans réseau. Les données d'une version
+  précédente sont chiffrées à la connexion suivante. Limite : la clé reste sur l'appareil (l'appel doit marcher
+  sans réseau) ; le chiffrement protège contre la copie des fichiers, pas contre quelqu'un qui ouvre
+  l'application avec la session encore active. En HTTP sur le réseau local (sans HTTPS), le navigateur ne fournit
+  pas WebCrypto : les données restent en clair.
+- **Déconnexion** : avec des saisies non envoyées, l'application prévient (« 3 appels… ne sont pas encore
+  envoyés ») ; elles restent chiffrées sur le téléphone et partent à la prochaine connexion. Sans rien en attente,
+  la clé est détruite.
+- **Mes appareils** (menu) : téléphones et ordinateurs connectés au compte ; « Déconnecter… » puis
+  « Déconnecter » ou « Perdu ou volé : déconnecter et effacer ».
+- **Comptes** (administrateur) : « N appareil(s) connecté(s) » et bouton « Appareils… » : « Déconnecter ses
+  appareils » ou « Déconnecter et effacer ».
+- **Effacement à distance** : au prochain contact avec le serveur, l'appareil efface toutes ses données (même les
+  saisies non envoyées) et affiche sur la page de connexion « Ce téléphone a été déconnecté à distance : ses
+  données ont été effacées ». Règles et API : [API_SOCLE.md](API_SOCLE.md#appareils-connectés-et-effacement-à-distance-v032).
+
+## Modules activables (v0.31)
+
+Page « Établissements » du super administrateur : bouton **Modules** sur chaque établissement. Une case par module
+(ateliers, emplois du temps, progressions et cahier de textes, vie scolaire, scolarité, Mobile Money, espace
+parent), avec ce qu'il contient ; décocher la scolarité décoche Mobile Money, cocher Mobile Money recoche la
+scolarité. Dans l'établissement, un module désactivé disparaît : tuiles de l'accueil, écrans (retour à l'accueil si
+on y accède par un lien), rubriques « Vie scolaire » et « Scolarité » de l'espace parent, paiement Mobile Money,
+boutons de création des comptes parents, lien vers le cahier de textes après l'appel. Règles et API :
+[API_SOCLE.md](API_SOCLE.md#modules-activables-v031).
+
+## Emplois du temps (v0.30)
+
+Le censeur n'a pas accès aux ateliers (v0.30.1) : tuile, écrans et API reviennent au chef des travaux et à
+l'administrateur. Dans l'emploi du temps, la vue « Par atelier » n'apparaît que si l'établissement a des ateliers.
+
+En ligne. Tuile « Emplois du temps » (administration, censeur, chef des travaux, surveillant) et « Mon emploi du
+temps » (enseignant). Règles et API : [API_EMPLOI_DU_TEMPS.md](API_EMPLOI_DU_TEMPS.md).
+
+- **Grille horaire** (censeur, administrateur) : une ligne par heure de cours, avec les jours où elle existe ;
+  « Partir de la grille courante » propose 7 h – 12 h du lundi au samedi et 15 h – 18 h les lundi, mardi, jeudi et
+  vendredi.
+- **Emplois du temps** : bilan (heures placées, classes complètes, conflits), conflits à régler, grille **par
+  classe, par enseignant ou par atelier** (bleu : matières générales, ocre : techniques et pratiques ; hachures :
+  pas de cours ; « Autre établissement » pour les heures d'un vacataire ailleurs). Par classe, « + » sur une case
+  libre ouvre le placement (matière proposée : celle à qui il manque des heures ; jour, heure, groupe, atelier de la
+  filière proposé pour un TP, salle) ; une séance de son domaine s'ouvre pour être déplacée ou retirée. « + groupe »
+  ajoute l'autre demi-classe. Le censeur ne voit modifiables que les matières générales, le chef des travaux que les
+  techniques et pratiques.
+- **Volume horaire** de la classe : heures placées / prévues pour chaque matière et qui la place.
+- **Génération automatique** : toutes les classes ou la classe affichée, option « Refaire entièrement » ; le résultat
+  liste ce qui reste à placer à la main.
+- **Publication** (censeur) : bloquée tant qu'il reste des conflits ; l'enseignant voit ensuite ses cours jour par
+  jour et télécharge son emploi du temps en PDF.
+- Exports Excel et PDF de la vue affichée et de toutes les classes.
+
+## Parents et tuteurs (v0.29)
+
+- **Dossier d'un élève** (onglet Élèves) : chaque parent ou tuteur avec son lien (père, mère, tuteur, autre), sa
+  profession, « reçoit les SMS » et « compte parent ouvert » ou « pas de compte parent ». Boutons « Créer le compte
+  parent » (mot de passe provisoire affiché une fois ; si le numéro a déjà un compte, l'accès est simplement ajouté),
+  « Ajouter un parent ou tuteur » (responsable légal, contact prioritaire, création du compte cochée par défaut) et
+  « Retirer ».
+- **Fiche d'une classe** : « Ouvrir les comptes des parents » ouvre en une fois les comptes des responsables légaux et
+  des contacts prioritaires de la classe et télécharge la fiche de remise des accès (PDF ou Excel).
+- Un parent qui a perdu son mot de passe se dépanne dans l'onglet Comptes (réinitialisation).
+
+## Comptes et mots de passe (v0.27, v0.28)
+
+- (v0.28) Tuile « Comptes et mots de passe » sur l'accueil de l'administrateur (la réinitialisation se fait dans
+  l'onglet Comptes, accessible depuis chaque page de l'administration).
+- (v0.28) **Renouvellement à chaque période** : à la première connexion d'un trimestre ou d'un semestre, la page
+  « Mot de passe » explique qu'une nouvelle période a commencé et demande un nouveau mot de passe. La page Comptes
+  affiche la date du dernier mot de passe choisi et « Mot de passe à renouveler (nouvelle période) ».
+
+- **Comptes** (`/admin/comptes`, administrateur de l'établissement) : un compte par personne (personnel, enseignants,
+  parents), avec ses rôles, sa dernière connexion (« Jamais connecté »), le blocage après trop d'essais (« Verrouillé
+  jusqu'à 14h35 ») et le mot de passe provisoire pas encore changé ; filtres Actifs, Verrouillés, Mot de passe
+  provisoire, Retirés ; recherche par nom ou téléphone.
+- **Réinitialiser le mot de passe** : confirmation (sessions fermées, valable aussi dans les autres établissements de la
+  personne, vérifier d'abord son identité), puis mot de passe provisoire affiché une seule fois avec « Copier ».
+  **Déverrouiller** lève le blocage sans changer le mot de passe. Son propre compte renvoie vers « Changer mon mot
+  de passe ».
+- **Plateforme** (super administrateur) : bouton « Administrateurs » sur chaque établissement, pour réinitialiser le
+  mot de passe d'un administrateur qui l'a oublié.
+- **Connexion** : « Mot de passe oublié ? » explique la démarche (s'adresser à l'administration, se connecter avec le
+  mot de passe provisoire puis en choisir un nouveau).
+
+## Ateliers (v0.25)
+
+Espace `/ateliers` (en ligne), pour le chef des travaux, l'administration, le censeur (s'il n'y a pas de chef des
+travaux), l'intendant (lecture et catalogue) et les enseignants techniques (leurs ateliers) :
+
+- **Ateliers** : chaque atelier avec ses filières, son responsable et la fin de son mandat, et ce qui demande
+  attention (sans responsable, mandat à renouveler, équipements en panne, matières sous le seuil, inventaire à
+  faire). La direction crée les ateliers et règle la durée des mandats et la fréquence des inventaires.
+- **Fiche d'un atelier**, en quatre rubriques :
+  - *Responsable* : désignation parmi les enseignants techniques de la filière, fin du mandat, anciens responsables ;
+  - *Équipements* : ajout (numéro d'inventaire attribué automatiquement si vide), panne signalée par tout enseignant
+    de l'atelier, clôture (réparé ou irréparable), réforme ;
+  - *Matière d'œuvre* : stock, entrées et sorties, seuils d'alerte, valeur au prix du catalogue, derniers mouvements ;
+  - *Inventaires* : ouverture, liste des inventaires et de leurs écarts.
+- **Inventaire** : quantité constatée de chaque matière (bouton « Reprendre les quantités théoriques »), état
+  constaté de chaque équipement, enregistrement en plusieurs fois, clôture qui corrige le stock.
+- **Catalogue des prix** : matière d'œuvre et équipements, spécifications, normes, prix de référence daté, photo.
+
+En ligne. Règles et API : [API_ATELIERS.md](API_ATELIERS.md). Le test grandeur nature crée des ateliers au lycée
+technique et au centre de formation (responsables, stock, équipements, pannes, un inventaire clos, un en cours).
+
+### Besoins, commandes et exports (v0.26)
+
+Onglet **Besoins et commandes** (`/ateliers/besoins`, direction des ateliers et intendant) et rubrique *Besoins* de
+chaque atelier :
+
+- **Campagnes** : deux par an (année en cours, examens de fin d'études), ouvertes par le chef des travaux avec une
+  date limite et des consignes ; avancement (ateliers ayant transmis, validés, montant retenu, commandes).
+- **Fiche de besoins d'un atelier** (`/ateliers/besoins-ateliers/:id`) : les enseignants techniques ajoutent les
+  articles du catalogue (spécifications et normes affichées, quantité entière pour un équipement, justification) ;
+  le responsable transmet ; le chef des travaux saisit les quantités retenues, renvoie avec un commentaire ou valide.
+- **Campagne** (`/ateliers/besoins/:id`) : besoins de chaque atelier, état consolidé par filière, transmission à la
+  direction régionale, puis commandes (formulaire prérempli avec ce qui reste à commander et les prix du catalogue).
+- **Commande** (`/ateliers/commandes/:id`) : reçu, conforme et reste par article ; réception d'une livraison
+  (quantité reçue, dont conforme, motif de non-conformité) ; annulation tant que rien n'est livré.
+- **Livraison** (`/ateliers/livraisons/:id`) : procès-verbal de réception et grille de répartition article × atelier,
+  préremplie avec la part proposée (besoin retenu affiché sous chaque case), total contrôlé, validation qui met à
+  jour le stock et les équipements des ateliers.
+
+**Boutons Excel et PDF** (composant `app-export`) sur toutes les pages du chef des travaux et du chef d'atelier :
+tableau de bord des ateliers et stock par filière, catalogue des prix, équipements et stock d'un atelier, fiche
+d'inventaire, fiche de besoins, état des besoins pour la DR, bon de commande, procès-verbaux de réception et de
+répartition. Le fichier est édité par le serveur et enregistré sous le nom qu'il propose ; une erreur du serveur
+s'affiche à côté des boutons.
+
+## Cahier de textes sans réseau (v0.24)
+
+Comme l'appel et les notes, la saisie se fait d'abord sur le téléphone, puis part dès que le réseau revient.
+
+1. **Accès** : tuile « Cahier de textes » (choix de la classe et de la matière, à partir des listes du téléphone), ou
+   lien « Remplir le cahier de textes de ce cours » juste après un appel : la date et l'horaire sont préremplis.
+2. **Saisie** : date (pas dans le futur), début, fin, séquence de la fiche de progression (la première pas encore
+   terminée est proposée ; « hors séquence » pour une révision ou une évaluation), ce qui a été fait, travail à faire.
+   Le bouton affiche la durée (« Enregistrer (2 h) »).
+3. **Sans réseau** : la séance est gardée sur le téléphone (« en attente d'envoi ») et comptée dans l'avancement ;
+   le compteur de l'en-tête et « Mes envois » la signalent. Au retour du réseau elle part toute seule, avec son
+   identifiant : un renvoi ne crée pas de doublon. Une séance refusée (doublon, date future) reste visible avec le
+   message du serveur, à modifier ou abandonner.
+4. **Lecture sans réseau** : la fiche de progression et les séances déjà envoyées sont gardées sur le téléphone
+   (effacées à la déconnexion, comme les listes ; les séances en attente, elles, sont gardées).
+5. **Avancement** : heures faites / prévues par séquence.
+
+Côté direction, la fiche de progression montre le **réalisé** (jauge, heures faites, séances, dernière séance, heures
+hors séquence) et « Lire le cahier de textes » ; le suivi des progressions affiche pour chaque matière les heures
+faites face aux prévues et la date jusqu'à laquelle le cahier est tenu.
 
 ## Fiches de progression (v0.23)
 
@@ -353,7 +789,7 @@ frontend/src/app/
 
 ## Tests
 
-78 tests (Vitest) :
+86 tests (Vitest) :
 
 | Fichier | Ce qui est vérifié |
 |---|---|
@@ -366,10 +802,15 @@ frontend/src/app/
 | `invitations.component.spec.ts` | Titulaire dans X invité comme vacataire dans Y : acceptation, choix d'établissement qui apparaît, passage dans Y |
 | `admin.spec.ts` | Création d'un établissement et affichage unique du mot de passe, programme d'une classe (coefficient, enseignant), nouvel élève avec parent et inscription, engagement (compte ou invitation), mutation programmée avec les matières à réaffecter puis annulée, message du serveur sur une règle refusée, suivi des évaluations (tuiles, regroupement par enseignant puis par classe, filtre de période), statistiques (chiffres clés, âges par sexe, recouvrement sous 50 % en rouge, résultats à venir, classeur Excel) |
 | `parent.spec.ts` | Résumés (absences des 30 derniers jours, retard, reste, soldée), cartes des enfants puis même situation sans réseau, fiche d'un enfant (discipline, appel général, bulletin téléchargé, incidents), paiement Mobile Money suivi toutes les 5 secondes jusqu'à la confirmation puis situation relue, sans suivi au-delà |
+| `cahier.page.spec.ts` | Contrôles de la séance (date future, horaire, 8 heures, contenu) ; après l'appel : créneau prérempli, séquence en cours proposée, séance gardée sans réseau et comptée dans l'avancement, renvoi avec le même identifiant puis « Séance envoyée » ; refus du serveur conservé avec son message |
 | `progression.spec.ts` | Contrôle des séquences (titre, heures à une décimale), liste de l'enseignant avec renvoi signalé, première séquence enregistrée puis soumise au chef des travaux, renvoi par le chef des travaux avec commentaire obligatoire, suivi (chiffres, filtre « À viser ») |
 | `scolarite.spec.ts` | Contrôles avant l'envoi (montant, reste, référence, date, tranches, répartition), guichet d'une semi-boursière : retard proposé, référence Orange Money exigée, encaissement avec clé d'idempotence puis reçu, annulation avec motif ; secrétariat en lecture seule ouvert depuis une inscription ; journal de caisse (totaux par moyen, élève et classe, plus récent d'abord) ; retards d'une classe et relance SMS ; nouveau frais en trois tranches |
 | `vie-scolaire.spec.ts` | Absences du jour (discipline de chaque créneau, appel général, bilan, filtre « à justifier », justification puis liste à jour), fiche élève (parent prioritaire en premier, heures par discipline, avertissement avec SMS, blâme absent pour un surveillant, convocation préremplie depuis l'incident), clôture d'une convocation passée, synthèse d'une classe par discipline et par élève, sur l'année puis sur un trimestre |
 | `recherche.spec.ts` | Accents, majuscules et ordre des mots, téléphone avec espaces ; feuille de notes filtrée qui garde le n° d'ordre et place le curseur sur la note ; message clair quand les trimestres manquent |
+| `ateliers.spec.ts` | Contrôles (quantités à deux décimales, code d'atelier, unité d'un article), alertes en phrases ; liste du chef des travaux (chiffres, sans responsable, matières sous le seuil, paramètres) ; désignation du responsable parmi les candidats ; panne signalée par un enseignant de l'atelier ; inventaire saisi (écart affiché, « Tous conformes ») puis clos |
+| `besoins.spec.ts` | Contrôles (ligne de besoin, réception, répartition, nom du fichier exporté) ; boutons d'export (Excel téléchargé avec le nom du serveur, erreur du PDF affichée) ; article proposé puis transmis par le responsable ; arbitrage et validation par le chef des travaux ; commande préremplie avec le reste à commander ; répartition d'une livraison (excédent signalé, validation) |
+| `parents.spec.ts` | Contrôle d'un parent ou tuteur ; dossier d'un élève : compte parent créé (mot de passe affiché), tuteur ajouté avec un compte existant, retrait ; fiche d'une classe : comptes des parents ouverts et fiche PDF téléchargée |
+| `comptes.spec.ts` | (v0.28) message de renouvellement de période sur la page « Mot de passe » ; heure de fin du blocage ; comptes de l'administrateur (chiffres, jamais connecté, verrouillé, son propre compte sans réinitialisation), déverrouillage, réinitialisation confirmée puis mot de passe provisoire affiché une fois avec l'avertissement « autre établissement », comptes retirés sans action ; réinitialisation d'un administrateur par le super administrateur |
 | `fin-engagement.component.spec.ts` | Bandeau de mutation : envois en attente comptés et envoyés tout de suite, rien à 60 jours, affichage sans réseau le jour même, annonce effacée quand la fin est annulée, calcul des jours |
 
 La CI (`.github/workflows/ci.yml`, job *Frontend*) exécute les tests et la construction de production à chaque pull
@@ -397,6 +838,13 @@ Le parcours complet a aussi été vérifié dans Chromium, à la taille d'un té
 - (v0.17) recherche d'un établissement par le super administrateur, à la taille d'un téléphone ;
 - (v0.18) vie scolaire d'un surveillant : absences du jour sur téléphone, justification, fiche de l'élève sur
   ordinateur, formulaire d'incident, agenda des convocations ;
+- (v0.25) ateliers : liste du chef des travaux avec les alertes, désignation d'un responsable, équipements et
+  pannes, stock et sortie de matière d'œuvre, inventaire saisi sur téléphone, catalogue des prix ;
+- (v0.27) comptes : liste sur ordinateur et téléphone, confirmation puis mot de passe provisoire, aide « Mot de passe
+  oublié ? » sur la page de connexion, réinitialisation d'un administrateur par le super administrateur ;
+- (v0.26) besoins et commandes : campagnes, état par filière et téléchargement du PDF, formulaire de commande,
+  réception, répartition (excédent signalé puis validation), arbitrage et validation d'une fiche de besoins ; boutons
+  d'export et rubrique *Besoins* sur téléphone ;
 - (v0.18.1) disciplines : liste du jour sur téléphone, heures par discipline dans la fiche, synthèse d'une classe ;
 - (v0.19) espace parent sur un téléphone de 360 px : deux enfants, absences, bulletin, scolarité, paiement Orange
   Money simulé jusqu'au reçu ;
@@ -406,7 +854,9 @@ Le parcours complet a aussi été vérifié dans Chromium, à la taille d'un té
 - (v0.22) guichet : recherche de l'élève, encaissement du retard, reçu proposé ; retards et relance d'une classe ;
   journal de caisse ; nouveau frais en tranches ; fiche de l'élève sur un téléphone de 390 px ;
 - (v0.23) progression : deux séquences saisies sur un téléphone par l'enseignant puis soumises, suivi du chef des
-  travaux, visa avec commentaire.
+  travaux, visa avec commentaire ;
+- (v0.24) cahier de textes sur un téléphone : une séance envoyée, une seconde en mode avion (en attente, comptée
+  dans l'avancement), envoi automatique au retour du réseau ; réalisé et lecture du cahier par le chef des travaux.
 
 ## Session sur réseau faible (v0.18)
 

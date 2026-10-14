@@ -1,4 +1,4 @@
-# Organisation des rôles dans l'établissement (v0.47)
+# Organisation des rôles dans l'établissement (v0.47, v0.47.1)
 
 Revue faite avec des acteurs de l'administration des lycées (Burkina Faso) et les textes sur les attributions du
 censeur. Les droits de la plateforme suivent désormais cette organisation ; le serveur les vérifie à chaque appel.
@@ -14,6 +14,13 @@ censeur. Les droits de la plateforme suivent désormais cette organisation ; le 
 | Cahier de textes | Enseignant | Enseignant, tant que le mois n'est pas visé | Direction du domaine, qui **vise chaque mois** |
 | Progressions | Enseignant | Enseignant | Censeur (matières générales), chef des travaux (techniques et pratiques), qui visent |
 | Cartes scolaires, accès des parents | Secrétariat, intendant, chef d'établissement | — | — |
+| Courrier arrivée et départ, suivi, classement (v0.47.1) | Secrétariat | Secrétariat | Service destinataire (le marque traité) |
+| Documents administratifs (notes de service, décisions, communiqués, attestations) et tableau d'affichage | Secrétariat (rédige) | Chef d'établissement (signe, annule) | Personnel ; parents pour ce qui est « pour tous » |
+| Actes du personnel (mutation, affectation, autorisation d'absence…) | Secrétariat (recueille, transmet) | Chef d'établissement (avis) | Le demandeur (« Mes demandes ») |
+| Accueil du public, permanence téléphonique | Secrétariat (message transmis par la messagerie) | — | — |
+| Comptes rendus des réunions statutaires | Secrétariat | Chef d'établissement (valide) | Censeur, chef des travaux |
+| Archives des dossiers, certificats de scolarité, dossiers d'examens | Secrétariat | — | Censeur (candidats aux examens) |
+| Évaluations, notes, bulletins | Enseignants, censeur | Censeur, chef d'établissement | **Plus le secrétariat** (v0.47.1) |
 | Suppléance du chef d'établissement | Le chef d'établissement désigne un **intérim** (censeur ou chef des travaux) | — | Censeur, chef des travaux |
 
 Le Conseiller principal d'éducation (CPE) remplace le surveillant général ; le nom technique du rôle (`SURVEILLANT`)

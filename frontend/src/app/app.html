@@ -37,6 +37,7 @@
       <a routerLink="/">Accueil</a>
       @if (profil.etablissement && !session.horsConnexion()) {
         <a routerLink="/messages">Messages@if (messagerie.nonLus() > 0) { ({{ messagerie.nonLus() }}) }</a>
+        <a routerLink="/affichage">Tableau d'affichage</a>
       }
       @if (session.aLeRole('ENSEIGNANT')) {
         <a routerLink="/appel">Faire l'appel</a>

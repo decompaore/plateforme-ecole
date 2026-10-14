@@ -61,6 +61,7 @@ Pour travailler avec Eclipse, suivre [docs/GUIDE_ECLIPSE.md](docs/GUIDE_ECLIPSE.
 | [docs/API_MOBILE_MONEY.md](docs/API_MOBILE_MONEY.md) | Paiement Mobile Money par les parents, notifications signées, rapprochement quotidien, relances automatiques |
 | [docs/API_PASSAGE.md](docs/API_PASSAGE.md) | Moyenne annuelle, décisions de fin d'année, conseil de classe, année suivante, plan de passage (v0.45), taux de réussite aux examens (v0.46) |
 | [docs/API_MESSAGERIE.md](docs/API_MESSAGERIE.md) | Messagerie de l'établissement : personnel, parents, groupes, SMS en option, lu / non lu (v0.46) |
+| [docs/API_SECRETARIAT.md](docs/API_SECRETARIAT.md) | Secrétariat (v0.47.1) : courrier, documents signés et affichage, actes du personnel, accueil, réunions, archives, certificats, examens |
 | [docs/ORGANISATION_ROLES.md](docs/ORGANISATION_ROLES.md) | Qui fait quoi dans l'établissement (v0.47) : intendant, censeur, CPE, chef d'établissement, intérim |
 | [docs/API_VIE_SCOLAIRE.md](docs/API_VIE_SCOLAIRE.md) | Retards, avertissements, blâmes, exclusions temporaires, convocations, historique, espace parent |
 | [docs/API_STATISTIQUES.md](docs/API_STATISTIQUES.md) | Statistiques de rentrée, personnel, recouvrement, résultats, export Excel |

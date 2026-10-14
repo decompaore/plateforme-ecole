@@ -6,12 +6,11 @@
  *   - l'appel de chaque séance passée : quelques absents (certains élèves bien plus que
  *     d'autres) et quelques retards ;
  *   - une interrogation et un devoir notés par classe et matière dans la période en cours ;
- *   - deux avertissements donnés en classe ;
- *   - avec le compte de l'administration (facultatif) : une partie des absences justifiées et
- *     les parents de l'élève le plus absent convoqués.
+ *   - avec le compte du CPE (facultatif ; v0.47, seul à saisir la vie scolaire) : deux avertissements,
+ *     une partie des absences justifiées et les parents de l'élève le plus absent convoqués.
  *
  * DÉVELOPPEMENT UNIQUEMENT. À lancer après creer-etablissement-demo.mjs (API lancée) :
- *   node scripts/demo/activite-enseignant.mjs <téléphone enseignant> [téléphone administrateur]
+ *   node scripts/demo/activite-enseignant.mjs <téléphone enseignant> [téléphone du CPE]
  *
  * Variables facultatives :
  *   API=http://localhost:8080        adresse de l'API
@@ -56,7 +55,7 @@ if (!telEnseignant) {
   arreter(
     'Indiquez le téléphone de l’enseignant (affiché par creer-etablissement-demo.mjs) :\n' +
       '  node scripts/demo/activite-enseignant.mjs 61xxxxxx [60xxxxxx]\n' +
-      '  (le second numéro, facultatif, est celui de l’administrateur : justificatifs et convocation)',
+      '  (le second numéro, facultatif, est celui du CPE : avertissements, justificatifs et convocation)',
   );
 }
 
@@ -159,13 +158,13 @@ async function session(telephone, role) {
     arreter(`Le compte ${telephone} a encore son mot de passe provisoire : connectez-vous une fois dans l'application.`);
   }
   const roles = s.etablissementActif?.roles ?? [];
-  const attendus = role === 'ENSEIGNANT' ? ['ENSEIGNANT'] : ['ADMIN_ECOLE', 'CENSEUR', 'SURVEILLANT'];
+  const attendus = role === 'ENSEIGNANT' ? ['ENSEIGNANT'] : ['SURVEILLANT'];
   if (!roles.some((r) => attendus.includes(r))) {
-    const qui = role === 'ENSEIGNANT' ? "l'enseignant (1er numéro)" : "l'administration (2e numéro)";
+    const qui = role === 'ENSEIGNANT' ? "l'enseignant (1er numéro)" : 'le CPE (2e numéro)';
     arreter(
       `Le ${telephone} n'a pas le bon rôle pour ${qui} : ses rôles sont ${roles.join(', ') || 'aucun'}.\n` +
-        '  L’ordre est : téléphone de l’ENSEIGNANT d’abord, puis celui de l’ADMINISTRATEUR.\n' +
-        '  node scripts/demo/activite-enseignant.mjs <enseignant> <administrateur>',
+        '  L’ordre est : téléphone de l’ENSEIGNANT d’abord, puis celui du CPE (vie scolaire).\n' +
+        '  node scripts/demo/activite-enseignant.mjs <enseignant> <cpe>',
     );
   }
   return s;
@@ -322,29 +321,30 @@ async function principal() {
   ok(`${nbEvaluations} évaluations, ${nbNotes} notes`);
 
   // ---------------------------------------------------------------- vie de classe
-  etape('Avertissements en classe');
   const tousLesEleves = [...classes.values()].flatMap((c) => c.eleves.map((e) => ({ ...e, classe: c.code })));
-  if (bilan.ENREGISTRE === 0) {
-    // Les appels existaient déjà : le script a déjà tourné, on ne redonne pas les avertissements
-    ok('déjà donnés lors d’une exécution précédente');
-  } else {
-    const bavards = [...tousLesEleves].sort((x, y) => graineDe(`bavard|${x.id}`) - graineDe(`bavard|${y.id}`)).slice(0, 2);
-    const date = ajouterJours(aujourdhui, -2) >= debut ? ajouterJours(aujourdhui, -2) : aujourdhui;
-    for (const e of bavards) {
-      await api('POST', `/inscriptions/${e.id}/incidents`, {
-        type: 'AVERTISSEMENT',
-        date,
-        motif: 'Bavardages répétés pendant les travaux pratiques',
-      }, jeton);
-    }
-    ok(`${bavards.map((e) => `${e.prenoms} ${e.nom} (${e.classe})`).join(', ')} ; familles prévenues par SMS`);
-  }
 
-  // ---------------------------------------------------------------- administration (facultatif)
+  // ---------------------------------------------------------------- vie scolaire : le CPE (facultatif)
   if (telAdmin) {
-    etape('Connexion de l’administration');
-    const adm = (await session(telAdmin, 'ADMIN_ECOLE')).jetonAcces;
+    etape('Connexion du CPE');
+    const adm = (await session(telAdmin, 'SURVEILLANT')).jetonAcces;
     ok();
+
+    etape('Avertissements en classe');
+    if (bilan.ENREGISTRE === 0) {
+      // Les appels existaient déjà : le script a déjà tourné, on ne redonne pas les avertissements
+      ok('déjà donnés lors d’une exécution précédente');
+    } else {
+      const bavards = [...tousLesEleves].sort((x, y) => graineDe(`bavard|${x.id}`) - graineDe(`bavard|${y.id}`)).slice(0, 2);
+      const date = ajouterJours(aujourdhui, -2) >= debut ? ajouterJours(aujourdhui, -2) : aujourdhui;
+      for (const e of bavards) {
+        await api('POST', `/inscriptions/${e.id}/incidents`, {
+          type: 'AVERTISSEMENT',
+          date,
+          motif: 'Bavardages répétés pendant les travaux pratiques',
+        }, adm);
+      }
+      ok(`${bavards.map((e) => `${e.prenoms} ${e.nom} (${e.classe})`).join(', ')} ; familles prévenues par SMS`);
+    }
 
     etape('Justificatifs');
     let justifies = 0;
@@ -385,7 +385,7 @@ async function principal() {
 ✔ Historique prêt.
 
   Enseignant : « Mes envois », « Saisie des notes » (les évaluations et leurs notes), « Faire l'appel ».
-  Vie scolaire (administrateur ou surveillant) : « Absences du jour » (changez de jour), « Classes »
+  Vie scolaire (CPE ; la direction consulte) : « Absences du jour » (changez de jour), « Classes »
   (absences par discipline et par élève), fiche d'un élève.
   Parent : le parent de démonstration voit les absences, les avertissements et la convocation de son enfant
   s'il est concerné.

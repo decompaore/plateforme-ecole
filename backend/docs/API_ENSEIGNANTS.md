@@ -99,3 +99,18 @@ Autres comportements :
 - **Listes de classe** : un enseignant ne voit que les classes où il a au moins une matière (le personnel administratif
   les voit toutes).
 - **Charge horaire** : somme des volumes hebdomadaires des matières affectées pendant l'année.
+
+
+## Catégorie de l'enseignant (v0.40)
+
+Chaque engagement porte `categorie` : `GENERAL` (par défaut) ou `TECHNIQUE` (enseignement technique et
+professionnel). Migration `V30__categorie_enseignant.sql` (reprise : les engagements qui assuraient déjà une matière
+technique, pratique ou un module, ou un mandat de responsable d'atelier, deviennent `TECHNIQUE`).
+
+- `POST /api/v1/enseignants` accepte `categorie` ; `PUT /api/v1/engagements/{id}/categorie` `{ categorie }`
+  (administrateur) la change.
+- `GET /api/v1/enseignants` renvoie `categorie` et `suggestionTechnique` (classé `GENERAL` mais assure une matière
+  technique, pratique ou un module dans l'année active).
+- Ateliers : seuls les enseignants `TECHNIQUE` sont « enseignants de l'atelier » (consultation, pannes, besoins) et
+  peuvent en être désignés responsables (`RESPONSABLE_NON_ELIGIBLE` sinon). `GET /api/v1/ateliers/acces` →
+  `{ visible }` indique si l'onglet Ateliers est utile à la personne connectée.

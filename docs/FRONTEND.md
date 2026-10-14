@@ -1,4 +1,4 @@
-# Application web (v0.47)
+# Application web (v0.47.1)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -475,6 +475,15 @@ connexion.
 - **Établissements → Données** (super administrateur) : même composant (`app-exports-donnees` avec
   `etablissementId`), pour un établissement actif, suspendu ou résilié.
 - Détails du contenu de l'archive : [API_REVERSIBILITE.md](API_REVERSIBILITE.md).
+
+## Secrétariat (v0.47.1)
+
+Espace « Secrétariat » (`/secretariat`, ADMIN_ECOLE et SECRETARIAT) : Courrier (registre arrivée et départ, pièce
+scannée, transmission, suivi, registre imprimable), Documents administratifs (rédaction, signature par le chef,
+affichage, PDF), Demandes du personnel (circuit jusqu'à la hiérarchie), Accueil et téléphone (registre du jour,
+message transmis par la messagerie), Réunions (comptes rendus), Archives, Certificats et examens. « Tableau
+d'affichage » (`/affichage`) pour tout le personnel (et « Mes demandes »). Les onglets Évaluations et Bulletins ne
+sont plus proposés au secrétariat. Tests : `secretariat/secretariat.spec.ts`. Détails : `API_SECRETARIAT.md`.
 
 ## Organisation des rôles (v0.47)
 

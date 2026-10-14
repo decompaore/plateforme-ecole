@@ -16,8 +16,8 @@ interface Onglet {
 export const ONGLETS: Onglet[] = [
   { lien: '/admin/classes', titre: 'Classes', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT'] },
   { lien: '/admin/eleves', titre: 'Élèves', roles: ['ADMIN_ECOLE', 'INTENDANT', 'SECRETARIAT', 'CENSEUR'] },
-  { lien: '/admin/evaluations', titre: 'Évaluations', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT'] },
-  { lien: '/admin/bulletins', titre: 'Bulletins', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT'] },
+  { lien: '/admin/evaluations', titre: 'Évaluations', roles: ['ADMIN_ECOLE', 'CENSEUR'] },
+  { lien: '/admin/bulletins', titre: 'Bulletins', roles: ['ADMIN_ECOLE', 'CENSEUR'] },
   { lien: '/admin/fin-annee', titre: "Fin d'année", roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT'] },
   { lien: '/admin/examens', titre: 'Examens', roles: ['ADMIN_ECOLE', 'CENSEUR'] },
   { lien: '/admin/statistiques', titre: 'Statistiques', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'INTENDANT'] },

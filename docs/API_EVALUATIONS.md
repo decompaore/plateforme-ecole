@@ -9,7 +9,7 @@ Migration `V7__evaluations.sql`. Les bulletins PDF, leur publication et le SMS a
 | Étape | Appel | Rôles |
 |---|---|---|
 | Créer une évaluation | `POST /api/v1/classes/{classeId}/evaluations` `{"matiereId":"…","periodeId":"…","libelle":"Composition","type":"COMPOSITION","date":"2026-11-20","bareme":40,"poids":2}` | ENSEIGNANT de la matière, CENSEUR, ADMIN_ECOLE |
-| Lister | `GET /api/v1/classes/{classeId}/evaluations?periodeId=` (avec le nombre de notes saisies) | + SECRETARIAT |
+| Lister | `GET /api/v1/classes/{classeId}/evaluations?periodeId=` (avec le nombre de notes saisies) | ENSEIGNANT, CENSEUR, ADMIN_ECOLE (v0.47.1 : plus le secrétariat) |
 | Feuille de notes | `GET /api/v1/evaluations/{id}/notes` : tous les élèves actifs, notés ou non | idem |
 | Saisir / corriger | `PUT /api/v1/evaluations/{id}/notes` `{"notes":[{"inscriptionId":"…","valeur":14.5},{"inscriptionId":"…","absent":true}]}` | ENSEIGNANT de la matière, CENSEUR, ADMIN_ECOLE |
 | Modifier, supprimer | `PUT /api/v1/evaluations/{id}`, `DELETE /api/v1/evaluations/{id}` | idem |
@@ -40,7 +40,7 @@ l'année)
 
 | Rôle | Ce qu'il voit |
 |---|---|
-| ADMIN_ECOLE, CENSEUR, SECRETARIAT | Tout l'établissement (page « Évaluations » de l'administration) |
+| ADMIN_ECOLE, CENSEUR | Tout l'établissement (page « Évaluations » de l'administration) |
 | ENSEIGNANT | Seulement ses matières (résumé sous chaque matière dans « Saisir des notes ») ; 403 sans engagement actif |
 
 - `notesAttendues` = effectif actif de la classe × nombre d'évaluations ; une absence compte comme une note saisie.

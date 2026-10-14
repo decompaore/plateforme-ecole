@@ -40,7 +40,7 @@ import bf.edutech.plateforme.utilisateurs.Signatures;
 public class VisasService {
 
     static final String[] DIRECTION = { "CENSEUR", "ADMIN_ECOLE" };
-    private static final String[] CONSULTATION = { "CENSEUR", "ADMIN_ECOLE", "SECRETARIAT" };
+    private static final String[] CONSULTATION = { "CENSEUR", "ADMIN_ECOLE" };
 
     /** Une matière de la classe et son visa pour la période. */
     public record VisaVue(UUID matiereId, String matiereCode, String matiereLibelle, UUID engagementId, String enseignant,

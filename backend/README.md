@@ -49,6 +49,7 @@ Pour travailler avec Eclipse, suivre [docs/GUIDE_ECLIPSE.md](docs/GUIDE_ECLIPSE.
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Profils, variables d'environnement, rôles PostgreSQL, secrets |
 | [docs/CI_CD.md](docs/CI_CD.md) | Pipeline GitHub Actions, préparation des serveurs, déploiement, retour arrière |
 | [docs/FRONTEND.md](docs/FRONTEND.md) | Application web : démarrage, test sur téléphone, sécurité de la session, appel et notes sans réseau, espace d'administration |
+| [docs/RECETTE.md](docs/RECETTE.md) | Recette grandeur nature avant la mise en production : scénarios automatisés par l'API (`scripts/recette/recette-grandeur-nature.sh`) et check-list manuelle |
 | [docs/API_SOCLE.md](docs/API_SOCLE.md) | Points d'accès du socle et parcours d'authentification |
 | [docs/API_ETABLISSEMENT.md](docs/API_ETABLISSEMENT.md) | Profils pédagogiques, années, périodes, filières, classes, matières |
 | [docs/API_ELEVES.md](docs/API_ELEVES.md) | Élèves, responsables, inscriptions, réinscriptions, bourses, import Excel, espace parent |
@@ -58,9 +59,16 @@ Pour travailler avec Eclipse, suivre [docs/GUIDE_ECLIPSE.md](docs/GUIDE_ECLIPSE.
 | [docs/API_BULLETINS.md](docs/API_BULLETINS.md) | Appréciations, conseil de classe, bulletins PDF, publication, espace parent, vérification |
 | [docs/API_SCOLARITE.md](docs/API_SCOLARITE.md) | Frais, tranches, bourses, exonérations, encaissements, reçus, retards, relances SMS |
 | [docs/API_MOBILE_MONEY.md](docs/API_MOBILE_MONEY.md) | Paiement Mobile Money par les parents, notifications signées, rapprochement quotidien, relances automatiques |
-| [docs/API_PASSAGE.md](docs/API_PASSAGE.md) | Moyenne annuelle, décisions de fin d'année, conseil de classe, année suivante, réinscriptions en masse |
+| [docs/API_PASSAGE.md](docs/API_PASSAGE.md) | Moyenne annuelle, décisions de fin d'année, conseil de classe, année suivante, plan de passage (v0.45), taux de réussite aux examens (v0.46) |
+| [docs/API_MESSAGERIE.md](docs/API_MESSAGERIE.md) | Messagerie de l'établissement : personnel, parents, groupes, SMS en option, lu / non lu (v0.46) |
+| [docs/API_SECRETARIAT.md](docs/API_SECRETARIAT.md) | Secrétariat (v0.47.1) : courrier, documents signés et affichage, actes du personnel, accueil, réunions, archives, certificats, examens |
+| [docs/ORGANISATION_ROLES.md](docs/ORGANISATION_ROLES.md) | Qui fait quoi dans l'établissement (v0.47) : intendant, censeur, CPE, chef d'établissement, intérim |
 | [docs/API_VIE_SCOLAIRE.md](docs/API_VIE_SCOLAIRE.md) | Retards, avertissements, blâmes, exclusions temporaires, convocations, historique, espace parent |
 | [docs/API_STATISTIQUES.md](docs/API_STATISTIQUES.md) | Statistiques de rentrée, personnel, recouvrement, résultats, export Excel |
+| [docs/API_TERRITOIRE.md](docs/API_TERRITOIRE.md) | Pays, ministères, directions (saisie, import CSV), rattachement des établissements, logo et en-tête des documents officiels |
+| [docs/API_ADOPTION.md](docs/API_ADOPTION.md) | Mesure de l'adoption : jours d'activité, actions par fonction, tableaux de bord du super administrateur et de l'établissement |
+| [docs/API_REVERSIBILITE.md](docs/API_REVERSIBILITE.md) | Export complet des données d'un établissement (réversibilité) : archive ZIP de CSV décrits, lien signé, conservation |
+| [docs/API_EMPLOI_DU_TEMPS.md](docs/API_EMPLOI_DU_TEMPS.md) | Grille horaire, emplois du temps (censeur et chef des travaux), conflits, génération automatique, publication, exports |
 
 ## Règles de l'équipe
 

@@ -39,7 +39,7 @@ import bf.edutech.plateforme.bulletins.Vues.VerificationVue;
 public class BulletinsController {
 
     static final String DIRECTION = "hasAnyRole('CENSEUR','ADMIN_ECOLE')";
-    static final String CONSULTATION = "hasAnyRole('CENSEUR','ADMIN_ECOLE','SECRETARIAT')";
+    static final String CONSULTATION = "hasAnyRole('CENSEUR','ADMIN_ECOLE')";   // v0.47.1 : plus le secrétariat
     static final String APPRECIATIONS = "hasAnyRole('ENSEIGNANT','CENSEUR','ADMIN_ECOLE')";
     static final String BASE = "/api/v1/classes/{classeId}/periodes/{periodeId}";
 
@@ -96,7 +96,7 @@ public class BulletinsController {
 
     /** Matières de la classe et leurs visas (un enseignant ne voit que les siennes). */
     @GetMapping(BASE + "/visas")
-    @PreAuthorize("hasAnyRole('CENSEUR','ADMIN_ECOLE','SECRETARIAT','ENSEIGNANT')")
+    @PreAuthorize("hasAnyRole('CENSEUR','ADMIN_ECOLE','ENSEIGNANT')")
     public List<VisasService.VisaVue> visas(@PathVariable UUID classeId, @PathVariable UUID periodeId) {
         return visas.visas(classeId, periodeId);
     }

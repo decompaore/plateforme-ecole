@@ -32,6 +32,10 @@ services:
     expose:
       - "8080"
       - "8081"
+    volumes:
+      # Archives d'export complet : partagées par les deux instances (préparée par l'une,
+      # téléchargée par l'autre) et conservées lors des redéploiements
+      - exports:/var/lib/plateforme/exports
     deploy:
       resources:
         limits:
@@ -42,3 +46,4 @@ services:
 volumes:
   caddy-donnees:
   caddy-config:
+  exports:
