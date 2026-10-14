@@ -173,6 +173,33 @@ public class MessagerieService {
         return new Envoi(id, a.comptes() + a.smsSeulement(), a.comptes(), sms);
     }
 
+    /**
+     * Message interne à une personne du personnel, sans SMS (v0.47.1 : message téléphonique ou visite transmis par
+     * le secrétariat). L'appelant vérifie les droits.
+     */
+    @Transactional
+    public UUID transmettre(UUID destinataire, String objet, String corps, String cibles) {
+        UtilisateurConnecte.etablissementActif();
+        List<MembreVue> roles = membres.lister().stream()
+                .filter(m -> m.actif() && m.utilisateurId().equals(destinataire))
+                .filter(m -> m.role() != Role.PARENT && m.role() != Role.ELEVE)
+                .toList();
+        if (roles.isEmpty()) {
+            throw new IllegalArgumentException("Le destinataire n'est pas membre du personnel de l'établissement");
+        }
+        UUID id = UUID.randomUUID();
+        jdbc.update("""
+                insert into message (tenant_id, id, auteur_id, objet, corps, sms, cibles)
+                values (tenant_courant(), ?, ?, ?, ?, false, ?)""",
+                id, UtilisateurConnecte.id(), tronquer(objet, 150), tronquer(corps, 2000), tronquer(cibles, 300));
+        MembreVue m = roles.get(0);
+        jdbc.update("""
+                insert into message_destinataire (tenant_id, id, message_id, utilisateur_id, nom, qualite, sms)
+                values (tenant_courant(), ?, ?, ?, ?, ?, false)""",
+                UUID.randomUUID(), id, destinataire, tronquer(m.nom() + " " + m.prenoms(), 220), tronquer(qualite(roles), 120));
+        return id;
+    }
+
     /** Messages envoyés dans l'établissement, avec le nombre de lecteurs. */
     @Transactional(readOnly = true)
     public List<MessageEnvoye> envoyes() {

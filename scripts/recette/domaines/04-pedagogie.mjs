@@ -436,7 +436,7 @@ scenario('EVA-03', D_EVA, 'Saisie des notes : valeurs, absence, effacement ; not
   m.notees = { a, b };
 });
 
-scenario('EVA-04', D_EVA, 'Le barème ne descend pas sous une note déjà saisie ; la modification valide est acceptée ; la feuille se lit au secrétariat', async (ctx) => {
+scenario('EVA-04', D_EVA, 'Le barème ne descend pas sous une note déjà saisie ; la modification valide est acceptée ; la feuille se lit à la direction, plus au secrétariat (v0.47.1)', async (ctx) => {
   const m = montage(ctx);
   const evId = m.evaluations[0];
   if (!evId || !m.notees) ignorer('Notes non saisies (EVA-03)');
@@ -445,8 +445,9 @@ scenario('EVA-04', D_EVA, 'Le barème ne descend pas sous une note déjà saisie
   statut(await appel(prof, 'PUT', `/evaluations/${evId}`, corps), 409, 'BAREME_INFERIEUR_AUX_NOTES');
   const v = await exiger(prof, 'PUT', `/evaluations/${evId}`, { ...corps, bareme: 40 });
   egal([Number(v.bareme), Number(v.poids)], [40, 2], 'Barème et poids modifiés');
-  const feuille = await exiger(role(m.e, 'SECRETARIAT'), 'GET', `/evaluations/${evId}/notes`);
-  egal(Number(feuille.lignes.find((l) => l.inscriptionId === m.notees.a).valeur), 15.5, 'Note lue au secrétariat');
+  const feuille = await exiger(role(m.e, 'CENSEUR'), 'GET', `/evaluations/${evId}/notes`);
+  egal(Number(feuille.lignes.find((l) => l.inscriptionId === m.notees.a).valeur), 15.5, 'Note lue par le censeur');
+  statut(await appel(role(m.e, 'SECRETARIAT'), 'GET', `/evaluations/${evId}/notes`), 403);   // v0.47.1
   statut(await appel(role(m.e, 'SURVEILLANT'), 'GET', `/evaluations/${evId}/notes`), 403);
   // (l'enseignant de la matière pratique enseigne dans la classe : il lit la feuille, c'est voulu pour le conseil de classe)
   refuse(await appel(ctx.ecole(3).session('ADMIN_ECOLE'), 'GET', `/evaluations/${evId}/notes`), 'Feuille lue par un autre établissement');
@@ -537,7 +538,8 @@ scenario('EVA-08', D_EVA, 'Les résultats du Module 1 donnent, pour chaque appre
   const m1 = periodes.find((p) => p.verrouillee);
   if (!m1) ignorer('Aucune période verrouillée au centre de formation');
   const c = e.classes[0];
-  const res = await exiger(role(e, 'SECRETARIAT'), 'GET', `/classes/${c.id}/resultats`, undefined, { params: { periodeId: m1.id } });
+  const res = await exiger(role(e, 'CENSEUR'), 'GET', `/classes/${c.id}/resultats`, undefined, { params: { periodeId: m1.id } });
+  statut(await appel(role(e, 'SECRETARIAT'), 'GET', `/classes/${c.id}/resultats`, undefined, { params: { periodeId: m1.id } }), 403);
   vrai(res.eleves.length > 0, 'Apprenants dans les résultats');
   vrai(res.eleves.every((x) => Array.isArray(x.modules)), 'Modules par apprenant');
   vrai(res.eleves.some((x) => x.tauxMaitrise !== null), 'Taux de maîtrise calculé');
@@ -554,7 +556,8 @@ scenario('BUL-01', D_BUL, 'Les relevés publiés du Module 1 se consultent avec 
   const m1 = periodes.find((p) => p.verrouillee);
   if (!m1) ignorer('Aucune période verrouillée au centre de formation');
   const c = e.classes[0];
-  const g = await exiger(role(e, 'SECRETARIAT'), 'GET', `/classes/${c.id}/periodes/${m1.id}/bulletins`);
+  const g = await exiger(cens, 'GET', `/classes/${c.id}/periodes/${m1.id}/bulletins`);
+  statut(await appel(role(e, 'SECRETARIAT'), 'GET', `/classes/${c.id}/periodes/${m1.id}/bulletins`), 403);   // v0.47.1
   egal(g.statut, 'PUBLIEE', 'Relevés publiés par le peuplement');
   vrai(g.bulletins.length > 0 && g.bulletins.every((b) => b.codeVerification), 'Un code de vérification par relevé');
   statut(await appel(cens, 'POST', `/classes/${c.id}/periodes/${m1.id}/bulletins`), 409, 'BULLETINS_PUBLIES');
@@ -569,7 +572,7 @@ scenario('BUL-01', D_BUL, 'Les relevés publiés du Module 1 se consultent avec 
 scenario('BUL-02', D_BUL, 'Les relevés s’impriment en PDF (classe entière et un par un) ; le code se vérifie sans connexion, sans donnée de contact', async (ctx) => {
   const b = etat(ctx).bulletins;
   if (!b) ignorer('Relevés non trouvés (BUL-01)');
-  const sec = role(b.e, 'SECRETARIAT');
+  const sec = role(b.e, 'CENSEUR');
   const classe = await exiger(sec, 'GET', `/classes/${b.classe.id}/periodes/${b.periode.id}/bulletins/pdf`, undefined, { fichier: true });
   vrai(classe.octets.subarray(0, 4).toString() === '%PDF', 'PDF de la classe');
   const premier = b.generation.bulletins[0];
@@ -675,9 +678,10 @@ scenario('BUL-07', D_BUL, 'Le conseil de classe enregistre un avis et une distin
   egal([retabli.distinction, retabli.appreciation], [premier.distinction, premier.appreciation], 'Avis d’origine rétabli');
 });
 
-scenario('BUL-08', D_BUL, 'Paramètres des bulletins : lus par la direction et le secrétariat ; seuils incohérents refusés ; réécrits à l’identique par l’administrateur', async (ctx) => {
+scenario('BUL-08', D_BUL, 'Paramètres des bulletins : lus par la direction (plus par le secrétariat, v0.47.1) ; seuils incohérents refusés ; réécrits à l’identique par l’administrateur', async (ctx) => {
   const e = technique(ctx);
-  const p = await exiger(role(e, 'SECRETARIAT'), 'GET', '/parametres/bulletins');
+  statut(await appel(role(e, 'SECRETARIAT'), 'GET', '/parametres/bulletins'), 403);
+  const p = await exiger(role(e, 'CENSEUR'), 'GET', '/parametres/bulletins');
   vrai(p.entetePays, 'En-tête du pays');
   statut(await appel(role(e, 'CENSEUR'), 'PUT', '/parametres/bulletins', p), 403);
   const adm = role(e, 'ADMIN_ECOLE');
@@ -700,8 +704,9 @@ scenario('BUL-09', D_BUL, 'Visas (v0.44) : l’enseignant voit ses matières, ne
     statut(await appel(m.profG.session, 'POST', `${chemin}/matieres/${m.general.id}/visa`), 409, 'VISA_PERIODE_OUVERTE');
   }
   statut(await appel(m.profT.session, 'POST', `${chemin}/matieres/${m.general.id}/visa`), 403);
-  const tous = await exiger(role(m.e, 'SECRETARIAT'), 'GET', `${chemin}/visas`);
-  vrai(tous.length >= 2 && tous.some((v) => v.matiereId === m.pratique.id), 'Le secrétariat voit toutes les matières');
+  const tous = await exiger(role(m.e, 'CENSEUR'), 'GET', `${chemin}/visas`);
+  vrai(tous.length >= 2 && tous.some((v) => v.matiereId === m.pratique.id), 'Le censeur voit toutes les matières');
+  statut(await appel(role(m.e, 'SECRETARIAT'), 'GET', `${chemin}/visas`), 403);   // v0.47.1
   statut(await appel(role(m.e, 'SURVEILLANT'), 'GET', `${chemin}/visas`), 403);
   statut(await appel(role(m.e, 'SECRETARIAT'), 'POST', `${chemin}/matieres/${m.general.id}/visa`), 403);
   // Relevés publiés du centre de formation : plus de visa, et la génération liste les matières non visées
@@ -718,7 +723,7 @@ scenario('BUL-09', D_BUL, 'Visas (v0.44) : l’enseignant voit ses matières, ne
     }
     publie = `, ${g2.matieresNonVisees.length} module(s) non visé(s) au centre`;
   }
-  return `${miens.length} matière(s) de l’enseignant, ${tous.length} pour le secrétariat${publie}`;
+  return `${miens.length} matière(s) de l’enseignant, ${tous.length} pour la direction${publie}`;
 });
 
 scenario('BUL-10', D_BUL, 'Signature (v0.44) : l’enseignant dépose sa signature, la relit en PNG, une image illisible est refusée ; son état d’origine est rétabli', async (ctx) => {

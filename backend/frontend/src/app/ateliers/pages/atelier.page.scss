@@ -1,0 +1,137 @@
+.infos {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin: 0;
+  color: var(--texte-doux);
+}
+.alertes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0;
+}
+.bascule {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  padding: 0.2rem;
+  margin: 0.25rem 0 0.75rem;
+  background: var(--surface);
+  button {
+    min-height: 38px;
+    padding: 0 0.8rem;
+    border: none;
+    background: none;
+    border-radius: calc(var(--rayon) - 4px);
+    font: inherit;
+    font-weight: 600;
+    color: var(--texte-doux);
+    cursor: pointer;
+  }
+  button.actif {
+    background: var(--primaire);
+    color: var(--sur-primaire);
+  }
+}
+h2 {
+  font-size: 1.05rem;
+  margin: 0 0 0.5rem;
+}
+h3 {
+  font-size: 0.95rem;
+  margin: 1rem 0 0.4rem;
+}
+.responsable {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  margin: 0 0 0.25rem;
+}
+.sous-formulaire {
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  background: var(--fond);
+}
+.cibles,
+.candidats {
+  border: 1px solid var(--bordure);
+  border-radius: var(--rayon);
+  margin: 0.75rem 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+}
+.candidats {
+  flex-direction: column;
+}
+.case {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.candidat {
+  align-items: flex-start;
+  input {
+    margin-top: 0.3rem;
+  }
+}
+.rouge {
+  color: var(--absent);
+}
+.equipement {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--bordure);
+  &:last-child {
+    border-bottom: none;
+  }
+}
+.ligne-equipement {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.panne {
+  color: var(--absent);
+  font-size: 0.9rem;
+}
+.ligne-simple {
+  padding: 0.45rem 0;
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  th,
+  td {
+    padding: 0.45rem 0.5rem;
+    border-bottom: 1px solid var(--bordure);
+    text-align: left;
+    vertical-align: middle;
+  }
+  th.nombre,
+  td.nombre {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+}
+.sous-seuil td:first-child {
+  color: var(--absent);
+  font-weight: 600;
+}
+.seuil {
+  width: 5.5rem;
+}
+.ligne-equipement .pastille,
+.responsable .pastille {
+  margin-left: 0.4rem;
+}
+.filtre {
+  width: auto;
+  min-height: 38px;
+}

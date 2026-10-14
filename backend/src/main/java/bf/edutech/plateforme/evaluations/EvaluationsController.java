@@ -38,7 +38,7 @@ import bf.edutech.plateforme.evaluations.Vues.SuiviEvaluationVue;
 public class EvaluationsController {
 
     static final String SAISIE = "hasAnyRole('ENSEIGNANT','CENSEUR','ADMIN_ECOLE')";
-    static final String CONSULTATION = "hasAnyRole('ENSEIGNANT','CENSEUR','ADMIN_ECOLE','SECRETARIAT')";
+    static final String CONSULTATION = "hasAnyRole('ENSEIGNANT','CENSEUR','ADMIN_ECOLE')";   // v0.47.1 : plus le secrétariat
 
     /** {@code idClient} : facultatif, identifiant généré par l'appareil pour une création idempotente. */
     public record DemandeEvaluation(

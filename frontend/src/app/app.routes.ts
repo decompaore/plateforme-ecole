@@ -127,6 +127,65 @@ export const routes: Routes = [
         loadComponent: () => import('./messagerie/pages/messages.page').then((m) => m.MessagesPage),
       },
       {
+        // Tableau d'affichage (v0.47.1) : documents signés affichés par le secrétariat ; mes demandes administratives
+        path: 'affichage',
+        title: "Tableau d'affichage",
+        loadComponent: () => import('./pages/affichage.page').then((m) => m.AffichagePage),
+      },
+      {
+        // Secrétariat (v0.47.1) : courrier, documents, demandes du personnel, accueil, réunions, archives, certificats
+        path: 'secretariat',
+        canActivate: [role('ADMIN_ECOLE', 'SECRETARIAT', 'CENSEUR', 'CHEF_TRAVAUX', 'INTENDANT', 'SURVEILLANT', 'ENSEIGNANT')],
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            redirectTo: 'courrier',
+          },
+          {
+            path: 'courrier',
+            title: 'Courrier',
+            loadComponent: () => import('./secretariat/pages/courrier.page').then((m) => m.CourrierPage),
+          },
+          {
+            path: 'documents',
+            canActivate: [role('ADMIN_ECOLE', 'SECRETARIAT')],
+            title: 'Documents administratifs',
+            loadComponent: () => import('./secretariat/pages/documents.page').then((m) => m.DocumentsPage),
+          },
+          {
+            path: 'demandes',
+            canActivate: [role('ADMIN_ECOLE', 'SECRETARIAT')],
+            title: 'Demandes du personnel',
+            loadComponent: () => import('./secretariat/pages/demandes.page').then((m) => m.DemandesPage),
+          },
+          {
+            path: 'accueil',
+            canActivate: [role('ADMIN_ECOLE', 'SECRETARIAT')],
+            title: 'Accueil et téléphone',
+            loadComponent: () => import('./secretariat/pages/accueil-public.page').then((m) => m.AccueilPublicPage),
+          },
+          {
+            path: 'reunions',
+            canActivate: [role('ADMIN_ECOLE', 'SECRETARIAT', 'CENSEUR', 'CHEF_TRAVAUX')],
+            title: 'Réunions',
+            loadComponent: () => import('./secretariat/pages/reunions.page').then((m) => m.ReunionsPage),
+          },
+          {
+            path: 'archives',
+            canActivate: [role('ADMIN_ECOLE', 'SECRETARIAT')],
+            title: 'Archives',
+            loadComponent: () => import('./secretariat/pages/archives.page').then((m) => m.ArchivesPage),
+          },
+          {
+            path: 'eleves',
+            canActivate: [role('ADMIN_ECOLE', 'SECRETARIAT', 'CENSEUR')],
+            title: 'Certificats et examens',
+            loadComponent: () => import('./secretariat/pages/eleves-secretariat.page').then((m) => m.ElevesSecretariatPage),
+          },
+        ],
+      },
+      {
         // Signature numérisée imprimée devant les matières visées (v0.44) : en ligne uniquement
         path: 'signature',
         title: 'Ma signature',
@@ -199,13 +258,13 @@ export const routes: Routes = [
           },
           {
             path: 'evaluations',
-            canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')],
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR')],          // v0.47.1 : plus le secrétariat
             title: 'Suivi des évaluations',
             loadComponent: () => import('./admin/pages/suivi-evaluations.page').then((m) => m.SuiviEvaluationsPage),
           },
           {
             path: 'bulletins',
-            canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')],
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR')],          // v0.47.1 : plus le secrétariat
             title: 'Bulletins',
             loadComponent: () => import('./bulletins/pages/bulletins.page').then((m) => m.BulletinsPage),
           },

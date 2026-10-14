@@ -13,7 +13,7 @@ PDF produits avec Apache PDFBox 3 (police Helvetica standard, aucun fichier de p
 | 2. Verrouiller la période | `POST /api/v1/periodes/{id}/verrouillage` (v0.2) : plus aucune note ne change | CENSEUR, ADMIN_ECOLE |
 | 3. Conseil de classe | `GET …/conseil` (moyenne, rang, distinction proposée) ; `PUT …/conseil` `{"avis":[{"inscriptionId":"…","distinction":"ENCOURAGEMENTS","appreciation":"Élève sérieux"}]}` | CENSEUR, ADMIN_ECOLE |
 | 4. Générer | `POST …/bulletins` → liste des bulletins (rang, moyenne, distinction, code de vérification) | CENSEUR, ADMIN_ECOLE |
-| 5. Contrôler | `GET …/bulletins` ; `GET /api/v1/bulletins/{id}/pdf` ; `GET …/bulletins/pdf` (toute la classe en un PDF, ordre alphabétique, pour l'impression) | + SECRETARIAT |
+| 5. Contrôler | `GET …/bulletins` ; `GET /api/v1/bulletins/{id}/pdf` ; `GET …/bulletins/pdf` (toute la classe en un PDF, ordre alphabétique, pour l'impression) | CENSEUR, ADMIN_ECOLE (v0.47.1 : plus le secrétariat) |
 | 6. Publier | `POST …/bulletins/publication` : visibles dans l'espace parent + SMS au contact prioritaire | CENSEUR, ADMIN_ECOLE |
 
 (`…` = `/api/v1/classes/{classeId}/periodes/{periodeId}`)
@@ -87,7 +87,7 @@ numérisée et la date (« le 12/03/26 ») ; sans signature déposée, la case p
 
 | Appel | Rôles |
 |---|---|
-| `GET …/visas` → `[{matiereId, matiereCode, matiereLibelle, engagementId, enseignant, vise, viseLe, signature, moi}]` | CENSEUR, ADMIN_ECOLE, SECRETARIAT (toutes les matières) ; ENSEIGNANT (les siennes) |
+| `GET …/visas` → `[{matiereId, matiereCode, matiereLibelle, engagementId, enseignant, vise, viseLe, signature, moi}]` | CENSEUR, ADMIN_ECOLE (toutes les matières) ; ENSEIGNANT (les siennes) |
 | `POST …/matieres/{matiereId}/visa` : viser (sans effet si déjà visé) | ENSEIGNANT **de la matière dans la classe** |
 | `DELETE …/matieres/{matiereId}/visa` : retirer | l'enseignant qui a visé, CENSEUR, ADMIN_ECOLE |
 

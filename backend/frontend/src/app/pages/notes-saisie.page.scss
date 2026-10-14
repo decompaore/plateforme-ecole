@@ -1,0 +1,109 @@
+.retour {
+  margin-left: -0.5rem;
+}
+
+.consigne {
+  margin: 0 0 0.75rem;
+}
+
+.eleves {
+  padding: 0 0.5rem;
+}
+
+.eleve {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0;
+
+  &.faute .note {
+    border-color: var(--absent);
+    background: var(--absent-fond);
+  }
+
+  &.absent .nom {
+    color: var(--texte-doux);
+  }
+}
+
+.rang {
+  width: 1.8rem;
+  flex: none;
+  text-align: right;
+  color: var(--texte-doux);
+  font-size: 0.85rem;
+}
+
+.nom {
+  flex: 1;
+  min-width: 0;
+}
+
+.note {
+  width: 4.8rem;
+  flex: none;
+  text-align: center;
+  font-size: 1.1rem;
+  font-weight: 600;
+  min-height: 48px;
+}
+
+.abs {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  border-radius: 10px;
+  border: 1px solid var(--bordure);
+  background: var(--surface);
+  color: var(--texte-doux);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    background: var(--retard);
+    border-color: var(--retard);
+    color: #fff;
+  }
+}
+
+.pied {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.6rem 1rem;
+  padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
+  background: var(--surface);
+  border-top: 1px solid var(--bordure);
+  box-shadow: 0 -4px 12px rgb(0 0 0 / 0.08);
+}
+
+.comptes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem 0.5rem;
+}
+
+.correction {
+  .trois {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+}

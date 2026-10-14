@@ -101,7 +101,9 @@ describe('Bulletins (v0.43, visas v0.44)', () => {
     expect(visasApresGeneration(VISAS, '2026-12-21T10:00:00Z').map((v) => v.matiereCode)).toEqual(['MATH']);
     expect(visasApresGeneration(VISAS, '2026-12-22T10:00:00Z')).toEqual([]);
     expect(visasApresGeneration(VISAS, null)).toEqual([]);
-    expect(ONGLETS.find((o) => o.lien === '/admin/bulletins')?.roles).toEqual(['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT']);
+    // v0.47.1 : le secrétariat ne voit plus bulletins ni évaluations
+    expect(ONGLETS.find((o) => o.lien === '/admin/bulletins')?.roles).toEqual(['ADMIN_ECOLE', 'CENSEUR']);
+    expect(ONGLETS.find((o) => o.lien === '/admin/evaluations')?.roles).toEqual(['ADMIN_ECOLE', 'CENSEUR']);
   });
 
   it('censeur : conseil de classe, verrouillage, génération puis publication', async () => {
@@ -193,31 +195,6 @@ describe('Bulletins (v0.43, visas v0.44)', () => {
     expect(bouton(f, 'Publier aux familles')).toBeUndefined();
     expect(bouton(f, 'Enregistrer le conseil')).toBeUndefined(); // plus de modification après publication
     expect(bouton(f, 'Déverrouiller la période')).toBeUndefined();
-  });
-
-  it('secrétariat : consulte et imprime, sans conseil ni génération', async () => {
-    await session(http, 'SECRETARIAT');
-    const f = await ouvrir(http, true);
-    expect(http.match((r) => r.url.endsWith('/conseil')).length).toBe(0);
-    http.expectOne((r) => r.url.endsWith('/classes/c2/periodes/t2/bulletins')).flush(generation('PUBLIEE'));
-    http.expectOne((r) => r.url.endsWith('/classes/c2/periodes/t2/visas')).flush(VISAS);
-    await attendre();
-    const t = texte(f);
-    expect(t).toContain('Visas des enseignants');
-    expect(bouton(f, 'Retirer')).toBeUndefined(); // ni direction, ni avant publication
-    expect(t).not.toContain('Conseil de classe');
-    expect(t).toContain('publiés');
-    expect(bouton(f, 'Verrouiller la période')).toBeUndefined();
-    expect(bouton(f, 'Régénérer')).toBeUndefined();
-    const creer = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:bulletin');
-    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
-    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
-    bouton(f, 'PDF').click();
-    await attendre();
-    http.expectOne('/api/v1/bulletins/b1/pdf').flush(new Blob(['%PDF'], { type: 'application/pdf' }));
-    await attendre();
-    expect(creer).toHaveBeenCalled();
-    vi.restoreAllMocks();
   });
 
   it('enseignant : appréciations du bulletin, seules les lignes modifiées partent', async () => {

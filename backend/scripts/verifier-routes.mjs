@@ -66,8 +66,18 @@ function appelsDuFrontend() {
     for (const m of s.matchAll(/this\.(get|post|put|delete|patch)(?:<[^>]*>)?\(\s*[`'](\/[^`']+)[`']/g)) ajouter(m[1], m[2], f);
     for (const m of s.matchAll(/this\.(?:lire|fichier)(?:<[^>]*>)?\(\s*[`'](\/[^`']+)[`']/g)) ajouter('get', m[1], f);
   }
+  // Boutons d'export : <app-export chemin="/catalogue" /> ou [chemin]="'/ateliers/' + a.id + '/stock'" → GET {chemin}/export
+  for (const f of fichiers(FRONTEND, '.ts').concat(fichiers(FRONTEND, '.html')).filter((x) => !x.endsWith('.spec.ts'))) {
+    const s = readFileSync(f, 'utf8');
+    for (const m of s.matchAll(/<app-export\b[^>]*?\s(\[chemin\]|chemin)="([^"]+)"/g)) {
+      const chemin = m[1] === 'chemin' ? m[2] : m[2].split('+').map((t) => t.trim()).map((t) => (/^'.*'$/.test(t) ? t.slice(1, -1) : '${x}')).join('');
+      ajouter('get', chemin + '/export', f);
+    }
+  }
   const vus = new Set();
-  return appels.filter((a) => !vus.has(a.methode + a.chemin) && vus.add(a.methode + a.chemin));
+  return appels
+    .filter((a) => !a.chemin.startsWith('/api/v1{x}')) // chemin entièrement variable : vérifié par ses usages
+    .filter((a) => !vus.has(a.methode + a.chemin) && vus.add(a.methode + a.chemin));
 }
 
 function motif(chemin) {

@@ -105,6 +105,40 @@ sorti, pas plus d'une fois par élève pendant le délai paramétré (7 jours pa
 | `GET /api/v1/espace-parent/paiements/{id}/recu` | Reçu PDF, seulement pour ses enfants (`404` sinon) |
 | `GET /api/v1/verification/recus/{code}` | **Sans connexion** : établissement, n° de reçu, élève, montant, payeur, date, annulé ou non |
 
+## 7. Moyens de paiement et virements déclarés (v0.38)
+
+Migration `V29__moyens_paiement_virements.sql`. Chaque établissement choisit ses moyens de paiement :
+
+| Réglage | Par défaut | Effet |
+|---|---|---|
+| Moyens acceptés au guichet | tous | `POST /inscriptions/{id}/paiements` refuse les autres (`409 MOYEN_NON_ACCEPTE`) |
+| Mobile Money pour les parents, opérateurs | oui, tous | proposé seulement si le module Mobile Money est actif et le compte marchand configuré ; un opérateur non retenu est refusé (`409 OPERATEUR_NON_PROPOSE`) |
+| Virement pour les parents | non | exige au moins un compte bancaire actif (`409 SANS_COMPTE_BANCAIRE`) |
+| Consigne affichée aux parents | — | 300 caractères au plus |
+
+| Méthode | Chemin | Rôles |
+|---|---|---|
+| `GET` | `/api/v1/parametres/paiement` | intendant, administrateur, secrétariat |
+| `PUT` | `/api/v1/parametres/paiement` | administrateur — `{ moyensGuichet[], mobileMoneyParents, operateurs[], virementParents, consigneVirement }` (champ absent : inchangé) |
+| `POST` / `PUT` | `/api/v1/comptes-bancaires[/{id}]` | administrateur — `{ banque, titulaire, numero (RIB ou IBAN), codeSwift?, agence?, actif }` ; jamais supprimé, désactivé (pas le dernier compte proposé aux parents : `DERNIER_COMPTE`) |
+| `GET` | `/api/v1/espace-parent/inscriptions/{id}/moyens-paiement` | parent — moyens proposés, comptes actifs, consigne, référence à indiquer (`SCOL <matricule> <NOM>`) |
+| `POST` | `/api/v1/espace-parent/inscriptions/{id}/virements` | parent — multipart : `compteId`, `montant`, `dateVirement`, `reference`, `donneurOrdre?`, `cleIdempotence?`, `fichier?` |
+| `GET` | `/api/v1/espace-parent/inscriptions/{id}/virements` | parent — ses déclarations et leur statut |
+| `GET` | `/api/v1/virements?statut=EN_ATTENTE\|VALIDE\|REFUSE\|TOUS` | intendant, administrateur |
+| `GET` | `/api/v1/virements/{id}/preuve` | intendant, administrateur |
+| `POST` | `/api/v1/virements/{id}/validation` | `{ montantRecu? }` : paiement VIREMENT, reçu, SMS au parent |
+| `POST` | `/api/v1/virements/{id}/refus` | `{ motif }` : SMS au parent avec le motif |
+
+Règles du virement déclaré :
+- le compte crédité doit être un compte actif de l'établissement ;
+- montant entier positif, au plus le reste à payer **moins les virements déjà en attente** ;
+- date : ni future, ni de plus d'un an ; référence de l'opération obligatoire ; un même couple (compte, référence)
+  n'est déclaré qu'une fois tant qu'il n'est pas refusé (`VIREMENT_DEJA_DECLARE`) ;
+- preuve facultative : PNG, JPEG ou PDF de 2 Mo au plus, reconnu à ses premiers octets ;
+- la validation enregistre le montant réellement reçu (paiement idempotent : clé `virement:<id>`) ; un virement
+  validé ou refusé ne se traite plus (`VIREMENT_DEJA_TRAITE`) ; annuler ensuite le paiement suit la règle habituelle
+  (le virement reste « validé », le reçu « annulé »).
+
 ## Limites connues (MVP)
 
 - Paiement Mobile Money en ligne, rapprochement et relances automatiques : voir [API_MOBILE_MONEY.md](API_MOBILE_MONEY.md) (v0.9).

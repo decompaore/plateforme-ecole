@@ -26,3 +26,9 @@ Thumbs.db
 .env
 *.pem
 *.key
+# Test grandeur nature (comptes et journal locaux)
+scripts/demo/comptes-demo.md
+scripts/demo/etat-demo.json
+scripts/recette/rapport-recette.*
+scripts/recette/telechargements/
+scripts/demo/api-demo.log

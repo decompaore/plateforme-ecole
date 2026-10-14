@@ -19,7 +19,7 @@ class AutorisationsEvaluations {
     static final String[] DIRECTION = { "ADMIN_ECOLE", "CENSEUR" };
 
     /** Consultent les résultats de toutes les classes. */
-    static final String[] CONSULTATION = { "ADMIN_ECOLE", "CENSEUR", "SECRETARIAT" };
+    static final String[] CONSULTATION = { "ADMIN_ECOLE", "CENSEUR" };   // v0.47.1 : plus le secrétariat
 
     private final EnseignantsService enseignants;
 

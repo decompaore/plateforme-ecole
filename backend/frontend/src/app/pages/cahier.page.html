@@ -1,0 +1,117 @@
+<div class="page">
+  <a routerLink="/cahier" class="retour">‹ Cahier de textes</a>
+  <h1>
+    {{ affectation()?.matiereLibelle ?? fiche()?.matiereLibelle ?? 'Cahier de textes' }}
+    @if (affectation()?.classeCode ?? fiche()?.classeCode; as c) { · {{ c }} }
+  </h1>
+
+  @if (horsLigne()) {
+    <div class="alerte attention" role="status">Sans réseau : vous voyez les séances gardées sur le téléphone. Vos saisies partiront au retour du réseau.</div>
+  }
+  @if (erreur()) {
+    <div class="alerte erreur" role="alert">{{ erreur() }}</div>
+  }
+  @if (message()) {
+    <div class="alerte succes" role="status">{{ message() }}</div>
+  }
+
+  <!-- Saisie -->
+  <form class="carte" (ngSubmit)="enregistrer()">
+    <h2>{{ editeId() ? 'Modifier la séance' : 'Nouvelle séance' }}</h2>
+    <div class="horaire">
+      <div class="champ">
+        <label for="date">Date</label>
+        <input id="date" name="date" type="date" [max]="aujourdhui" [(ngModel)]="fDate" />
+      </div>
+      <div class="champ">
+        <label for="debut">Début</label>
+        <input id="debut" name="debut" type="time" [(ngModel)]="fDebut" />
+      </div>
+      <div class="champ">
+        <label for="fin">Fin</label>
+        <input id="fin" name="fin" type="time" [(ngModel)]="fFin" />
+      </div>
+    </div>
+    @if (fiche()?.sequences?.length) {
+      <div class="champ">
+        <label for="sequence">Séquence de la progression</label>
+        <select id="sequence" name="sequence" [ngModel]="fSequence()" (ngModelChange)="fSequence.set($event)">
+          <option value="">Hors séquence (révision, évaluation…)</option>
+          @for (s of fiche()!.sequences; track s.ordre) {
+            <option [value]="'' + s.ordre">{{ s.ordre }}. {{ s.titre }} · {{ heures(realise().parOrdre.get(s.ordre) ?? 0) }} / {{ heures(s.heuresPrevues) }}</option>
+          }
+        </select>
+      </div>
+    } @else if (!chargement()) {
+      <p class="doux">Pas encore de fiche de progression pour cette matière : la séance sera notée hors séquence.</p>
+    }
+    <div class="champ">
+      <label for="contenu">Ce qui a été fait</label>
+      <textarea id="contenu" name="contenu" rows="4" maxlength="2000" placeholder="Notions, activités, TP, évaluation…" [(ngModel)]="fContenu"></textarea>
+    </div>
+    <div class="champ">
+      <label for="travail">Travail à faire <span class="doux">(facultatif)</span></label>
+      <textarea id="travail" name="travail" rows="2" maxlength="1000" placeholder="Exercices, leçon à apprendre, pour le…" [(ngModel)]="fTravail"></textarea>
+    </div>
+    @if (fContenu() && erreurSaisie(); as e) {
+      <p class="rouge" role="alert">{{ e }}</p>
+    }
+    <div class="actions-ligne">
+      <button type="submit" class="bouton" [disabled]="enregistrement() || !!erreurSaisie()">
+        {{ enregistrement() ? 'Enregistrement…' : 'Enregistrer' }}@if (duree(); as d) { ({{ heures(d) }}) }
+      </button>
+      @if (editeId()) {
+        <button type="button" class="bouton discret" (click)="annulerModification()">Annuler la modification</button>
+      }
+    </div>
+  </form>
+
+  <!-- Avancement -->
+  @if (fiche()?.sequences?.length) {
+    <section class="carte">
+      <h2>Avancement</h2>
+      <ul class="avancement">
+        @for (s of fiche()!.sequences; track s.ordre) {
+          <li>
+            <span class="titre-seq">{{ s.ordre }}. {{ s.titre }}</span>
+            <span class="jauge" [title]="heures(realise().parOrdre.get(s.ordre) ?? 0) + ' sur ' + heures(s.heuresPrevues)">
+              <span [style.width.%]="Math.min(100, ((realise().parOrdre.get(s.ordre) ?? 0) / s.heuresPrevues) * 100)"></span>
+            </span>
+            <span class="doux chiffre">{{ heures(realise().parOrdre.get(s.ordre) ?? 0) }} / {{ heures(s.heuresPrevues) }}</span>
+          </li>
+        }
+      </ul>
+      <p class="doux">{{ heures(realise().total) }} faites sur {{ heures(fiche()!.heuresPrevues) }} prévues.</p>
+    </section>
+  }
+
+  <!-- Séances -->
+  <section class="carte">
+    <h2>Séances</h2>
+    @if (lignes().length) {
+      <ul class="liste">
+        @for (l of lignes(); track l.id) {
+          <li class="seance" [class.refusee]="l.locale?.etat === 'REFUSE'">
+            <div class="entete-seance">
+              <strong>{{ dateCourte(l.date) }} · {{ l.heureDebut }}–{{ l.heureFin }}</strong>
+              @if (l.locale?.etat === 'EN_ATTENTE') { <span class="pastille">en attente d'envoi</span> }
+              @if (l.locale?.etat === 'REFUSE') { <span class="pastille absent">refusée</span> }
+            </div>
+            @if (l.sequence) { <p class="doux">{{ l.sequence }}</p> }
+            <p class="contenu">{{ l.contenu }}</p>
+            @if (l.travail) { <p class="travail"><strong>À faire :</strong> {{ l.travail }}</p> }
+            @if (l.locale?.message) { <p class="rouge">{{ l.locale!.message }}</p> }
+            <div class="actions-ligne">
+              <button type="button" class="bouton discret petit" (click)="modifier(l)">Modifier</button>
+              <button type="button" class="bouton discret petit" [disabled]="!l.locale && session.horsConnexion()" (click)="supprimer(l)">
+                {{ l.locale ? 'Abandonner' : 'Supprimer' }}
+              </button>
+            </div>
+          </li>
+        }
+      </ul>
+    } @else if (!chargement()) {
+      <p class="doux">Aucune séance notée pour l'instant.</p>
+    }
+  </section>
+</div>
