@@ -24,6 +24,8 @@ censeur. Les droits de la plateforme suivent désormais cette organisation ; le 
 | Matière d'œuvre des TP | Enseignant (fiche de préparation, consommation réelle) | Chef d'atelier (accorde, sert, remet le surplus en stock) | Direction et intendance (achats à prévoir) |
 | Consignes de sécurité, journal HSE | Chef d'atelier | Chef d'atelier | Enseignants (prise de connaissance obligatoire) ; chef des travaux alerté en cas de danger |
 | Commandes de production | Chef d'atelier, direction | Chef d'atelier, direction | Enseignants de l'atelier, intendance |
+| État annuel des besoins (v0.48) : infrastructures, personnel, équipements et outils, matières | Censeur (domaine général), chef des travaux (domaine technique) | Chef d'établissement (complète, transmet à la DP) | Intendant ; directions provinciale, régionale, niveau central (arbitrent et transmettent) |
+| Dotations reçues (v0.48) | Direction (DR ou DP) | Chef d'établissement ou intendant (accusé de réception) | Censeur, chef des travaux |
 | Évaluations, notes, bulletins | Enseignants, censeur | Censeur, chef d'établissement | **Plus le secrétariat** (v0.47.1) |
 | Suppléance du chef d'établissement | Le chef d'établissement désigne un **intérim** (censeur ou chef des travaux) | — | Censeur, chef des travaux |
 

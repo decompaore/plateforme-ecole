@@ -65,6 +65,7 @@ Pour travailler avec Eclipse, suivre [docs/GUIDE_ECLIPSE.md](docs/GUIDE_ECLIPSE.
 | [docs/ORGANISATION_ROLES.md](docs/ORGANISATION_ROLES.md) | Qui fait quoi dans l'établissement (v0.47) : intendant, censeur, CPE, chef d'établissement, intérim |
 | [docs/API_VIE_SCOLAIRE.md](docs/API_VIE_SCOLAIRE.md) | Retards, avertissements, blâmes, exclusions temporaires, convocations, historique, espace parent |
 | [docs/API_STATISTIQUES.md](docs/API_STATISTIQUES.md) | Statistiques de rentrée, personnel, recouvrement, résultats, export Excel |
+| [docs/API_BESOINS_DOTATIONS.md](docs/API_BESOINS_DOTATIONS.md) | Besoins et dotations (v0.48) : état annuel des besoins de l'établissement, remontée et arbitrage par les directions jusqu'au niveau central, dotations descendantes et accusés de réception |
 | [docs/API_TERRITOIRE.md](docs/API_TERRITOIRE.md) | Pays, ministères, directions (saisie, import CSV), rattachement des établissements, logo et en-tête des documents officiels |
 | [docs/API_ADOPTION.md](docs/API_ADOPTION.md) | Mesure de l'adoption : jours d'activité, actions par fonction, tableaux de bord du super administrateur et de l'établissement |
 | [docs/API_REVERSIBILITE.md](docs/API_REVERSIBILITE.md) | Export complet des données d'un établissement (réversibilité) : archive ZIP de CSV décrits, lien signé, conservation |

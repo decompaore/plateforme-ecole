@@ -35,6 +35,7 @@ const TUILES: Tuile[] = [
   { titre: 'Mon emploi du temps', texte: 'Mes cours de la semaine', lien: '/emploi-du-temps/mon-emploi', roles: ['ENSEIGNANT'], module: 'EMPLOIS_DU_TEMPS' },
   { titre: 'Ateliers', texte: 'Responsables, équipements, pannes, matière d’œuvre, inventaires', lien: '/ateliers', roles: ['CHEF_TRAVAUX', 'ADMIN_ECOLE', 'ENSEIGNANT'], module: 'ATELIERS' },
   { titre: 'Catalogue des prix', texte: 'Matière d’œuvre et équipements, spécifications, prix', lien: '/ateliers/catalogue', roles: ['INTENDANT', 'CHEF_TRAVAUX'], module: 'ATELIERS' },
+  { titre: 'Besoins et dotations', texte: "État annuel des besoins transmis à la direction, dotations reçues", lien: '/besoins', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'INTENDANT'] },
   { titre: 'Besoins et commandes', texte: 'Campagnes de besoins, état pour la DR, commandes, réception, répartition', lien: '/ateliers/besoins', roles: ['CHEF_TRAVAUX', 'INTENDANT'], module: 'ATELIERS' },
   { titre: 'Saisie des notes', texte: 'Marche aussi sans réseau', lien: '/notes', roles: ['ENSEIGNANT'] },
   { titre: 'Vie scolaire', texte: 'Absences du jour, incidents, convocations', lien: '/vie-scolaire', roles: ['SURVEILLANT', 'CENSEUR', 'CHEF_TRAVAUX', 'ADMIN_ECOLE', 'SECRETARIAT'], module: 'VIE_SCOLAIRE' },
@@ -97,6 +98,14 @@ const TUILES: Tuile[] = [
             <strong>Pilotage</strong>
             <span>Effectifs, résultats et examens par direction et par établissement</span>
           </a>
+          <a class="tuile active" routerLink="/pilotage/besoins">
+            <strong>Besoins</strong>
+            <span>États des besoins remontés par les directions, arbitrage final</span>
+          </a>
+          <a class="tuile active" routerLink="/pilotage/dotations">
+            <strong>Dotations</strong>
+            <span>Doter les directions régionales, suivre les accusés de réception</span>
+          </a>
         </div>
       } @else if (session.profil()?.direction; as d) {
         <p class="doux">{{ d.chemin }}</p>
@@ -108,6 +117,14 @@ const TUILES: Tuile[] = [
           <a class="tuile active" routerLink="/pilotage/adoption">
             <strong>Adoption</strong>
             <span>Qui utilise l'application dans les établissements de votre ressort</span>
+          </a>
+          <a class="tuile active" routerLink="/pilotage/besoins">
+            <strong>Besoins</strong>
+            <span>États des besoins des établissements : arbitrage, renvoi, transmission</span>
+          </a>
+          <a class="tuile active" routerLink="/pilotage/dotations">
+            <strong>Dotations</strong>
+            <span>Dotations reçues et réparties, accusés de réception</span>
           </a>
         </div>
       } @else if (!session.profil()?.etablissement) {

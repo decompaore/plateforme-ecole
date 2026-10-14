@@ -10,11 +10,13 @@ import { SessionService } from '../core/session.service';
   template: `
     @if (pays(); as p) { <p class="doux pays">Administration du pays : <strong>{{ p.nom }}</strong></p> }
     @if (direction(); as d) {
-      <!-- Compte de direction (v0.39) : pilotage et adoption de son ressort, en lecture -->
+      <!-- Compte de direction (v0.39) : pilotage et adoption de son ressort ; besoins et dotations (v0.48) -->
       <p class="doux pays">{{ d.chemin }}</p>
       <nav class="onglets" aria-label="Direction">
         <a routerLink="/pilotage" routerLinkActive="actif" [routerLinkActiveOptions]="{ exact: true }">Pilotage</a>
         <a routerLink="/pilotage/adoption" routerLinkActive="actif">Adoption</a>
+        <a routerLink="/pilotage/besoins" routerLinkActive="actif">Besoins</a>
+        <a routerLink="/pilotage/dotations" routerLinkActive="actif">Dotations</a>
       </nav>
     } @else {
       <nav class="onglets" aria-label="Plateforme">
@@ -22,6 +24,8 @@ import { SessionService } from '../core/session.service';
         <a routerLink="/plateforme/territoire" routerLinkActive="actif">Territoire</a>
         <a routerLink="/plateforme/adoption" routerLinkActive="actif">Adoption</a>
         <a routerLink="/pilotage" routerLinkActive="actif" [routerLinkActiveOptions]="{ exact: true }">Pilotage</a>
+        <a routerLink="/pilotage/besoins" routerLinkActive="actif">Besoins</a>
+        <a routerLink="/pilotage/dotations" routerLinkActive="actif">Dotations</a>
       </nav>
     }
   `,

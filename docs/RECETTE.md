@@ -55,6 +55,7 @@ Code de sortie : 0 si tout est réussi, 1 s'il y a des échecs, 2 si la recette 
 | 10 | MSG, EXA | Messagerie (v0.46) : décompte avant l'envoi, message aux enseignants et aux parents, lu / non lu, annuaire ; taux de réussite aux examens, saisie d'une année antérieure, export |
 | 12 | COU, ADM, DEM, ACC, REU, ARC, CER | Secrétariat (v0.47.1) : courrier arrivée et départ, transmission et registre ; note de service signée et affichée ; demande d'autorisation d'absence jusqu'à la hiérarchie ; accueil et message transmis ; compte rendu validé ; archives ; certificat de scolarité et candidats aux examens |
 | 13 | TPR | Travaux pratiques (v0.47.2), sur un atelier de recette : consignes à lire avant toute demande, demande et validation, conflit refusé, production, préparation (sortie du stock), compte rendu, bilan (retour au stock), journal HSE, plannings, annulation |
+| 14 | EBD, DOT | Besoins et dotations (v0.48) : état des besoins du lycée technique (censeur, chef des travaux, proviseur), réception par la DP, arbitrage plafonné, renvoi pour correction, transmissions DP → DR → niveau central, cloisonnement et export ; dotation nationale à la DR, répartition à la DP puis au lycée, accusés de réception avec quantité non conforme |
 | 11 | CAH, INT | Organisation des rôles (v0.47) : visa mensuel des cahiers de textes (droits et refus, sans figer les données de démonstration), intérim du chef d'établissement (prévu puis annulé). Les lots 01, 03 et 05 vérifient aussi l'intendant qui inscrit, le chef d'établissement seul à modifier, le censeur qui répartit et le CPE seul à saisir la vie scolaire |
 
 **Ce que la recette laisse dans la base** (elle reste rejouable) :
@@ -85,9 +86,13 @@ Cochez chaque point sur l'interface (`cd frontend && npm start`, puis http://loc
 - [ ] **v0.39** : les onglets Établissements, Adoption et Pilotage proposent « Par territoire / Liste ». L'arbre se déplie et se replie (« Tout déplier / Tout replier »), et les totaux d'un groupe sont la somme de ses établissements.
 - [ ] Les établissements sans rattachement sont regroupés sous « Sans rattachement », en dernier.
 - [ ] Depuis l'arbre du territoire, « Nouvel établissement » ouvre le formulaire avec la direction déjà choisie.
-- [ ] Un compte de direction ne voit que les onglets Pilotage et Adoption de son ressort, en lecture seule ; les exports Excel et PDF du pilotage s'ouvrent correctement.
+- [ ] Un compte de direction voit les onglets Pilotage, Adoption, Besoins et Dotations de son ressort ; les exports Excel et PDF du pilotage et des besoins s'ouvrent correctement.
+- [ ] **v0.48** : la direction provinciale ouvre l'état d'un lycée, retient moins sur une ligne (au-delà de la demande : refus), le renvoie avec un motif ; le lycée corrige et retransmet ; la DP transmet ; la DR voit les besoins consolidés de ses provinces et transmet ; l'administrateur pays voit le niveau national.
+- [ ] **v0.48** : l'administrateur pays dote la DR ; la DR accuse réception (un article non conforme), répartit entre ses DP (la quantité disponible baisse) ; la DP dote un lycée ; l'intendant du lycée accuse réception depuis « Besoins et dotations ».
 
 ### Établissement
+
+- [ ] **v0.48** : le censeur ajoute un besoin en personnel (seul le domaine général lui est proposé), le chef des travaux un tour parallèle ; le proviseur transmet ; plus rien n'est modifiable jusqu'au renvoi de la direction, dont le motif s'affiche.
 
 - [ ] **v0.40** : sur la page Personnel, la colonne Catégorie s'affiche ; le bouton de suggestion propose « technique » pour un enseignant général qui assure une matière technique.
 - [ ] **v0.40** : un enseignant technique rattaché à un atelier voit la tuile Ateliers, un enseignant général ne la voit pas.

@@ -165,9 +165,9 @@ describe('Pilotage des directions (v0.37)', () => {
     expect(t).toContain('Direction provinciale');
     expect(t).toContain('DP du Kadiogo');
     expect(t).toContain('Suspendu');
-    // Onglets d'une direction (v0.39) : Pilotage et Adoption, rien de la plateforme
+    // Onglets d'une direction (v0.39, v0.48) : Pilotage, Adoption, Besoins, Dotations ; rien de la plateforme
     const onglets = [...(f.nativeElement as HTMLElement).querySelectorAll('app-plateforme-nav a')].map((a) => a.textContent?.trim());
-    expect(onglets).toEqual(['Pilotage', 'Adoption']);
+    expect(onglets).toEqual(['Pilotage', 'Adoption', 'Besoins', 'Dotations']);
 
     // Filtre des établissements par direction provinciale
     const sous = (f.nativeElement as HTMLElement).querySelector<HTMLSelectElement>('#pilotageSous')!;
