@@ -1,4 +1,4 @@
-# Application web (v0.47.1)
+# Application web (v0.47.2)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -475,6 +475,13 @@ connexion.
 - **Établissements → Données** (super administrateur) : même composant (`app-exports-donnees` avec
   `etablissementId`), pour un établissement actif, suspendu ou résilié.
 - Détails du contenu de l'archive : [API_REVERSIBILITE.md](API_REVERSIBILITE.md).
+
+## Travaux pratiques dans les ateliers (v0.47.2)
+
+Dans la fiche d'un atelier, bouton « Travaux pratiques » (`/ateliers/:id/travaux-pratiques`) : planning de la semaine
+(demande avec fiche de préparation, validation, préparation, compte rendu, bilan, génération depuis l'emploi du
+temps), « Sécurité » (consignes, prise de connaissance, journal HSE), « Production ». Onglets « Mes TP »
+(enseignant) et « Planning des TP » (chef des travaux, matière à acheter). Tests : `ateliers/travaux-pratiques.spec.ts`.
 
 ## Secrétariat (v0.47.1)
 

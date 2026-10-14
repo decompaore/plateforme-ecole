@@ -1,6 +1,6 @@
 {
   "name": "plateforme-ecoles-frontend",
-  "version": "0.47.1",
+  "version": "0.47.2",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",

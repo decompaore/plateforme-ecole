@@ -1,0 +1,367 @@
+<div class="page large">
+  <h1>Travaux pratiques{{ atelier() ? ' · ' + atelier()!.code : '' }}</h1>
+  <app-ateliers-nav />
+  @if (atelier(); as a) {
+    <p><a [routerLink]="['/ateliers', a.id]">‹ {{ a.nom }}</a></p>
+  }
+
+  @if (action.erreur()) {
+    <div class="alerte erreur" role="alert">{{ action.erreur() }}</div>
+  }
+  @if (message(); as m) {
+    <div class="alerte succes" role="status">{{ m }}</div>
+  }
+
+  @if (consignes()?.aLire) {
+    <section class="carte alerte attention">
+      <h2>Consignes de sécurité de l'atelier</h2>
+      <p>Prenez connaissance des consignes avant de demander une séance{{ consignes()!.luLe ? ' (elles ont changé depuis votre dernière lecture)' : '' }}.</p>
+      <ul class="liste">
+        @for (c of consignes()!.consignes; track c.id) {
+          <li><strong>{{ libelleConsigne[c.categorie] }}</strong>@if (c.equipement) { · {{ c.equipement }} } : {{ c.texte }}</li>
+        }
+      </ul>
+      <button type="button" class="bouton" [disabled]="action.enCours()" (click)="lireConsignes()">J'ai pris connaissance des consignes</button>
+    </section>
+  }
+
+  <div class="bascule" role="group" aria-label="Rubriques">
+    <button type="button" [class.actif]="onglet() === 'planning'" (click)="onglet.set('planning')">Planning @if (aValider()) { ({{ aValider() }} à valider) }</button>
+    <button type="button" [class.actif]="onglet() === 'securite'" (click)="afficherSecurite()">Sécurité</button>
+    <button type="button" [class.actif]="onglet() === 'production'" (click)="onglet.set('production')">Production</button>
+  </div>
+
+  <!-- ================================================================ planning -->
+  @if (onglet() === 'planning') {
+    <section class="carte">
+      <div class="semaine">
+        <button type="button" class="bouton secondaire petit" (click)="changerSemaine(-1)">‹ Semaine précédente</button>
+        <strong>Semaine du {{ dateCourte(debut()) }} au {{ dateCourte(fin()) }}</strong>
+        <button type="button" class="bouton secondaire petit" (click)="changerSemaine(1)">Semaine suivante ›</button>
+        @if (chef()) {
+          <button type="button" class="bouton secondaire petit" [disabled]="action.enCours()" (click)="generer()">Générer depuis l'emploi du temps</button>
+        }
+        @if (options().length && !formSeance()) {
+          <button type="button" class="bouton petit" (click)="formSeance.set(true)">{{ chef() ? 'Planifier une séance' : 'Demander une séance' }}</button>
+        }
+      </div>
+
+      @if (formSeance()) {
+        <form class="sous-formulaire" (ngSubmit)="demander()">
+          <div class="grille-champs">
+            <div class="champ">
+              <label for="nOption">Classe et matière</label>
+              <select id="nOption" name="nOption" [(ngModel)]="nOption">
+                @for (o of options(); track cle(o)) {
+                  <option [value]="cle(o)">{{ o.classeCode }} · {{ o.matiere }}@if (chef()) { · {{ o.enseignant }} }</option>
+                }
+              </select>
+            </div>
+            <div class="champ"><label for="nDate">Date</label><input id="nDate" name="nDate" type="date" [(ngModel)]="nDate" /></div>
+            <div class="champ"><label for="nDebut">Début</label><input id="nDebut" name="nDebut" type="time" [(ngModel)]="nDebut" /></div>
+            <div class="champ"><label for="nFin">Fin</label><input id="nFin" name="nFin" type="time" [(ngModel)]="nFin" /></div>
+            <div class="champ"><label for="nTitre">Intitulé du TP</label><input id="nTitre" name="nTitre" maxlength="200" [(ngModel)]="nTitre" /></div>
+            <div class="champ"><label for="nGroupe">Groupe <span class="doux">(facultatif)</span></label><input id="nGroupe" name="nGroupe" maxlength="20" [(ngModel)]="nGroupe" /></div>
+            <div class="champ"><label for="nEffectif">Effectif</label><input id="nEffectif" name="nEffectif" type="number" min="1" max="200" [(ngModel)]="nEffectif" /></div>
+            @if (productionsEnCours().length) {
+              <div class="champ">
+                <label for="nProduction">Commande de production</label>
+                <select id="nProduction" name="nProduction" [(ngModel)]="nProduction">
+                  <option value="">— aucune —</option>
+                  @for (p of productionsEnCours(); track p.id) { <option [value]="p.id">{{ p.numero }} · {{ p.objet }}</option> }
+                </select>
+              </div>
+            }
+          </div>
+          <h3>Fiche de préparation : matière d'œuvre</h3>
+          @for (b of nBesoins(); track $index; let i = $index) {
+            <div class="ligne-besoin">
+              <select [attr.aria-label]="'Article ' + (i + 1)" [value]="b.articleId" (change)="changerBesoin(i, 'articleId', $any($event.target).value)">
+                @for (m of matieres(); track m.id) { <option [value]="m.id">{{ m.designation }} ({{ m.unite }})</option> }
+              </select>
+              <input type="number" min="0" step="0.01" [attr.aria-label]="'Quantité ' + (i + 1)" [value]="b.quantite ?? ''" (input)="changerBesoin(i, 'quantite', $any($event.target).value)" />
+              <button type="button" class="bouton discret petit" (click)="retirerBesoin(i)">Retirer</button>
+            </div>
+          }
+          <div class="actions-ligne">
+            <button type="button" class="bouton secondaire petit" [disabled]="!matieres().length" (click)="ajouterBesoin()">Ajouter de la matière d'œuvre</button>
+            <button type="submit" class="bouton petit" [disabled]="action.enCours() || !nTitre().trim()">{{ chef() ? 'Planifier' : 'Envoyer la demande' }}</button>
+            <button type="button" class="bouton discret petit" (click)="formSeance.set(false)">Fermer</button>
+          </div>
+        </form>
+      }
+
+      @for (j of jours(); track j.date) {
+        <div class="jour">
+          <h3>{{ dateCourte(j.date) }}</h3>
+          @for (s of j.liste; track s.id) {
+            <article class="seance" [class.demandee]="s.statut === 'DEMANDEE'" [attr.aria-label]="s.classeCode + ' ' + s.titre">
+              <div class="tete">
+                <span>
+                  <strong>{{ heure(s.heureDebut) }}–{{ heure(s.heureFin) }} · {{ s.classeCode }}</strong>@if (s.groupe) { ({{ s.groupe }}) }
+                  · {{ s.matiere }} · {{ s.enseignant }}
+                </span>
+                <span class="pastille {{ classeStatut[s.statut] }}">{{ libelleStatut[s.statut] }}</span>
+              </div>
+              <p>{{ s.titre }}@if (s.effectif) { · {{ s.effectif }} élèves }@if (s.production) { · <span class="doux">production {{ s.production }}</span> }</p>
+              @if (s.motif) { <p class="doux">Motif : {{ s.motif }}</p> }
+              @for (c of s.conflits; track c) { <p class="rouge">Conflit : {{ c }}</p> }
+              @if (s.statut === 'PLANIFIEE' && s.equipementsIndisponibles.length) {
+                <p class="rouge">Indisponible : @for (e of s.equipementsIndisponibles; track e.id) { {{ e.designation }} ({{ e.numeroInventaire }}, {{ e.etat === 'EN_PANNE' ? 'en panne' : 'manquant' }}) }</p>
+              }
+              @if (s.prepareeLe) { <p class="doux">Atelier préparé le {{ dateHeureCourte(s.prepareeLe) }}@if (s.observationsPreparation) { : {{ s.observationsPreparation }} }</p> }
+              @if (s.statut === 'REALISEE') {
+                <p>
+                  Compte rendu :
+                  <span class="pastille" [class.present]="s.nettoyage" [class.absent]="!s.nettoyage">{{ s.nettoyage ? 'nettoyé' : 'non nettoyé' }}</span>
+                  <span class="pastille" [class.present]="s.rangement" [class.absent]="!s.rangement">{{ s.rangement ? 'rangé' : 'non rangé' }}</span>
+                  <span class="pastille" [class.present]="s.epiRespectes" [class.absent]="!s.epiRespectes">{{ s.epiRespectes ? 'EPI portés' : 'EPI non respectés' }}</span>
+                  @if (s.quantiteProduite !== null) { · {{ s.quantiteProduite }} produit(s) }
+                  @if (s.bilanLe) { · <span class="doux">bilan fait</span> }
+                </p>
+                @if (s.observations) { <p class="doux">{{ s.observations }}</p> }
+              }
+
+              @if (s.besoins.length) {
+                <div class="tableau-defilant besoins">
+                  <table class="tableau">
+                    <thead><tr><th>Matière d'œuvre</th><th class="nombre">Demandé</th><th class="nombre">Accordé</th><th class="nombre">Servi</th><th class="nombre">Utilisé</th><th class="nombre">Rendu</th><th class="nombre">À acheter</th><th class="nombre">En stock</th></tr></thead>
+                    <tbody>
+                      @for (b of s.besoins; track b.articleId) {
+                        <tr>
+                          <td>{{ b.designation }} <span class="doux">({{ b.unite }})</span></td>
+                          <td class="nombre">{{ b.demandee }}</td>
+                          <td class="nombre">
+                            @if (enSaisie(s, 'valider') || enSaisie(s, 'compte-rendu')) {
+                              <input type="number" min="0" step="0.01" [attr.aria-label]="(enSaisie(s, 'valider') ? 'Accordé ' : 'Utilisé ') + b.designation" [value]="quantites()[b.articleId] ?? ''" (input)="changerQuantite(b.articleId, $any($event.target).value)" />
+                            } @else { {{ b.accordee ?? '—' }} }
+                          </td>
+                          <td class="nombre">{{ b.servie ?? '—' }}</td>
+                          <td class="nombre">{{ b.utilisee ?? '—' }}</td>
+                          <td class="nombre">{{ b.rendue ?? '—' }}</td>
+                          <td class="nombre" [class.rouge]="(b.aAcheter ?? 0) > 0">{{ b.aAcheter ?? '—' }}</td>
+                          <td class="nombre">{{ b.stock }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                @if (enSaisie(s, 'compte-rendu')) { <p class="doux">Dans la colonne « Accordé », indiquez la quantité réellement utilisée.</p> }
+              }
+
+              <!-- Actions -->
+              @if (!saisie() || saisie()!.id !== s.id) {
+                <div class="actions-ligne">
+                  @if (s.droits.valider) {
+                    <button type="button" class="bouton petit" (click)="ouvrir(s, 'valider')">Valider</button>
+                    <button type="button" class="bouton secondaire petit" (click)="ouvrir(s, 'refuser')">Refuser</button>
+                  }
+                  @if (s.droits.preparer) { <button type="button" class="bouton petit" (click)="ouvrir(s, 'preparer')">Préparer l'atelier</button> }
+                  @if (s.droits.compteRendu) { <button type="button" class="bouton petit" (click)="ouvrir(s, 'compte-rendu')">Compte rendu</button> }
+                  @if (s.droits.bilan) { <button type="button" class="bouton petit" [disabled]="action.enCours()" (click)="bilan(s)">Faire le bilan</button> }
+                  @if (s.droits.annuler) { <button type="button" class="bouton discret petit" (click)="ouvrir(s, 'annuler')">Annuler</button> }
+                </div>
+              } @else {
+                <div class="sous-formulaire">
+                  @if (enSaisie(s, 'valider')) {
+                    <p class="doux">Ajustez les quantités accordées ; ce qui manque au stock sera signalé à acheter.</p>
+                    <button type="button" class="bouton petit" [disabled]="action.enCours()" (click)="valider(s)">Planifier la séance</button>
+                  }
+                  @if (enSaisie(s, 'refuser') || enSaisie(s, 'annuler')) {
+                    <div class="champ"><label for="motif-{{ s.id }}">Motif</label><input id="motif-{{ s.id }}" maxlength="500" [ngModel]="motif()" (ngModelChange)="motif.set($event)" /></div>
+                    <button type="button" class="bouton petit" [disabled]="action.enCours() || !motif().trim()" (click)="enSaisie(s, 'refuser') ? refuser(s) : annuler(s)">{{ enSaisie(s, 'refuser') ? 'Refuser la demande' : 'Annuler la séance' }}</button>
+                  }
+                  @if (enSaisie(s, 'preparer')) {
+                    <p class="doux">La matière accordée sort du stock ; vérifiez les machines et remettez l'accès à l'enseignant.</p>
+                    <div class="champ"><label for="prep-{{ s.id }}">Observations</label><input id="prep-{{ s.id }}" maxlength="500" placeholder="Clés remises, machines vérifiées…" [ngModel]="motif()" (ngModelChange)="motif.set($event)" /></div>
+                    <button type="button" class="bouton petit" [disabled]="action.enCours()" (click)="preparer(s)">Atelier prêt</button>
+                  }
+                  @if (enSaisie(s, 'compte-rendu')) {
+                    <label class="case"><input type="checkbox" [ngModel]="crNettoyage()" (ngModelChange)="crNettoyage.set($event)" /> Atelier nettoyé par les élèves</label>
+                    <label class="case"><input type="checkbox" [ngModel]="crRangement()" (ngModelChange)="crRangement.set($event)" /> Outillage rangé</label>
+                    <label class="case"><input type="checkbox" [ngModel]="crEpi()" (ngModelChange)="crEpi.set($event)" /> EPI portés par tous les élèves</label>
+                    @if (s.productionId) {
+                      <div class="champ"><label for="prod-{{ s.id }}">Quantité produite</label><input id="prod-{{ s.id }}" type="number" min="0" [ngModel]="crProduite()" (ngModelChange)="crProduite.set($event)" /></div>
+                    }
+                    <div class="grille-champs">
+                      <div class="champ">
+                        <label for="panne-{{ s.id }}">Panne survenue <span class="doux">(fiche de panne)</span></label>
+                        <select id="panne-{{ s.id }}" [ngModel]="crPanneEquipement()" (ngModelChange)="crPanneEquipement.set($event)">
+                          <option value="">— aucune —</option>
+                          @for (e of equipements(); track e.id) { @if (e.etat === 'BON') { <option [value]="e.id">{{ e.designation }} ({{ e.numeroInventaire }})</option> } }
+                        </select>
+                      </div>
+                      @if (crPanneEquipement()) {
+                        <div class="champ"><label for="pdesc-{{ s.id }}">Description de la panne</label><input id="pdesc-{{ s.id }}" maxlength="500" [ngModel]="crPanneDescription()" (ngModelChange)="crPanneDescription.set($event)" /></div>
+                      }
+                    </div>
+                    <div class="champ"><label for="obs-{{ s.id }}">Observations</label><input id="obs-{{ s.id }}" maxlength="1000" [ngModel]="crObservations()" (ngModelChange)="crObservations.set($event)" /></div>
+                    <button type="button" class="bouton petit" [disabled]="action.enCours()" (click)="compteRendu(s)">Enregistrer le compte rendu</button>
+                  }
+                  <button type="button" class="bouton discret petit" (click)="saisie.set(null)">Fermer</button>
+                </div>
+              }
+            </article>
+          }
+        </div>
+      } @empty {
+        <p class="doux">Aucune séance cette semaine.</p>
+      }
+    </section>
+  }
+
+  <!-- ================================================================ sécurité -->
+  @if (onglet() === 'securite') {
+    <section class="carte">
+      <div class="entete-section">
+        <h2>Consignes de sécurité</h2>
+        @if (consignes()?.modifier && !edition()) {
+          <button type="button" class="bouton secondaire petit" (click)="modifierConsignes()">Modifier les consignes</button>
+        }
+      </div>
+      @if (edition(); as lignes) {
+        @for (c of lignes; track $index; let i = $index) {
+          <div class="consigne">
+            <select [attr.aria-label]="'Catégorie ' + (i + 1)" [value]="c.categorie" (change)="changerConsigne(i, 'categorie', $any($event.target).value)">
+              @for (k of categories; track k) { <option [value]="k">{{ libelleConsigne[k] }}</option> }
+            </select>
+            <select [attr.aria-label]="'Équipement ' + (i + 1)" [value]="c.equipementId" (change)="changerConsigne(i, 'equipementId', $any($event.target).value)">
+              <option value="">tout l'atelier</option>
+              @for (e of equipements(); track e.id) { <option [value]="e.id">{{ e.designation }} ({{ e.numeroInventaire }})</option> }
+            </select>
+            <input [attr.aria-label]="'Consigne ' + (i + 1)" maxlength="500" [value]="c.texte" (input)="changerConsigne(i, 'texte', $any($event.target).value)" />
+            <button type="button" class="bouton discret petit" (click)="retirerConsigne(i)">Retirer</button>
+          </div>
+        }
+        <div class="actions-ligne">
+          <button type="button" class="bouton secondaire petit" (click)="ajouterConsigne()">Ajouter une consigne</button>
+          <button type="button" class="bouton petit" [disabled]="action.enCours()" (click)="enregistrerConsignes()">Enregistrer</button>
+          <button type="button" class="bouton discret petit" (click)="edition.set(null)">Fermer</button>
+        </div>
+      } @else {
+        <ul class="liste">
+          @for (c of consignes()?.consignes ?? []; track c.id) {
+            <li><strong>{{ libelleConsigne[c.categorie] }}</strong>@if (c.equipement) { · {{ c.equipement }} } : {{ c.texte }}</li>
+          } @empty {
+            <li class="doux">Aucune consigne enregistrée.</li>
+          }
+        </ul>
+        @if (consignes()?.luLe && !consignes()?.aLire) { <p class="doux">Vous en avez pris connaissance le {{ dateHeureCourte(consignes()!.luLe!) }}.</p> }
+      }
+
+      @if (lectures(); as liste) {
+        <h3>Prise de connaissance par les enseignants</h3>
+        <ul class="liste">
+          @for (l of liste; track l.engagementId) {
+            <li class="ligne-lien">
+              <span><strong>{{ l.enseignant }}</strong> <span class="doux">· {{ l.matieres }}</span></span>
+              <span class="pastille" [class.present]="l.aJour" [class.absent]="!l.aJour">{{ l.aJour ? 'à jour' : (l.luLe ? 'à relire' : 'non lues') }}</span>
+            </li>
+          }
+        </ul>
+      }
+    </section>
+
+    <section class="carte">
+      <h2>Journal hygiène, sécurité, environnement</h2>
+      @if (chef()) {
+        <form class="sous-formulaire" (ngSubmit)="consigner()">
+          <div class="grille-champs">
+            <div class="champ">
+              <label for="hGravite">Gravité</label>
+              <select id="hGravite" name="hGravite" [(ngModel)]="hGravite">
+                @for (g of gravites; track g) { <option [value]="g">{{ libelleGravite[g] }}</option> }
+              </select>
+            </div>
+            <div class="champ">
+              <label for="hSeance">Séance</label>
+              <select id="hSeance" name="hSeance" [(ngModel)]="hSeance">
+                <option value="">— hors séance —</option>
+                @for (s of seances(); track s.id) { <option [value]="s.id">{{ dateCourte(s.date) }} {{ heure(s.heureDebut) }} · {{ s.classeCode }}</option> }
+              </select>
+            </div>
+            <div class="champ"><label for="hDescription">Constat</label><input id="hDescription" name="hDescription" maxlength="1000" [(ngModel)]="hDescription" /></div>
+            <div class="champ"><label for="hMesures">Mesures prises</label><input id="hMesures" name="hMesures" maxlength="1000" [(ngModel)]="hMesures" /></div>
+          </div>
+          <button type="submit" class="bouton petit" [disabled]="action.enCours() || !hDescription().trim()">Consigner</button>
+          <p class="doux">Un danger imminent ou un accident est aussitôt signalé au chef des travaux et à l'enseignant de la séance.</p>
+        </form>
+      }
+      <ul class="liste">
+        @for (e of journal(); track e.id) {
+          <li>
+            <span class="pastille" [class.absent]="e.gravite !== 'OBSERVATION'">{{ libelleGravite[e.gravite] }}</span>
+            {{ dateHeureCourte(e.survenuLe) }}@if (e.seance) { · {{ e.seance }} } : {{ e.description }}
+            @if (e.mesures) { <br /><span class="doux">Mesures : {{ e.mesures }}</span> }
+          </li>
+        } @empty {
+          <li class="doux">Aucun événement consigné.</li>
+        }
+      </ul>
+    </section>
+  }
+
+  <!-- ================================================================ production -->
+  @if (onglet() === 'production') {
+    <section class="carte">
+      <div class="entete-section">
+        <h2>Commandes de production</h2>
+        @if (chef() && !formProduction()) {
+          <button type="button" class="bouton secondaire petit" (click)="formProduction.set(true)">Nouvelle commande</button>
+        }
+      </div>
+      @if (formProduction()) {
+        <form class="sous-formulaire" (ngSubmit)="creerProduction()">
+          <div class="grille-champs">
+            <div class="champ"><label for="pClient">Client</label><input id="pClient" name="pClient" maxlength="200" [(ngModel)]="pClient" /></div>
+            <div class="champ">
+              <label for="pType">Type</label>
+              <select id="pType" name="pType" [(ngModel)]="pType">
+                @for (t of typesClient; track t) { <option [value]="t">{{ libelleTypeClient[t] }}</option> }
+              </select>
+            </div>
+            <div class="champ"><label for="pObjet">Objet</label><input id="pObjet" name="pObjet" maxlength="300" placeholder="Tables-bancs, tenues scolaires…" [(ngModel)]="pObjet" /></div>
+            <div class="champ"><label for="pQuantite">Quantité</label><input id="pQuantite" name="pQuantite" type="number" min="1" [(ngModel)]="pQuantite" /></div>
+            <div class="champ"><label for="pUnite">Unité</label><input id="pUnite" name="pUnite" maxlength="30" [(ngModel)]="pUnite" /></div>
+            <div class="champ"><label for="pMontant">Montant (FCFA)</label><input id="pMontant" name="pMontant" type="number" min="0" [(ngModel)]="pMontant" /></div>
+            <div class="champ"><label for="pEcheance">Échéance</label><input id="pEcheance" name="pEcheance" type="date" [(ngModel)]="pEcheance" /></div>
+          </div>
+          <div class="actions-ligne">
+            <button type="submit" class="bouton petit" [disabled]="action.enCours() || !pClient().trim() || !pObjet().trim() || !pQuantite()">Enregistrer</button>
+            <button type="button" class="bouton discret petit" (click)="formProduction.set(false)">Fermer</button>
+          </div>
+        </form>
+      }
+      <ul class="liste">
+        @for (p of productions(); track p.id) {
+          <li>
+            <div class="ligne-lien">
+              <span>
+                <strong>{{ p.numero }}</strong> · {{ p.objet }} · {{ p.client }} <span class="doux">({{ libelleTypeClient[p.typeClient] }})</span>
+                <br />
+                <span class="doux">
+                  {{ p.quantiteProduite }} / {{ p.quantite }} {{ p.unite }} · {{ p.seances }} séance(s)
+                  @if (p.echeance) { · échéance {{ dateCourte(p.echeance) }} }
+                  @if (p.montant) { · {{ p.montant }} FCFA }
+                </span>
+              </span>
+              <span>
+                <span class="pastille" [class.present]="p.statut === 'LIVREE'" [class.absent]="p.enRetard">{{ p.enRetard ? 'en retard' : libelleProduction[p.statut] }}</span>
+              </span>
+            </div>
+            <div class="progression" [attr.aria-label]="'Avancement ' + avancement(p) + ' %'"><div [style.width.%]="avancement(p)"></div></div>
+            @if (p.gerer && (p.statut === 'EN_COURS' || p.statut === 'TERMINEE')) {
+              <div class="actions-ligne">
+                @if (p.statut === 'EN_COURS') { <button type="button" class="bouton secondaire petit" (click)="statut(p, 'TERMINEE')">Terminée</button> }
+                <button type="button" class="bouton secondaire petit" (click)="statut(p, 'LIVREE')">Livrée</button>
+                <button type="button" class="bouton discret petit" (click)="statut(p, 'ANNULEE')">Annuler</button>
+              </div>
+            }
+          </li>
+        } @empty {
+          <li class="doux">Aucune commande de production.</li>
+        }
+      </ul>
+    </section>
+  }
+</div>

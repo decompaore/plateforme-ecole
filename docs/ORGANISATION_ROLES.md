@@ -20,6 +20,10 @@ censeur. Les droits de la plateforme suivent désormais cette organisation ; le 
 | Accueil du public, permanence téléphonique | Secrétariat (message transmis par la messagerie) | — | — |
 | Comptes rendus des réunions statutaires | Secrétariat | Chef d'établissement (valide) | Censeur, chef des travaux |
 | Archives des dossiers, certificats de scolarité, dossiers d'examens | Secrétariat | — | Censeur (candidats aux examens) |
+| Planning des ateliers (séances de TP) (v0.47.2) | Enseignant (demande) | Chef d'atelier (valide, refuse, prépare, fait le bilan) ; chef des travaux (supervise) | Enseignants de l'atelier |
+| Matière d'œuvre des TP | Enseignant (fiche de préparation, consommation réelle) | Chef d'atelier (accorde, sert, remet le surplus en stock) | Direction et intendance (achats à prévoir) |
+| Consignes de sécurité, journal HSE | Chef d'atelier | Chef d'atelier | Enseignants (prise de connaissance obligatoire) ; chef des travaux alerté en cas de danger |
+| Commandes de production | Chef d'atelier, direction | Chef d'atelier, direction | Enseignants de l'atelier, intendance |
 | Évaluations, notes, bulletins | Enseignants, censeur | Censeur, chef d'établissement | **Plus le secrétariat** (v0.47.1) |
 | Suppléance du chef d'établissement | Le chef d'établissement désigne un **intérim** (censeur ou chef des travaux) | — | Censeur, chef des travaux |
 

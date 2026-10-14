@@ -10,6 +10,8 @@ const ONGLETS: { lien: string; titre: string; exact?: boolean; roles: Role[] }[]
   { lien: '/ateliers', titre: 'Ateliers', exact: true, roles: ROLES_ATELIERS },
   { lien: '/ateliers/catalogue', titre: 'Catalogue des prix', roles: ROLES_ATELIERS },
   { lien: '/ateliers/besoins', titre: 'Besoins et commandes', roles: ROLES_BESOINS },
+  { lien: '/ateliers/mes-tp', titre: 'Mes TP', roles: ['ENSEIGNANT'] },
+  { lien: '/ateliers/planning', titre: 'Planning des TP', roles: ['ADMIN_ECOLE', 'CHEF_TRAVAUX'] },
 ];
 
 /** Onglets de l'espace des ateliers. */

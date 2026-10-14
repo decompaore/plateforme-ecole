@@ -17,9 +17,12 @@
             @if (a.postes) { <span>{{ a.postes }} postes</span> }
             @if (!a.ouvert) { <span class="pastille">fermé</span> }
           </p>
-          @if (gerer()) {
-            <button type="button" class="bouton secondaire petit" (click)="ouvrirEdition()">Modifier</button>
-          }
+          <span class="actions-ligne">
+            <a class="bouton petit" [routerLink]="['/ateliers', a.id, 'travaux-pratiques']">Travaux pratiques</a>
+            @if (gerer()) {
+              <button type="button" class="bouton secondaire petit" (click)="ouvrirEdition()">Modifier</button>
+            }
+          </span>
         </div>
         @if (a.observations) { <p class="doux">{{ a.observations }}</p> }
         @if (alertes().length) {
