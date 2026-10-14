@@ -156,18 +156,32 @@
       <div class="entete-section">
         <h2>Élèves ({{ eleves().length }})</h2>
         <div class="actions-ligne">
-          @if (gestionEleves() && eleves().length) {
+          @if (peutRepartir() && eleves().length && !repartition()) {
+            <button type="button" class="bouton secondaire petit" [disabled]="action.enCours()" (click)="ouvrirRepartition()">Répartir</button>
+          }
+          @if (documents() && eleves().length) {
             <button type="button" class="bouton secondaire petit" (click)="cartesScolaires()" [disabled]="actionCartes.enCours()">
               {{ actionCartes.enCours() ? 'Préparation…' : 'Cartes scolaires (PDF)' }}
             </button>
           }
-          <a class="bouton secondaire petit" [routerLink]="['/admin/eleves']" [queryParams]="{ classe: c.id }">Inscrire des élèves</a>
+          @if (saisie()) {
+            <a class="bouton secondaire petit" [routerLink]="['/admin/eleves']" [queryParams]="{ classe: c.id }">Inscrire des élèves</a>
+          }
         </div>
       </div>
       @if (actionCartes.erreur(); as e) {
         <p class="alerte erreur" role="alert">{{ e }}</p>
       }
-      @if (eleves().length && avecPhoto().size < eleves().length && gestionEleves()) {
+      @if (messageRepartition(); as m) {
+        <p class="alerte succes" role="status">{{ m }}</p>
+      }
+      @if (repartition()) {
+        <p class="doux">
+          Choisissez la classe d'arrivée de chaque élève à déplacer@if (!estChef()) { (classes de même niveau ; un changement de niveau relève du chef d'établissement) }.
+          <button type="button" class="bouton discret petit" (click)="repartition.set(false)">Terminer</button>
+        </p>
+      }
+      @if (eleves().length && avecPhoto().size < eleves().length && saisie()) {
         <p class="doux">{{ eleves().length - avecPhoto().size }} élève(s) sans photo d'identité : cliquez sur « + Photo » pour l'ajouter.</p>
       }
       @if (eleves().length > 10) {
@@ -186,7 +200,7 @@
               <tr>
                 <td class="nombre doux">{{ e.rang }}</td>
                 <td class="photo">
-                  @if (gestionEleves()) {
+                  @if (saisie()) {
                     <a [routerLink]="['/admin/eleves']" [queryParams]="{ eleve: e.eleveId }" [attr.aria-label]="'Photo de ' + e.prenoms + ' ' + e.nom">
                       <app-vignette [chemin]="avecPhoto().has(e.eleveId) ? '/eleves/' + e.eleveId + '/photo' : null" [initiales]="e.nom.charAt(0) + e.prenoms.charAt(0)" [ajout]="true" />
                     </a>
@@ -200,6 +214,15 @@
                 <td>
                   @if (e.redoublant) { <span class="pastille">redoublant</span> }
                   @if (e.statutBourse !== 'NON_BOURSIER') { <span class="pastille present">{{ e.statutBourse === 'BOURSIER' ? 'boursier' : 'semi-boursier' }}</span> }
+                  @if (repartition()) {
+                    <span class="actions-ligne">
+                      <select [attr.aria-label]="'Nouvelle classe de ' + e.prenoms + ' ' + e.nom" [value]="cibles()[e.id] ?? ''" (change)="choisirCible(e.id, $any($event.target).value)" style="width:auto">
+                        <option value="">— classe —</option>
+                        @for (x of classesCibles(); track x.id) { <option [value]="x.id">{{ x.code }}</option> }
+                      </select>
+                      <button type="button" class="bouton petit" [disabled]="!cibles()[e.id] || action.enCours()" (click)="deplacer(e)">Déplacer</button>
+                    </span>
+                  }
                 </td>
               </tr>
             } @empty {
@@ -209,7 +232,7 @@
         </table>
       </div>
 
-      @if (gestionEleves() && eleves().length && espaceParent) {
+      @if (documents() && eleves().length && espaceParent) {
         <div class="comptes-parents">
           <h3>Comptes des parents</h3>
           <p class="doux">

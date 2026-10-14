@@ -269,7 +269,7 @@ scenario('ADO-03', D_ADO, 'Un compte de direction voit en lecture seule l’adop
 
 scenario('ESP-01', D_ESP, 'Une mère d’élève du lycée Horizon est nommée administratrice du Burkina Faso : son compte existant est repris, sans nouveau mot de passe', async (ctx) => {
   const e = ctx.ecole(3);
-  const sec = role(e, 'SECRETARIAT');
+  const sec = role(e, 'INTENDANT');   // v0.47 : l'intendance inscrit
   const suf = lettres(suffixe());
   const telephone = telephoneUnique('7');
   const d = await exiger(sec, 'POST', '/eleves', {
@@ -335,5 +335,5 @@ scenario('ESP-04', D_ESP, 'Retirée de l’administration du pays, elle se conne
   egal([c.donnees.selectionRequise, c.donnees.adminPays ?? null, c.donnees.administration ?? null], [false, null, null], 'Plus d’espace d’administration');
   egal(c.donnees.etablissementActif?.roles, ['PARENT'], 'Session de parent');
   statut(await appelBrut('POST', '/auth/administration', undefined, { jeton: c.donnees.jetonAcces }), [401, 403]);
-  await exiger(role(x.e, 'SECRETARIAT'), 'POST', `/inscriptions/${x.inscriptionId}/sortie`, { statut: 'ABANDON', date: ctx.aujourdhui, motif: 'Recette : fin du test' });
+  await exiger(role(x.e, 'ADMIN_ECOLE'), 'POST', `/inscriptions/${x.inscriptionId}/sortie`, { statut: 'ABANDON', date: ctx.aujourdhui, motif: 'Recette : fin du test' });
 });

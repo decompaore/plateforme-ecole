@@ -15,10 +15,11 @@ interface Onglet {
 /** Rôles qui voient chaque écran ; le serveur vérifie de toute façon chaque appel. */
 export const ONGLETS: Onglet[] = [
   { lien: '/admin/classes', titre: 'Classes', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT'] },
-  { lien: '/admin/eleves', titre: 'Élèves', roles: ['ADMIN_ECOLE', 'SECRETARIAT', 'CENSEUR'] },
+  { lien: '/admin/eleves', titre: 'Élèves', roles: ['ADMIN_ECOLE', 'INTENDANT', 'SECRETARIAT', 'CENSEUR'] },
   { lien: '/admin/evaluations', titre: 'Évaluations', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT'] },
   { lien: '/admin/bulletins', titre: 'Bulletins', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT'] },
   { lien: '/admin/fin-annee', titre: "Fin d'année", roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT'] },
+  { lien: '/admin/examens', titre: 'Examens', roles: ['ADMIN_ECOLE', 'CENSEUR'] },
   { lien: '/admin/statistiques', titre: 'Statistiques', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'INTENDANT'] },
   { lien: '/admin/personnel', titre: 'Personnel', roles: ['ADMIN_ECOLE'] },
   { lien: '/admin/comptes', titre: 'Comptes', roles: ['ADMIN_ECOLE'] },

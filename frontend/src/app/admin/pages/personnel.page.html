@@ -309,4 +309,55 @@
       </table>
     </div>
   </section>
+
+  <section class="carte">
+    <div class="entete-section">
+      <h2>Intérim du chef d'établissement</h2>
+      @if (!interims()) {
+        <button type="button" class="bouton secondaire petit" [disabled]="action.enCours()" (click)="chargerInterims()">Afficher</button>
+      }
+    </div>
+    @if (interims(); as liste) {
+      <p class="doux">
+        En votre absence, le censeur (ou, à défaut, le chef des travaux) assure la suppléance : pendant la période,
+        il dispose des droits du chef d'établissement, à sa prochaine connexion.
+      </p>
+      <ul class="liste">
+        @for (i of liste; track i.id) {
+          <li class="ligne-lien">
+            <span>
+              <strong>{{ i.interimaire }}</strong> · du {{ dateCourte(i.du) }} au {{ dateCourte(i.au) }} · {{ i.motif }}
+            </span>
+            <span class="actions-ligne">
+              @if (i.enCours) { <span class="pastille present">en cours</span> }
+              @else if (i.termine) { <span class="pastille">terminé</span> }
+              @else { <span class="pastille">prévu</span> }
+              @if (!i.termine) {
+                <button type="button" class="bouton discret petit" [disabled]="action.enCours()" (click)="terminerInterim(i.id)">{{ i.enCours ? 'Mettre fin' : 'Annuler' }}</button>
+              }
+            </span>
+          </li>
+        } @empty {
+          <li class="doux">Aucun intérim.</li>
+        }
+      </ul>
+      <form class="sous-formulaire" (ngSubmit)="designerInterim()">
+        <div class="grille-champs">
+          <div class="champ">
+            <label for="iPersonne">Intérimaire</label>
+            <select id="iPersonne" name="iPersonne" [(ngModel)]="iPersonne">
+              <option value="">— choisir —</option>
+              @for (m of interimairesPossibles(); track m.id) {
+                <option [value]="m.utilisateurId">{{ m.nom }} {{ m.prenoms }} ({{ libelleRole[m.role] }})</option>
+              }
+            </select>
+          </div>
+          <div class="champ"><label for="iDu">Du</label><input id="iDu" name="iDu" type="date" [min]="aujourdhui" [(ngModel)]="iDu" /></div>
+          <div class="champ"><label for="iAu">Au</label><input id="iAu" name="iAu" type="date" [min]="iDu()" [(ngModel)]="iAu" /></div>
+          <div class="champ"><label for="iMotif">Motif</label><input id="iMotif" name="iMotif" maxlength="200" placeholder="Mission, congé…" [(ngModel)]="iMotif" /></div>
+        </div>
+        <button type="submit" class="bouton petit" [disabled]="action.enCours() || !iPersonne() || !iDu() || !iAu() || !iMotif().trim()">Désigner</button>
+      </form>
+    }
+  </section>
 </div>

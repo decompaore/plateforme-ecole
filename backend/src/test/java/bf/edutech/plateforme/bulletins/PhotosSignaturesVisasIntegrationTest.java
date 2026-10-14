@@ -139,14 +139,18 @@ class PhotosSignaturesVisasIntegrationTest {
         UUID secretaire = membre(Role.SECRETARIAT);
         UUID censeur = membre(Role.CENSEUR);
 
-        // ---- Photo de l'élève : le secrétariat la dépose ; les enseignants de la classe la voient, pas les autres
+        // ---- Photo de l'élève : l'intendance la dépose avec le dossier (v0.47) ; les enseignants de la classe la
+        // voient, pas les autres
+        UUID intendant = membre(Role.INTENDANT);
         mvc.perform(multipart("/api/v1/eleves/{id}/photo", eleveAwa).file(fichier(jpeg(1200, 1600)))
                 .with(jeton(prof, "ENSEIGNANT"))).andExpect(status().isForbidden());
+        mvc.perform(multipart("/api/v1/eleves/{id}/photo", eleveAwa).file(fichier(jpeg(1200, 1600)))
+                .with(jeton(secretaire, "SECRETARIAT"))).andExpect(status().isForbidden());
         mvc.perform(multipart("/api/v1/eleves/{id}/photo", eleveAwa)
                 .file(new MockMultipartFile("fichier", "photo.txt", "text/plain", "pas une image".getBytes()))
-                .with(jeton(secretaire, "SECRETARIAT"))).andExpect(status().isBadRequest());
+                .with(jeton(intendant, "INTENDANT"))).andExpect(status().isBadRequest());
         mvc.perform(multipart("/api/v1/eleves/{id}/photo", eleveAwa).file(fichier(jpeg(1200, 1600)))
-                .with(jeton(secretaire, "SECRETARIAT"))).andExpect(status().isNoContent());
+                .with(jeton(intendant, "INTENDANT"))).andExpect(status().isNoContent());
         byte[] miniature = mvc.perform(get("/api/v1/eleves/{id}/photo", eleveAwa).param("miniature", "true")
                         .with(jeton(prof, "ENSEIGNANT")))
                 .andExpect(status().isOk()).andExpect(content().contentType("image/jpeg"))

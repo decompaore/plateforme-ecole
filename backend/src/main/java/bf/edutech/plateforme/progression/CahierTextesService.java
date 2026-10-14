@@ -32,14 +32,17 @@ public class CahierTextesService {
     private final FicheProgressionRepository fiches;
     private final SequenceProgressionRepository sequences;
     private final AccesMatiere acces;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
     private final Clock horloge;
 
     CahierTextesService(SeanceCahierRepository seances, FicheProgressionRepository fiches,
-            SequenceProgressionRepository sequences, AccesMatiere acces, Clock horloge) {
+            SequenceProgressionRepository sequences, AccesMatiere acces,
+            org.springframework.jdbc.core.JdbcTemplate jdbc, Clock horloge) {
         this.seances = seances;
         this.fiches = fiches;
         this.sequences = sequences;
         this.acces = acces;
+        this.jdbc = jdbc;
         this.horloge = horloge;
     }
 
@@ -67,6 +70,10 @@ public class CahierTextesService {
         if (existante != null && (!existante.getClasseId().equals(d.classeId())
                 || !existante.getMatiereId().equals(d.matiereId()))) {
             throw new RegleMetierException("IDENTIFIANT_DEJA_UTILISE", "Cet identifiant de séance appartient à un autre cours");
+        }
+        exigerMoisOuvert(d.classeId(), d.matiereId(), d.date());
+        if (existante != null) {
+            exigerMoisOuvert(d.classeId(), d.matiereId(), existante.getDate());
         }
         seances.findByClasseIdAndMatiereIdAndDateAndHeureDebut(d.classeId(), d.matiereId(), d.date(), d.heureDebut())
                 .filter(autre -> !autre.getId().equals(id))
@@ -99,7 +106,23 @@ public class CahierTextesService {
         if (!c.auteur()) {
             throw new AccesRefuseException("Seul l'enseignant de la matière supprime une séance de son cahier");
         }
+        exigerMoisOuvert(seance.getClasseId(), seance.getMatiereId(), seance.getDate());
         seances.delete(seance);
+    }
+
+    /** Un mois dont le cahier est visé par la direction (v0.47) ne change plus. */
+    private void exigerMoisOuvert(UUID classeId, UUID matiereId, LocalDate jour) {
+        if (jour == null) {
+            return;
+        }
+        Boolean vise = jdbc.queryForObject("""
+                select exists(select 1 from visa_cahier where classe_id = ? and matiere_id = ? and mois = ?)""",
+                Boolean.class, classeId, matiereId, java.sql.Date.valueOf(jour.withDayOfMonth(1)));
+        if (Boolean.TRUE.equals(vise)) {
+            throw new RegleMetierException("CAHIER_VISE", "Le cahier de textes de "
+                    + jour.getMonth().getDisplayName(java.time.format.TextStyle.FULL, java.util.Locale.FRENCH) + " "
+                    + jour.getYear() + " est visé par la direction : il ne se modifie plus");
+        }
     }
 
     private void valider(DonneesSeance d) {

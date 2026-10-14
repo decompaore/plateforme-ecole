@@ -173,6 +173,70 @@ export interface InscriptionVue {
   statut: 'ACTIVE' | 'TRANSFEREE' | 'ABANDON';
   redoublant: boolean;
   statutBourse: StatutBourse;
+  modeAdmission?: ModeAdmission | null;
+}
+
+/** Mode d'admission de l'élève pour l'année (v0.47) : il détermine les pièces du dossier. */
+export type ModeAdmission = 'AFFECTATION_ETAT' | 'COMPLEMENT_EFFECTIF' | 'TRANSFERT' | 'REINSCRIPTION' | 'PRIVE' | 'AUTRE';
+
+export const MODES_ADMISSION: ModeAdmission[] = ['AFFECTATION_ETAT', 'COMPLEMENT_EFFECTIF', 'TRANSFERT', 'REINSCRIPTION', 'PRIVE', 'AUTRE'];
+
+export const LIBELLE_MODE_ADMISSION: Record<ModeAdmission, string> = {
+  AFFECTATION_ETAT: "Affectation de l'État",
+  COMPLEMENT_EFFECTIF: "Complément d'effectif",
+  TRANSFERT: 'Transfert',
+  REINSCRIPTION: 'Réinscription',
+  PRIVE: 'Recrutement direct (privé)',
+  AUTRE: 'Autre',
+};
+
+export interface PieceVue {
+  id: string;
+  libelle: string;
+  modes: ModeAdmission[];
+  obligatoire: boolean;
+  ordre: number;
+}
+
+export interface PieceDossierVue {
+  pieceId: string;
+  libelle: string;
+  obligatoire: boolean;
+  recue: boolean;
+  recueLe: string | null;
+}
+
+export interface DossierInscriptionVue {
+  inscriptionId: string;
+  modeAdmission: ModeAdmission | null;
+  modeLibelle: string | null;
+  pieces: PieceDossierVue[];
+  complet: boolean;
+  manquantes: number;
+}
+
+export interface LigneDossierVue {
+  inscriptionId: string;
+  eleveId: string;
+  matricule: string | null;
+  nom: string;
+  prenoms: string;
+  classeCode: string;
+  modeAdmission: ModeAdmission | null;
+  manquantes: string[];
+}
+
+/** Intérim du chef d'établissement (v0.47). */
+export interface InterimVue {
+  id: string;
+  utilisateurId: string;
+  interimaire: string;
+  du: string;
+  au: string;
+  motif: string;
+  designePar: string | null;
+  enCours: boolean;
+  termine: boolean;
 }
 
 export interface ResponsableDeEleveVue {
@@ -314,7 +378,7 @@ export const LIBELLE_ROLE: Record<Role, string> = {
   CHEF_TRAVAUX: 'Chef des travaux',
   SECRETARIAT: 'Secrétariat',
   INTENDANT: 'Intendance',
-  SURVEILLANT: 'Surveillance',
+  SURVEILLANT: "Conseiller principal d'éducation (CPE)",
   ENSEIGNANT: 'Enseignant',
   PARENT: 'Parent',
   ELEVE: 'Élève',

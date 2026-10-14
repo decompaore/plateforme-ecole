@@ -1,7 +1,6 @@
 package bf.edutech.plateforme.viescolaire;
 
 import java.time.Clock;
-import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -23,7 +22,6 @@ import bf.edutech.plateforme.eleves.EspaceParentService;
 import bf.edutech.plateforme.eleves.InscriptionsService;
 import bf.edutech.plateforme.eleves.StatutInscription;
 import bf.edutech.plateforme.eleves.Vues.InscriptionVue;
-import bf.edutech.plateforme.enseignants.EnseignantsService;
 import bf.edutech.plateforme.etablissement.AnneesService;
 import bf.edutech.plateforme.etablissement.EtatAnnee;
 import bf.edutech.plateforme.etablissement.Vues.AnneeVue;
@@ -46,7 +44,12 @@ import bf.edutech.plateforme.socle.securite.UtilisateurConnecte;
 @Service
 public class VieScolaireService {
 
-    private static final String[] DIRECTION = { "CENSEUR", "ADMIN_ECOLE" };
+    /**
+     * Saisie de la vie scolaire (v0.47) : le Conseiller principal d'éducation (CPE, rôle SURVEILLANT), seul.
+     * Le chef d'établissement, le censeur et le chef des travaux consultent ; les enseignants signalent absences et
+     * retards par l'appel.
+     */
+    static final String CPE = "SURVEILLANT";
     private static final DateTimeFormatter JOUR = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     private static final DateTimeFormatter HEURE = DateTimeFormatter.ofPattern("HH'h'mm");
 
@@ -80,7 +83,6 @@ public class VieScolaireService {
     private final InscriptionsService inscriptions;
     private final ElevesService eleves;
     private final EspaceParentService espaceParent;
-    private final EnseignantsService enseignants;
     private final AnneesService annees;
     private final ContactsEleves contacts;
     private final NotificationsService notifications;
@@ -89,14 +91,13 @@ public class VieScolaireService {
 
     VieScolaireService(IncidentRepository incidents, ConvocationRepository convocations,
             InscriptionsService inscriptions, ElevesService eleves, EspaceParentService espaceParent,
-            EnseignantsService enseignants, AnneesService annees, ContactsEleves contacts,
+            AnneesService annees, ContactsEleves contacts,
             NotificationsService notifications, AuditService audit, Clock horloge) {
         this.incidents = incidents;
         this.convocations = convocations;
         this.inscriptions = inscriptions;
         this.eleves = eleves;
         this.espaceParent = espaceParent;
-        this.enseignants = enseignants;
         this.annees = annees;
         this.contacts = contacts;
         this.notifications = notifications;
@@ -115,18 +116,7 @@ public class VieScolaireService {
             throw new IllegalArgumentException("Indiquez le type d'incident");
         }
         TypeIncident type = s.type();
-        boolean direction = UtilisateurConnecte.aUnRole(DIRECTION);
-        if (type.reserveDirection() && !direction) {
-            throw new AccesRefuseException("Le " + type.libelle() + " est prononcé par la direction");
-        }
-        if (!direction && !UtilisateurConnecte.aUnRole("SURVEILLANT")) {
-            // Enseignant : seulement dans ses classes
-            boolean enseigne = UtilisateurConnecte.idSiConnecte()
-                    .map(u -> enseignants.enseigneDans(u, i.classeId())).orElse(false);
-            if (!enseigne) {
-                throw new AccesRefuseException("Vous n'enseignez pas dans la classe " + i.classeCode());
-            }
-        }
+        exigerCpe();
         LocalDate aujourdhui = LocalDate.now(horloge);
         LocalDate date = s.date() != null ? s.date() : aujourdhui;
         AnneeVue annee = annees.trouver(i.anneeId());
@@ -181,11 +171,7 @@ public class VieScolaireService {
         UtilisateurConnecte.etablissementActif();
         Incident incident = incidents.findById(incidentId)
                 .orElseThrow(() -> new RessourceIntrouvableException("Incident introuvable"));
-        boolean auteur = UtilisateurConnecte.idSiConnecte().map(u -> u.equals(incident.getSaisiPar())).orElse(false)
-                && incident.getSaisiLe().isAfter(horloge.instant().minus(Duration.ofHours(24)));
-        if (!UtilisateurConnecte.aUnRole(DIRECTION) && !auteur) {
-            throw new AccesRefuseException("Seule la direction annule un incident (ou son auteur dans les 24 heures)");
-        }
+        exigerCpe();
         anneeEnCours(inscriptions.trouver(incident.getInscriptionId()));
         if (!convocations.findByIncidentIdAndStatut(incidentId, StatutConvocation.PREVUE).isEmpty()) {
             throw new RegleMetierException("CONVOCATION_EN_COURS",
@@ -206,6 +192,7 @@ public class VieScolaireService {
     @Transactional
     public ConvocationVue convoquer(UUID inscriptionId, LocalDateTime rendezVous, String motifSaisi, UUID incidentId) {
         UtilisateurConnecte.etablissementActif();
+        exigerCpe();
         InscriptionVue i = inscriptionEnCours(inscriptionId);
         if (rendezVous == null || !rendezVous.isAfter(LocalDateTime.now(horloge))
                 || rendezVous.isAfter(LocalDateTime.now(horloge).plusMonths(3))) {
@@ -237,6 +224,7 @@ public class VieScolaireService {
     @Transactional
     public ConvocationVue cloturer(UUID convocationId, StatutConvocation statut, String compteRendu) {
         UtilisateurConnecte.etablissementActif();
+        exigerCpe();
         Convocation c = convocations.findById(convocationId)
                 .orElseThrow(() -> new RessourceIntrouvableException("Convocation introuvable"));
         if (statut == null) {
@@ -425,5 +413,12 @@ public class VieScolaireService {
     private static ConvocationVue vue(Convocation c, InscriptionVue i) {
         return new ConvocationVue(c.getId(), c.getInscriptionId(), i.nom(), i.prenoms(), i.classeCode(),
                 c.getRendezVous(), c.getMotif(), c.getStatut(), c.getCompteRendu(), c.getIncidentId());
+    }
+
+    /** Seul le CPE modifie la vie scolaire (v0.47). */
+    private static void exigerCpe() {
+        if (!UtilisateurConnecte.aUnRole(CPE)) {
+            throw new AccesRefuseException("Seul le Conseiller principal d'éducation (CPE) modifie la vie scolaire");
+        }
     }
 }

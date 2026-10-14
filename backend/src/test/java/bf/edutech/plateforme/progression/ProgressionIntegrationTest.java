@@ -277,6 +277,42 @@ class ProgressionIntegrationTest {
         mvc.perform(delete("/api/v1/cahier-textes/{id}", s2).with(jeton(sanou, "ENSEIGNANT"))).andExpect(status().isNoContent());
         mvc.perform(get("/api/v1/classes/{c}/matieres/{m}/cahier-textes", classe, elec).with(jeton(sanou, "ENSEIGNANT")))
                 .andExpect(jsonPath("$.length()").value(1));
+
+        // Visa mensuel (v0.47) : la direction du domaine vise ; le mois visé est figé pour l'enseignant
+        String mois = java.time.YearMonth.from(aujourdhui).toString();
+        String visa = "{\"mois\":\"%s\",\"observation\":\"Rythme conforme\"}";
+        mvc.perform(post("/api/v1/classes/{c}/matieres/{m}/cahier-textes/visas", classe, elec)
+                .with(jeton(kabore, "ENSEIGNANT")).contentType(MediaType.APPLICATION_JSON)
+                .content(visa.formatted(mois))).andExpect(status().isForbidden());
+        mvc.perform(post("/api/v1/classes/{c}/matieres/{m}/cahier-textes/visas", classe, elec)
+                        .with(jeton(censeur, "CENSEUR")).contentType(MediaType.APPLICATION_JSON)
+                        .content(visa.formatted(mois)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.mois").value(mois))
+                .andExpect(jsonPath("$.seances").value(1))
+                .andExpect(jsonPath("$.visePar").value(org.hamcrest.Matchers.containsStringIgnoringCase("zongo")));
+        mvc.perform(post("/api/v1/classes/{c}/matieres/{m}/cahier-textes/visas", classe, elec)
+                        .with(jeton(censeur, "CENSEUR")).contentType(MediaType.APPLICATION_JSON)
+                        .content(visa.formatted(mois)))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("CAHIER_DEJA_VISE"));
+        mvc.perform(post("/api/v1/classes/{c}/matieres/{m}/cahier-textes/visas", classe, elec)
+                        .with(jeton(censeur, "CENSEUR")).contentType(MediaType.APPLICATION_JSON)
+                        .content(visa.formatted(java.time.YearMonth.from(aujourdhui).plusMonths(1))))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("MOIS_A_VENIR"));
+        mvc.perform(put("/api/v1/cahier-textes/{id}", s1).with(jeton(sanou, "ENSEIGNANT")).contentType(MediaType.APPLICATION_JSON)
+                        .content(seance.formatted(classe, elec, aujourdhui, "08:00", "10:00", "1", "Après visa")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("CAHIER_VISE"));
+        mvc.perform(delete("/api/v1/cahier-textes/{id}", s1).with(jeton(sanou, "ENSEIGNANT")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("CAHIER_VISE"));
+        mvc.perform(get("/api/v1/classes/{c}/matieres/{m}/cahier-textes/visas", classe, elec).with(jeton(sanou, "ENSEIGNANT")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].observation").value("Rythme conforme"));
+        mvc.perform(get("/api/v1/annees/{a}/cahiers-textes", annee.id()).param("mois", mois).with(jeton(censeur, "CENSEUR")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[?(@.matiereLibelle == 'ELEC')].vise").value(true))
+                .andExpect(jsonPath("$[?(@.matiereLibelle == 'ELEC')].seances").value(1))
+                .andExpect(jsonPath("$[?(@.matiereLibelle == 'MATH')].vise").value(false));
+        mvc.perform(get("/api/v1/annees/{a}/cahiers-textes", annee.id()).with(jeton(sanou, "ENSEIGNANT")))
+                .andExpect(status().isForbidden());
     }
 
     // ------------------------------------------------------------------

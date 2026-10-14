@@ -12,7 +12,7 @@ const LIBELLES: Record<Role, string> = {
   CHEF_TRAVAUX: 'Chef des travaux',
   SECRETARIAT: 'Secrétariat',
   INTENDANT: 'Intendance',
-  SURVEILLANT: 'Surveillance',
+  SURVEILLANT: 'CPE (vie scolaire)',
   ENSEIGNANT: 'Enseignant',
   PARENT: 'Parent',
   ELEVE: 'Élève',

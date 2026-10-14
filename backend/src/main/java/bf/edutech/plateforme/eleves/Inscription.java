@@ -48,6 +48,10 @@ public class Inscription extends EntiteCloisonnee {
     @Column(name = "inscription_precedente_id", updatable = false)
     private UUID inscriptionPrecedenteId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "mode_admission", length = 20)
+    private ModeAdmission modeAdmission;
+
     protected Inscription() {
     }
 
@@ -60,6 +64,15 @@ public class Inscription extends EntiteCloisonnee {
         this.statutBourse = statutBourse != null ? statutBourse : StatutBourse.NON_BOURSIER;
         this.inscritLe = inscritLe;
         this.inscriptionPrecedenteId = inscriptionPrecedenteId;
+        this.modeAdmission = inscriptionPrecedenteId != null ? ModeAdmission.REINSCRIPTION : null;
+    }
+
+    void changerModeAdmission(ModeAdmission mode) {
+        this.modeAdmission = mode;
+    }
+
+    ModeAdmission getModeAdmission() {
+        return modeAdmission;
     }
 
     boolean estActive() {

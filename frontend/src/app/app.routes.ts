@@ -121,6 +121,12 @@ export const routes: Routes = [
         component: CahierPage,
       },
       {
+        // Messagerie de l'établissement (v0.46) : boîte de réception de chacun, envoi par le chef d'établissement
+        path: 'messages',
+        title: 'Messages',
+        loadComponent: () => import('./messagerie/pages/messages.page').then((m) => m.MessagesPage),
+      },
+      {
         // Signature numérisée imprimée devant les matières visées (v0.44) : en ligne uniquement
         path: 'signature',
         title: 'Ma signature',
@@ -170,8 +176,8 @@ export const routes: Routes = [
           {
             path: '',
             pathMatch: 'full',
-            // L'intendance n'a que les statistiques dans l'administration
-            redirectTo: () => (inject(SessionService).aLeRole('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT') ? 'classes' : 'statistiques'),
+            // L'intendance inscrit les élèves (v0.47) et consulte les statistiques
+            redirectTo: () => (inject(SessionService).aLeRole('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT') ? 'classes' : 'eleves'),
           },
           {
             path: 'classes',
@@ -187,7 +193,7 @@ export const routes: Routes = [
           },
           {
             path: 'eleves',
-            canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')],
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'INTENDANT')],
             title: 'Élèves',
             loadComponent: () => import('./admin/pages/eleves.page').then((m) => m.ElevesPage),
           },
@@ -215,6 +221,13 @@ export const routes: Routes = [
             canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT')],
             title: "Conseil de fin d'année",
             loadComponent: () => import('./fin-annee/pages/conseil-fin-annee.page').then((m) => m.ConseilFinAnneePage),
+          },
+          {
+            // Taux de réussite aux examens nationaux (v0.46)
+            path: 'examens',
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR')],
+            title: 'Examens',
+            loadComponent: () => import('./fin-annee/pages/examens.page').then((m) => m.ExamensPage),
           },
           {
             path: 'statistiques',
@@ -300,6 +313,13 @@ export const routes: Routes = [
             canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX')],
             title: 'Suivi des progressions',
             loadComponent: () => import('./progression/pages/suivi-progressions.page').then((m) => m.SuiviProgressionsPage),
+          },
+          {
+            // Visa mensuel des cahiers de textes (v0.47)
+            path: 'cahiers',
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX')],
+            title: 'Cahiers de textes',
+            loadComponent: () => import('./progression/pages/cahiers-visas.page').then((m) => m.CahiersVisasPage),
           },
           {
             path: ':classeId/:matiereId/cahier',
@@ -452,7 +472,8 @@ export const routes: Routes = [
       {
         // Vie scolaire : en ligne, chargée à la demande
         path: 'vie-scolaire',
-        canActivate: [role('SURVEILLANT', 'CENSEUR', 'ADMIN_ECOLE', 'SECRETARIAT'), module('VIE_SCOLAIRE')],
+        // Le CPE (rôle SURVEILLANT) saisit ; la direction, le chef des travaux et le secrétariat consultent (v0.47)
+        canActivate: [role('SURVEILLANT', 'CENSEUR', 'CHEF_TRAVAUX', 'ADMIN_ECOLE', 'SECRETARIAT'), module('VIE_SCOLAIRE')],
         children: [
           {
             path: '',

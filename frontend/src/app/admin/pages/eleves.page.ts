@@ -11,10 +11,16 @@ import { AnneeCourante } from '../annee-courante.service';
 import {
   ClasseVue,
   DossierEleveVue,
+  DossierInscriptionVue,
   EleveVue,
   LIBELLE_LIEN,
+  LIBELLE_MODE_ADMISSION,
   LienParente,
+  LigneDossierVue,
+  ModeAdmission,
+  MODES_ADMISSION,
   Page,
+  PieceVue,
   RapportImport,
   ResponsableDeEleveVue,
   Sexe,
@@ -136,7 +142,41 @@ export class ElevesPage {
   protected readonly action = new Action();
   protected readonly actionImport = new Action();
   protected readonly annee = this.anneeCourante.annee;
-  protected readonly peutModifier = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'SECRETARIAT'));
+  /** L'intendant reçoit le dossier et inscrit (v0.47). */
+  protected readonly peutSaisir = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'INTENDANT'));
+  /** Une fois l'inscription enregistrée, seul le chef d'établissement modifie. */
+  protected readonly peutModifier = computed(() => this.session.aLeRole('ADMIN_ECOLE'));
+  /** Documents remis aux familles : cartes scolaires, comptes parents. */
+  protected readonly peutDocuments = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'INTENDANT', 'SECRETARIAT'));
+  protected readonly modes = MODES_ADMISSION;
+  protected readonly libelleMode = LIBELLE_MODE_ADMISSION;
+  protected readonly modeAdmission = signal<ModeAdmission>('AFFECTATION_ETAT');
+
+  // Dossier d'inscription de l'élève ouvert (v0.47)
+  protected readonly piecesAttendues = signal<PieceVue[]>([]);
+  protected readonly dossierInscription = signal<DossierInscriptionVue | null>(null);
+  protected readonly dMode = signal<ModeAdmission | null>(null);
+  protected readonly dRecues = signal<Set<string>>(new Set());
+  protected readonly recuesInitiales = signal<Set<string>>(new Set());
+  protected readonly piecesAffichees = computed(() => {
+    const mode = this.dMode();
+    const recues = this.dRecues();
+    if (!mode) {
+      return [];
+    }
+    return this.piecesAttendues()
+      .filter((p) => p.modes.includes(mode) || recues.has(p.id))
+      .map((p) => ({ ...p, obligatoire: p.obligatoire && p.modes.includes(mode) }));
+  });
+  protected readonly manquantesDossier = computed(() => {
+    const mode = this.dMode();
+    if (!mode) {
+      return 1;
+    }
+    return this.piecesAffichees().filter((p) => p.obligatoire && !this.dRecues().has(p.id)).length;
+  });
+  protected readonly incomplets = signal<LigneDossierVue[] | null>(null);
+  protected readonly reglagePieces = signal<{ id: string | null; libelle: string; modes: ModeAdmission[]; obligatoire: boolean }[] | null>(null);
   protected readonly espaceParent = this.session.moduleActif('ESPACE_PARENT');
   protected readonly classes = signal<ClasseVue[]>([]);
 
@@ -228,10 +268,11 @@ export class ElevesPage {
     }
   }
 
-  protected async ouvrir(e: EleveVue): Promise<void> {
+  protected async ouvrir(e: Pick<EleveVue, 'id'>): Promise<void> {
     const d = await this.action.executer(() => this.api.dossier(e.id));
     if (d) {
       this.dossier.set(d);
+      this.dossierInscription.set(null);
       montrerDossier();
     }
   }
@@ -287,6 +328,7 @@ export class ElevesPage {
           classeId: this.classeId(),
           redoublant: this.redoublant(),
           statutBourse: this.bourse(),
+          modeAdmission: this.modeAdmission(),
         }),
       );
       this.message.set(
@@ -328,8 +370,103 @@ export class ElevesPage {
     if (!d || !this.classeId()) {
       return;
     }
-    if (await this.action.executer(() => this.api.inscrire({ eleveId: d.eleve.id, classeId: this.classeId(), redoublant: false, statutBourse: null }))) {
+    if (
+      await this.action.executer(() =>
+        this.api.inscrire({ eleveId: d.eleve.id, classeId: this.classeId(), redoublant: false, statutBourse: null, modeAdmission: this.modeAdmission() }),
+      )
+    ) {
       this.dossier.set(await this.api.dossier(d.eleve.id));
+    }
+  }
+
+  // ---------- Dossier d'inscription (v0.47)
+
+  protected async ouvrirDossierInscription(inscriptionId: string): Promise<void> {
+    const r = await this.action.executer(() => Promise.all([this.api.piecesDossier(), this.api.dossierInscription(inscriptionId)]));
+    if (r) {
+      this.piecesAttendues.set(r[0]);
+      this.afficherDossier(r[1]);
+    }
+  }
+
+  private afficherDossier(d: DossierInscriptionVue): void {
+    const recues = new Set(d.pieces.filter((p) => p.recue).map((p) => p.pieceId));
+    this.dossierInscription.set(d);
+    this.dMode.set(d.modeAdmission);
+    this.dRecues.set(recues);
+    this.recuesInitiales.set(new Set(recues));
+  }
+
+  protected basculerPiece(id: string): void {
+    const s = new Set(this.dRecues());
+    if (s.has(id)) {
+      s.delete(id);
+    } else {
+      s.add(id);
+    }
+    this.dRecues.set(s);
+  }
+
+  protected async enregistrerDossierInscription(): Promise<void> {
+    const d = this.dossierInscription();
+    if (!d) {
+      return;
+    }
+    const apres = await this.action.executer(() => this.api.enregistrerDossier(d.inscriptionId, this.dMode(), [...this.dRecues()]));
+    if (apres) {
+      this.afficherDossier(apres);
+      this.message.set(apres.complet ? 'Dossier d’inscription complet.' : `Dossier enregistré : ${apres.manquantes} pièce(s) manquante(s).`);
+    }
+  }
+
+  protected async chargerIncomplets(anneeId: string): Promise<void> {
+    const l = await this.action.executer(() => this.api.dossiersInscription(anneeId, true));
+    if (l) {
+      this.incomplets.set(l);
+    }
+  }
+
+  // ---------- Pièces demandées (chef d'établissement)
+
+  protected async ouvrirReglagePieces(): Promise<void> {
+    const p = await this.action.executer(() => this.api.piecesDossier());
+    if (p) {
+      this.reglagePieces.set(p.map((x) => ({ id: x.id, libelle: x.libelle, modes: [...x.modes], obligatoire: x.obligatoire })));
+    }
+  }
+
+  private modifierPiece(i: number, f: (l: { id: string | null; libelle: string; modes: ModeAdmission[]; obligatoire: boolean }) => void): void {
+    const lignes = (this.reglagePieces() ?? []).map((l) => ({ ...l, modes: [...l.modes] }));
+    f(lignes[i]);
+    this.reglagePieces.set(lignes);
+  }
+
+  protected libellePiece(i: number, v: string): void {
+    this.modifierPiece(i, (l) => (l.libelle = v));
+  }
+
+  protected basculerMode(i: number, m: ModeAdmission): void {
+    this.modifierPiece(i, (l) => (l.modes = l.modes.includes(m) ? l.modes.filter((x) => x !== m) : [...l.modes, m]));
+  }
+
+  protected basculerObligatoire(i: number): void {
+    this.modifierPiece(i, (l) => (l.obligatoire = !l.obligatoire));
+  }
+
+  protected retirerPiece(i: number): void {
+    this.reglagePieces.set((this.reglagePieces() ?? []).filter((_, j) => j !== i));
+  }
+
+  protected ajouterPiece(): void {
+    this.reglagePieces.set([...(this.reglagePieces() ?? []), { id: null, libelle: '', modes: [...MODES_ADMISSION].filter((m) => m !== 'REINSCRIPTION'), obligatoire: true }]);
+  }
+
+  protected async enregistrerPieces(): Promise<void> {
+    const lignes = (this.reglagePieces() ?? []).map((l) => ({ ...l, libelle: l.libelle.trim() })).filter((l) => l.libelle);
+    const p = await this.action.executer(() => this.api.definirPieces(lignes));
+    if (p) {
+      this.reglagePieces.set(null);
+      this.message.set(`Liste enregistrée : ${p.length} pièce(s) demandée(s).`);
     }
   }
 

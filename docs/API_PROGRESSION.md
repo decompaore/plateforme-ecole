@@ -61,6 +61,22 @@ Règles :
 `seances`, et `avancement` (heures faites, dont hors séquence, nombre de séances, dernière séance). Le suivi de la
 direction (`GET /annees/{id}/progressions`) et la liste de l'enseignant donnent le même `avancement` par matière.
 
+## Visa mensuel du cahier de textes (v0.47)
+
+Chaque mois, la direction du domaine (censeur pour les matières générales, chef des travaux pour les matières
+techniques et pratiques, le censeur pour tout sans chef des travaux ; le chef d'établissement partout) vise le cahier
+de textes de chaque classe et matière. **Un mois visé est figé** : l'enseignant n'y ajoute, ne modifie ni ne
+supprime plus de séance (`409 CAHIER_VISE`). Migration `V34` (table `visa_cahier`).
+
+| Appel | Qui |
+|---|---|
+| `POST /api/v1/classes/{classeId}/matieres/{matiereId}/cahier-textes/visas` `{"mois":"2026-10","observation":"Rythme conforme"}` → `201` avec le nombre de séances du mois | La direction du domaine ; `409 MOIS_A_VENIR`, `409 CAHIER_DEJA_VISE` (un visa par mois) |
+| `GET …/cahier-textes/visas` : visas de la matière, le plus récent d'abord | L'enseignant ; la direction du domaine |
+| `GET /api/v1/annees/{anneeId}/cahiers-textes?mois=2026-10` : chaque matière du domaine, séances notées dans le mois, visée ou non (par qui) | ADMIN_ECOLE, CENSEUR, CHEF_TRAVAUX |
+
+Écrans : « Progressions › Visa mensuel des cahiers de textes » (`/progression/cahiers`) et, dans le cahier d'une
+matière, le formulaire « Visa mensuel ».
+
 ## À venir
 
 - Format officiel : si l'inspection impose un modèle de fiche (colonnes, découpage), il s'adaptera sur ces séquences.

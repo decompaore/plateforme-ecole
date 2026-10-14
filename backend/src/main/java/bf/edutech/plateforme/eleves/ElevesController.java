@@ -102,7 +102,7 @@ public class ElevesController {
 
     @PostMapping("/api/v1/eleves")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize(Roles.GESTION)
+    @PreAuthorize(Roles.SAISIE)
     public DossierEleveVue creer(@Valid @RequestBody DemandeEleve d) {
         List<DonneesResponsable> responsables = d.responsables() == null ? List.of()
                 : d.responsables().stream().map(DemandeResponsable::donnees).toList();
@@ -117,27 +117,27 @@ public class ElevesController {
 
     /** Modifie l'identité (les responsables se gèrent avec les routes dédiées). */
     @PutMapping("/api/v1/eleves/{id}")
-    @PreAuthorize(Roles.GESTION)
+    @PreAuthorize(Roles.MODIFICATION)
     public DossierEleveVue modifier(@PathVariable UUID id, @Valid @RequestBody DemandeEleve d) {
         return service.modifier(id, d.donnees());
     }
 
     @PostMapping("/api/v1/eleves/{id}/responsables")
     @ResponseStatus(HttpStatus.CREATED)
-    @PreAuthorize(Roles.GESTION)
+    @PreAuthorize(Roles.MODIFICATION)
     public DossierEleveVue ajouterResponsable(@PathVariable UUID id, @Valid @RequestBody DemandeResponsable d) {
         return service.ajouterResponsable(id, d.donnees());
     }
 
     @DeleteMapping("/api/v1/eleves/{id}/responsables/{responsableId}")
-    @PreAuthorize(Roles.GESTION)
+    @PreAuthorize(Roles.MODIFICATION)
     public DossierEleveVue retirerResponsable(@PathVariable UUID id, @PathVariable UUID responsableId) {
         return service.retirerResponsable(id, responsableId);
     }
 
     @PutMapping("/api/v1/responsables/{id}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize(Roles.GESTION)
+    @PreAuthorize(Roles.MODIFICATION)
     public void modifierResponsable(@PathVariable UUID id, @Valid @RequestBody DemandeModificationResponsable d) {
         service.modifierResponsable(id, d.nom(), d.prenoms(), d.telephone(), d.profession(), d.langueSms());
     }
@@ -147,7 +147,7 @@ public class ElevesController {
      * mot de passe temporaire est renvoyé une seule fois (à lui transmettre).
      */
     @PostMapping("/api/v1/responsables/{id}/espace-parent")
-    @PreAuthorize(Roles.GESTION)
+    @PreAuthorize(Roles.DOCUMENTS)
     public EspaceParentVue ouvrirEspaceParent(@PathVariable UUID id) {
         return espaceParent.ouvrir(id);
     }
@@ -159,7 +159,7 @@ public class ElevesController {
      * renvoyés qu'une fois, la fiche ne peut pas être rééditée (réinitialiser le compte si besoin).
      */
     @PostMapping("/api/v1/classes/{classeId}/espaces-parents")
-    @PreAuthorize(Roles.GESTION)
+    @PreAuthorize(Roles.DOCUMENTS)
     public ResponseEntity<byte[]> ouvrirEspacesParents(@PathVariable UUID classeId,
             @RequestParam(defaultValue = "pdf") String format) {
         ExportTableaux.Format f = ExportTableaux.Format.lire(format);

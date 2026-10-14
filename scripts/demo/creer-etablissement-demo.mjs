@@ -200,6 +200,13 @@ async function principal() {
   const admin = await sessionDemo(telAdmin, creation.motDePasseTemporaire);
   ok();
 
+  // Conseiller principal d'éducation (v0.47) : seul à saisir la vie scolaire
+  etape('Conseiller principal d’éducation (CPE)');
+  const telCpe = telephone('62');
+  const cpe = await api('POST', '/membres', { telephone: telCpe, nom: 'OUEDRAOGO', prenoms: 'Salamata', role: 'SURVEILLANT' }, admin);
+  await sessionDemo(telCpe, cpe.motDePasseTemporaire);
+  ok();
+
   etape('Profils pédagogiques');
   const profils = await api('POST', '/profils/initialisation', undefined, admin);
   const technique = profils.find((p) => p.code === 'TECHNIQUE');
@@ -404,12 +411,13 @@ async function principal() {
   Application : http://localhost:4200
 
   Enseignant (fait l'appel)   téléphone ${telEnseignant}   mot de passe ${DEMO_MOT_DE_PASSE}
-  Administrateur              téléphone ${telAdmin}   mot de passe ${DEMO_MOT_DE_PASSE}${telParent ? `
+  Administrateur              téléphone ${telAdmin}   mot de passe ${DEMO_MOT_DE_PASSE}
+  CPE (vie scolaire)          téléphone ${telCpe}   mot de passe ${DEMO_MOT_DE_PASSE}${telParent ? `
   Parent (espace parent)      téléphone ${telParent}   mot de passe ${DEMO_MOT_DE_PASSE}` : ''}
 
-  Pour lui donner quelques semaines d'activité (appels, absences, notes, avertissements, justificatifs,
-  convocation) :
-    node scripts/demo/activite-enseignant.mjs ${telEnseignant} ${telAdmin}
+  Pour lui donner quelques semaines d'activité (appels, absences, notes ; avec le CPE : avertissements,
+  justificatifs, convocation) :
+    node scripts/demo/activite-enseignant.mjs ${telEnseignant} ${telCpe}
 
   Comptes de développement uniquement.
 `);

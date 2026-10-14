@@ -68,7 +68,7 @@ Rang annuel : les ex-æquo ont le même rang et le rang suivant est sauté.
 |---|---|
 | `GET /api/v1/annees/{anneeId}/passage` | Tableau de bord : classes, décisions calculées et validées, répartition |
 | `POST /api/v1/annees/{anneeId}/annee-suivante` `{"libelle":"2027-2028","debut":"2027-10-01","fin":"2028-07-31"}` (ADMIN_ECOLE) | Copie les classes, matières, coefficients, périodes (décalées d'un an), **frais** et classes d'examen |
-| `POST /api/v1/classes/{classeId}/decisions/reinscriptions` `{"classeAdmisId":"…","classeRedoublantsId":"…","conserverStatutBourse":false}` (SECRETARIAT, ADMIN_ECOLE) | Réinscrit les **admis** dans la classe supérieure et les **redoublants** (et non certifiés) dans la classe du même niveau, avec la mention redoublant |
+| `POST /api/v1/classes/{classeId}/decisions/reinscriptions` `{"classeAdmisId":"…","classeRedoublantsId":"…","conserverStatutBourse":false}` (CENSEUR, ADMIN_ECOLE — v0.47 : le censeur répartit) | Réinscrit les **admis** dans la classe supérieure et les **redoublants** (et non certifiés) dans la classe du même niveau, avec la mention redoublant |
 
 - Les décisions de la classe doivent être validées.
 - Exclus, orientés et certifiés ne sont pas réinscrits (un orienté se réinscrit à la main).
@@ -87,7 +87,7 @@ Une fois les décisions validées, la plateforme prépare **toutes** les listes 
 |---|---|
 | `GET /api/v1/annees/{anneeId}/plan-passage` → `{annee, anneeSuivante, classesNonValidees, classesCibles[], eleves[]}` | CENSEUR, ADMIN_ECOLE, SECRETARIAT |
 | `GET …/plan-passage/listes?format=xlsx\|pdf` : une feuille par classe de l'année suivante (inscrits et « proposés »), puis les sortants | CENSEUR, ADMIN_ECOLE, SECRETARIAT |
-| `POST …/plan-passage` `{"affectations":[{"inscriptionId":"…","classeCibleId":"…"}],"conserverStatutBourse":false}` → `{reinscrits, redoublants, nonReinscrits[]}` | ADMIN_ECOLE, SECRETARIAT |
+| `POST …/plan-passage` `{"affectations":[{"inscriptionId":"…","classeCibleId":"…"}],"conserverStatutBourse":false}` → `{reinscrits, redoublants, nonReinscrits[]}` | ADMIN_ECOLE, CENSEUR (v0.47 : le censeur répartit) |
 
 - **Année suivante** : la première année en préparation ou active qui commence après la fin de l'année
   (`409 ANNEE_SUIVANTE_ABSENTE` sinon : créez-la avec `annee-suivante`).
@@ -106,3 +106,25 @@ Une fois les décisions validées, la plateforme prépare **toutes** les listes 
 - Les classes dont les décisions ne sont pas encore validées sont listées dans `classesNonValidees`.
 - La confirmation réinscrit par classe cible (même règles que les réinscriptions : année antérieure, élève actif,
   pas déjà inscrit, place disponible) ; le journal d'audit garde `PLAN_PASSAGE_APPLIQUE`.
+
+## Taux de réussite aux examens nationaux (v0.46)
+
+| Appel | Rôles |
+|---|---|
+| `GET /api/v1/examens/resultats` → `{examens, annees, resultats[]}` | ADMIN_ECOLE, CENSEUR |
+| `GET /api/v1/examens/resultats/export?format=xlsx\|pdf` (synthèse et détail par classe) | ADMIN_ECOLE, CENSEUR |
+| `POST /api/v1/examens/historique` ; `PUT …/historique/{id}` ; `DELETE …/historique/{id}` | ADMIN_ECOLE |
+
+```json
+{"annee":"2023-2024","examen":"BEPC","candidats":120,"admis":78,"candidatesFilles":55,"admisesFilles":40}
+```
+
+- **Années suivies dans la plateforme** (`source = CALCULE`) : pour chaque année et chaque examen (nom de la classe
+  d'examen, sans tenir compte de la casse ni des espaces), `inscrits` = élèves actifs des classes d'examen,
+  `resultatsConnus` = résultats saisis au conseil, `admis`, et le détail par classe. **Taux = admis / résultats
+  connus**, au dixième ; filles et garçons séparés.
+- **Années antérieures** (`source = SAISI`) : chiffres globaux saisis à la main (candidats présents, admis ; filles
+  facultatives). Une année et un examen déjà suivis dans la plateforme ne se saisissent pas
+  (`409 EXAMEN_SUIVI_DANS_LA_PLATEFORME`) ; un doublon est refusé (`409 EXAMEN_DEJA_SAISI`). Année au format
+  `2023-2024` (deux années qui se suivent). Table `examen_historique` (migration V33).
+- Chiffres **indicatifs** : les résultats officiels restent ceux des services des examens.

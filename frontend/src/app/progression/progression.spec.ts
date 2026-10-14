@@ -5,7 +5,9 @@ import { AnneeCourante } from '../admin/annee-courante.service';
 import { Role } from '../core/modeles';
 import { SessionService } from '../core/session.service';
 import { attendre, configurer, reponse } from '../testing/outils-test';
-import { erreurFiche, lireHeures } from './modeles-progression';
+import { erreurFiche, libelleMois, lireHeures, moisCourant } from './modeles-progression';
+import { CahierLecturePage } from './pages/cahier-lecture.page';
+import { CahiersVisasPage } from './pages/cahiers-visas.page';
 import { FicheProgressionPage } from './pages/fiche-progression.page';
 import { MesProgressionsPage } from './pages/mes-progressions.page';
 import { SuiviProgressionsPage } from './pages/suivi-progressions.page';
@@ -183,5 +185,48 @@ describe('Fiches de progression', () => {
     expect(titres).toEqual(['2nde F3']);
     expect(texte(f)).toContain('4 séquence(s) · 16 h faites / 40 h prévues');
     expect(texte(f)).toContain("cahier tenu jusqu'au 02/10/2026");
+  });
+
+  it('visa mensuel (v0.47) : tableau du mois, puis visa d’un cahier qui se fige', async () => {
+    expect(libelleMois('2026-10')).toBe('octobre 2026');
+    expect(moisCourant(new Date('2026-12-31T23:00:00Z'))).toBe('2026-12');
+    await session(http, 'CENSEUR', true);
+    const f = TestBed.createComponent(CahiersVisasPage);
+    f.detectChanges();
+    await attendre();
+    const suivi = http.expectOne((r) => r.url === '/api/v1/annees/a1/cahiers-textes');
+    expect(suivi.request.params.get('mois')).toBe(moisCourant());
+    suivi.flush([
+      { classeId: 'c1', classeCode: '6e A', matiereId: 'm1', matiereLibelle: 'Mathématiques', domaine: 'GENERAL', enseignant: 'SANOU Paul', mois: '2026-10', seances: 8, vise: true, visePar: 'ZONGO Ines', viseLe: '2026-10-31T10:00:00Z' },
+      { classeId: 'c1', classeCode: '6e A', matiereId: 'm2', matiereLibelle: 'Français', domaine: 'GENERAL', enseignant: 'KABORE Awa', mois: '2026-10', seances: 6, vise: false, visePar: null, viseLe: null },
+      { classeId: 'c2', classeCode: '6e B', matiereId: 'm1', matiereLibelle: 'Mathématiques', domaine: 'GENERAL', enseignant: null, mois: '2026-10', seances: 0, vise: false, visePar: null, viseLe: null },
+    ]);
+    await attendre();
+    const t = texte(f);
+    expect(t).toContain('1 cahier(s) visé(s) sur 3 · 1 à viser · 1 sans séance notée');
+    expect(t).toContain('ZONGO Ines');
+    f.destroy();
+
+    const g = TestBed.createComponent(CahierLecturePage);
+    g.componentRef.setInput('classeId', 'c1');
+    g.componentRef.setInput('matiereId', 'm2');
+    g.detectChanges();
+    await attendre();
+    http.expectOne('/api/v1/classes/c1/matieres/m2/cahier-textes').flush([
+      { id: 's1', classeId: 'c1', matiereId: 'm2', date: '2026-10-05', heureDebut: '08:00:00', heureFin: '10:00:00', heures: 2, sequenceOrdre: null, sequenceTitre: null, contenu: 'Dictée', travailAFaire: null, saisiLe: '', modifieLe: '' },
+    ]);
+    http.expectOne('/api/v1/classes/c1/matieres/m2/cahier-textes/visas').flush([]);
+    await attendre();
+    expect(texte(g)).toContain('Aucun mois visé.');
+    await saisir(g, '#mois', '2026-10');
+    await saisir(g, '#observation', 'Rythme conforme');
+    bouton(g, 'Viser').click();
+    await attendre();
+    const visa = http.expectOne('/api/v1/classes/c1/matieres/m2/cahier-textes/visas');
+    expect(visa.request.body).toEqual({ mois: '2026-10', observation: 'Rythme conforme' });
+    visa.flush({ id: 'v1', classeId: 'c1', matiereId: 'm2', mois: '2026-10', seances: 1, observation: 'Rythme conforme', visePar: 'ZONGO Ines', viseLe: '2026-10-31T10:00:00Z' });
+    await attendre();
+    expect(texte(g)).toContain("Cahier visé pour octobre 2026 (1 séance(s)) : ce mois ne peut plus être modifié par l'enseignant.");
+    expect(texte(g)).toContain('octobre 2026 · 1 séance(s) · ZONGO Ines');
   });
 });

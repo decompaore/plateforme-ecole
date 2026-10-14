@@ -94,7 +94,7 @@ scenario('VIE-01', D_VIE, 'Un élève de test est inscrit dans une classe avec l
   const s = etat(ctx);
   try {
     const e = horizon(ctx);
-    const sec = role(e, 'SECRETARIAT');
+    const sec = role(e, 'INTENDANT');      // v0.47 : l'intendance reçoit le dossier et inscrit
     // Une classe et une matière dont l'enseignant (non partagé) n'enseigne pas partout
     let choix = null;
     for (const c of e.classes) {
@@ -255,33 +255,35 @@ scenario('APP-08', D_APP, 'La mère suit les absences de son enfant seulement ; 
 
 // ===================================================================== incidents
 
-scenario('INC-01', D_INC, 'L’enseignant signale un retard dans sa classe et prévient la famille ; durée manquante, date future et sanction réservée refusées', async (ctx) => {
+scenario('INC-01', D_INC, 'Le CPE seul saisit la vie scolaire (v0.47) : il enregistre un retard et prévient la famille ; enseignant, censeur et secrétariat refusés ; durée manquante et date future refusées', async (ctx) => {
   const x = eleve(ctx);
   const chemin = `/inscriptions/${x.inscriptionId}/incidents`;
-  statut(await appel(x.prof, 'POST', chemin, { type: 'RETARD', motif: 'Arrivé en retard' }), 400);
-  statut(await appel(x.prof, 'POST', chemin, { type: 'AVERTISSEMENT', motif: 'Bavardages', minutesRetard: 10 }), 400);
-  statut(await appel(x.prof, 'POST', chemin, { type: 'RETARD', minutesRetard: 10, motif: 'Futur', date: ajouterJours(ctx.aujourdhui, 2) }), 400);
-  statut(await appel(x.prof, 'POST', chemin, { type: 'RETARD', minutesRetard: 10 }), 400);
-  statut(await appel(x.prof, 'POST', chemin, { motif: 'Sans type' }), 400);
-  statut(await appel(x.prof, 'POST', chemin, { type: 'BLAME', motif: 'Insolence' }), 403);
+  const cpe = role(x.e, 'SURVEILLANT');
+  statut(await appel(x.prof, 'POST', chemin, { type: 'RETARD', minutesRetard: 10, motif: 'Arrivé en retard' }), 403);
+  statut(await appel(role(x.e, 'CENSEUR'), 'POST', chemin, { type: 'RETARD', minutesRetard: 10, motif: 'X' }), 403);
   statut(await appel(role(x.e, 'SECRETARIAT'), 'POST', chemin, { type: 'RETARD', minutesRetard: 5, motif: 'X' }), 403);
-  const r = await exiger(x.prof, 'POST', chemin, { type: 'RETARD', minutesRetard: 20, motif: 'Recette : arrivé à 7 h 20', prevenirFamille: true });
+  statut(await appel(cpe, 'POST', chemin, { type: 'RETARD', motif: 'Arrivé en retard' }), 400);
+  statut(await appel(cpe, 'POST', chemin, { type: 'AVERTISSEMENT', motif: 'Bavardages', minutesRetard: 10 }), 400);
+  statut(await appel(cpe, 'POST', chemin, { type: 'RETARD', minutesRetard: 10, motif: 'Futur', date: ajouterJours(ctx.aujourdhui, 2) }), 400);
+  statut(await appel(cpe, 'POST', chemin, { type: 'RETARD', minutesRetard: 10 }), 400);
+  statut(await appel(cpe, 'POST', chemin, { motif: 'Sans type' }), 400);
+  const r = await exiger(cpe, 'POST', chemin, { type: 'RETARD', minutesRetard: 20, motif: 'Recette : arrivé à 7 h 20', prevenirFamille: true });
   egal([r.type, r.minutesRetard, r.famillePrevenue, r.annule], ['RETARD', 20, true, false], 'Retard enregistré, famille prévenue');
   vrai(await sms(x.e, x, `incident:${r.id}`), 'SMS du retard planifié');
   x.retard = r.id;
 });
 
-scenario('INC-02', D_INC, 'Le surveillant donne un avertissement (famille prévenue d’office) ; le censeur prononce un blâme et une exclusion temporaire bornée', async (ctx) => {
+scenario('INC-02', D_INC, 'Le CPE donne un avertissement (famille prévenue d’office), un blâme et une exclusion temporaire bornée ; le censeur consulte sans saisir', async (ctx) => {
   const x = eleve(ctx);
   const chemin = `/inscriptions/${x.inscriptionId}/incidents`;
   const av = await exiger(role(x.e, 'SURVEILLANT'), 'POST', chemin, { type: 'AVERTISSEMENT', motif: 'Recette : bavardages répétés' });
   egal(av.famillePrevenue, true, 'Famille prévenue par défaut pour une sanction');
   x.avertissement = av.id;
-  statut(await appel(role(x.e, 'SURVEILLANT'), 'POST', chemin, { type: 'BLAME', motif: 'Insolence' }), 403);
-  const bl = await exiger(role(x.e, 'CENSEUR'), 'POST', chemin, { type: 'BLAME', motif: 'Recette : insolence', prevenirFamille: false });
+  statut(await appel(role(x.e, 'CENSEUR'), 'POST', chemin, { type: 'BLAME', motif: 'Insolence' }), 403);
+  const bl = await exiger(role(x.e, 'SURVEILLANT'), 'POST', chemin, { type: 'BLAME', motif: 'Recette : insolence', prevenirFamille: false });
   egal(bl.famillePrevenue, false, 'SMS non demandé');
   x.blame = bl.id;
-  const cens = role(x.e, 'CENSEUR');
+  const cens = role(x.e, 'SURVEILLANT');
   statut(await appel(cens, 'POST', chemin, { type: 'EXCLUSION_TEMPORAIRE', motif: 'Bagarre', joursExclusion: 0 }), 400);
   statut(await appel(cens, 'POST', chemin, { type: 'EXCLUSION_TEMPORAIRE', motif: 'Bagarre', joursExclusion: 31 }), 400);
   statut(await appel(cens, 'POST', chemin, { type: 'EXCLUSION_TEMPORAIRE', motif: 'Bagarre', joursExclusion: 2, debutExclusion: ajouterJours(ctx.aujourdhui, 45) }), 400);
@@ -294,22 +296,24 @@ scenario('INC-02', D_INC, 'Le surveillant donne un avertissement (famille préve
   x.exclusion = ex.donnees.id;
 });
 
-scenario('INC-03', D_INC, 'Annulation : l’auteur annule son propre incident, la direction ceux des autres ; un surveillant ne peut pas annuler le blâme du censeur', async (ctx) => {
+scenario('INC-03', D_INC, 'Annulation par le CPE seul, motif obligatoire, une seule fois ; ni l’enseignant ni le censeur n’annulent', async (ctx) => {
   const x = eleve(ctx);
   if (!x.retard || !x.blame) ignorer('Incidents non créés (INC-01, INC-02)');
-  statut(await appel(x.prof, 'POST', `/incidents/${x.retard}/annulation`, { motif: '' }), 400);
-  const annule = await exiger(x.prof, 'POST', `/incidents/${x.retard}/annulation`, { motif: 'Recette : saisi sur le mauvais élève' });
-  egal([annule.annule, annule.motifAnnulation], [true, 'Recette : saisi sur le mauvais élève'], 'Retard annulé par son auteur');
-  statut(await appel(x.prof, 'POST', `/incidents/${x.retard}/annulation`, { motif: 'Encore' }), 409, 'INCIDENT_DEJA_ANNULE');
-  statut(await appel(role(x.e, 'SURVEILLANT'), 'POST', `/incidents/${x.blame}/annulation`, { motif: 'Recette' }), 403);
-  egal((await exiger(role(x.e, 'CENSEUR'), 'POST', `/incidents/${x.blame}/annulation`, { motif: 'Recette : fin du test' })).annule, true, 'Blâme annulé par la direction');
-  if (x.exclusion) await exiger(role(x.e, 'ADMIN_ECOLE'), 'POST', `/incidents/${x.exclusion}/annulation`, { motif: 'Recette : fin du test' });
-  refuse(await appel(ctx.ecole(1).session('CENSEUR'), 'POST', `/incidents/${x.blame}/annulation`, { motif: 'X' }), 'Annulation par un autre établissement');
+  const cpe = role(x.e, 'SURVEILLANT');
+  statut(await appel(x.prof, 'POST', `/incidents/${x.retard}/annulation`, { motif: 'Recette' }), 403);
+  statut(await appel(role(x.e, 'CENSEUR'), 'POST', `/incidents/${x.blame}/annulation`, { motif: 'Recette' }), 403);
+  statut(await appel(cpe, 'POST', `/incidents/${x.retard}/annulation`, { motif: '' }), 400);
+  const annule = await exiger(cpe, 'POST', `/incidents/${x.retard}/annulation`, { motif: 'Recette : saisi sur le mauvais élève' });
+  egal([annule.annule, annule.motifAnnulation], [true, 'Recette : saisi sur le mauvais élève'], 'Retard annulé par le CPE');
+  statut(await appel(cpe, 'POST', `/incidents/${x.retard}/annulation`, { motif: 'Encore' }), 409, 'INCIDENT_DEJA_ANNULE');
+  egal((await exiger(cpe, 'POST', `/incidents/${x.blame}/annulation`, { motif: 'Recette : fin du test' })).annule, true, 'Blâme annulé par le CPE');
+  if (x.exclusion) await exiger(cpe, 'POST', `/incidents/${x.exclusion}/annulation`, { motif: 'Recette : fin du test' });
+  refuse(await appel(ctx.ecole(1).session('SURVEILLANT'), 'POST', `/incidents/${x.blame}/annulation`, { motif: 'X' }), 'Annulation par un autre établissement');
 });
 
 // ===================================================================== convocations
 
-scenario('CNV-01', D_CNV, 'Le surveillant convoque la mère au sujet de l’avertissement ; date passée ou trop lointaine, incident annulé et enseignant refusés', async (ctx) => {
+scenario('CNV-01', D_CNV, 'Le CPE convoque la mère au sujet de l’avertissement ; date passée ou trop lointaine, incident annulé, enseignant et censeur refusés', async (ctx) => {
   const x = eleve(ctx);
   if (!x.avertissement) ignorer('Avertissement non créé (INC-02)');
   const chemin = `/inscriptions/${x.inscriptionId}/convocations`;
@@ -319,6 +323,7 @@ scenario('CNV-01', D_CNV, 'Le surveillant convoque la mère au sujet de l’aver
   statut(await appel(role(x.e, 'SURVEILLANT'), 'POST', chemin, { rendezVous: demain, motif: '' }), 400);
   if (x.retard) statut(await appel(role(x.e, 'SURVEILLANT'), 'POST', chemin, { rendezVous: demain, motif: 'Retard', incidentId: x.retard }), 400);
   statut(await appel(x.prof, 'POST', chemin, { rendezVous: demain, motif: 'Comportement' }), 403);
+  statut(await appel(role(x.e, 'CENSEUR'), 'POST', chemin, { rendezVous: demain, motif: 'Comportement' }), 403);
   const c = await exiger(role(x.e, 'SURVEILLANT'), 'POST', chemin, { rendezVous: demain, motif: 'Recette : comportement en classe', incidentId: x.avertissement });
   egal([c.statut, c.incidentId, c.classe], ['PREVUE', x.avertissement, x.classeCode], 'Convocation prévue');
   vrai(await sms(x.e, x, `convocation:${c.id}`), 'SMS de convocation planifié');
@@ -328,11 +333,13 @@ scenario('CNV-01', D_CNV, 'Le surveillant convoque la mère au sujet de l’aver
 scenario('CNV-02', D_CNV, 'Un incident convoqué ne s’annule pas ; un rendez-vous à venir ne se clôt que par une annulation, une seule fois ; l’agenda le retrouve', async (ctx) => {
   const x = eleve(ctx);
   if (!x.convocation) ignorer('Convocation non créée (CNV-01)');
-  const cens = role(x.e, 'CENSEUR');
+  const lecteur = role(x.e, 'CENSEUR');
+  const cens = role(x.e, 'SURVEILLANT');
   statut(await appel(cens, 'POST', `/incidents/${x.avertissement}/annulation`, { motif: 'Recette' }), 409, 'CONVOCATION_EN_COURS');
   const agenda = await exiger(role(x.e, 'SECRETARIAT'), 'GET', '/convocations', undefined, { params: { du: ctx.aujourdhui, au: ajouterJours(ctx.aujourdhui, 7) } });
   vrai(agenda.some((c) => c.id === x.convocation), 'Convocation dans l’agenda de la semaine');
-  statut(await appel(cens, 'GET', '/convocations', undefined, { params: { du: ctx.aujourdhui, au: ajouterJours(ctx.aujourdhui, -1) } }), 400);
+  statut(await appel(lecteur, 'GET', '/convocations', undefined, { params: { du: ctx.aujourdhui, au: ajouterJours(ctx.aujourdhui, -1) } }), 400);
+  statut(await appel(lecteur, 'POST', `/convocations/${x.convocation}/cloture`, { statut: 'ANNULEE' }), 403);
   statut(await appel(cens, 'POST', `/convocations/${x.convocation}/cloture`, { statut: 'HONOREE', compteRendu: 'Trop tôt' }), 409, 'RENDEZ_VOUS_A_VENIR');
   statut(await appel(cens, 'POST', `/convocations/${x.convocation}/cloture`, {}), 400);
   const close = await exiger(role(x.e, 'SURVEILLANT'), 'POST', `/convocations/${x.convocation}/cloture`, { statut: 'ANNULEE', compteRendu: 'Recette : fin du test' });
@@ -355,6 +362,8 @@ scenario('CNV-03', D_CNV, 'Historique de vie scolaire : synthèse de l’élève
   const incidentsMere = mere.flatMap((y) => y.incidents);
   vrai(incidentsMere.every((i) => !i.annule), 'La mère ne voit aucun incident annulé');
   statut(await appel(role(x.e, 'INTENDANT'), 'GET', `/inscriptions/${x.inscriptionId}/vie-scolaire`), 403);
+  const chefTravaux = x.e.session('CHEF_TRAVAUX');
+  if (chefTravaux) await exiger(chefTravaux, 'GET', `/inscriptions/${x.inscriptionId}/vie-scolaire`);  // consultation (v0.47)
   statut(await appel(x.prof, 'GET', `/inscriptions/${x.inscriptionId}/vie-scolaire`), 403);
   const autre = x.e.familles.flatMap((f) => f.enfants).find((y) => y.ecole === x.e.n);
   if (autre) refuse(await appel(x.mere, 'GET', `/espace-parent/enfants/${autre.eleveId}/vie-scolaire`), 'Vie scolaire d’un autre enfant');
@@ -365,7 +374,7 @@ scenario('CNV-03', D_CNV, 'Historique de vie scolaire : synthèse de l’élève
 
 scenario('VIE-02', D_VIE, 'Fin du lot : l’élève de test quitte l’établissement ; plus aucun incident ni convocation ne peut le concerner', async (ctx) => {
   const x = eleve(ctx);
-  const s = await exiger(role(x.e, 'SECRETARIAT'), 'POST', `/inscriptions/${x.inscriptionId}/sortie`, { statut: 'ABANDON', date: ctx.aujourdhui, motif: 'Recette : fin du test' });
+  const s = await exiger(role(x.e, 'ADMIN_ECOLE'), 'POST', `/inscriptions/${x.inscriptionId}/sortie`, { statut: 'ABANDON', date: ctx.aujourdhui, motif: 'Recette : fin du test' });
   egal(s.statut, 'ABANDON', 'Élève sorti');
   statut(await appel(role(x.e, 'SURVEILLANT'), 'POST', `/inscriptions/${x.inscriptionId}/incidents`, { type: 'AVERTISSEMENT', motif: 'Après départ' }), 409, 'INSCRIPTION_TERMINEE');
   statut(await appel(role(x.e, 'SURVEILLANT'), 'POST', `/inscriptions/${x.inscriptionId}/convocations`, {

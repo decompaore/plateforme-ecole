@@ -63,17 +63,21 @@ Toute modification est journalisée (auteur, date). Un élève qui a quitté la 
 
 | Ressource | Méthodes | Rôles |
 |---|---|---|
-| Appels | `POST /api/v1/appels/lot`, `PUT /api/v1/appels/{id}` `{"marques":[…]}` | ENSEIGNANT (ses classes), SURVEILLANT, CENSEUR, ADMIN_ECOLE |
+| Appels | `POST /api/v1/appels/lot`, `PUT /api/v1/appels/{id}` `{"marques":[…]}` | ENSEIGNANT (ses classes), SURVEILLANT (CPE, toutes les classes) — v0.47 : la direction consulte |
 | | `GET /api/v1/appels/{id}`, `GET /api/v1/classes/{id}/appels?date=2026-09-28` | personnel*, enseignant de la classe |
 | Synthèse | `GET /api/v1/classes/{id}/absences/synthese?du=&au=` : absences, justifiées, retards, heures | personnel*, enseignant de la classe |
 | Absences du jour (v0.18) | `GET /api/v1/absences/jour?date=2026-10-01` (aujourd'hui par défaut) : un élément par élève absent ou en retard dans tout l'établissement, avec sa classe, ses créneaux et l'état de justification ; trié par classe puis par nom | personnel* |
 | Absences d'un élève | `GET /api/v1/inscriptions/{id}/absences?du=&au=` | personnel* |
 | Par discipline (v0.18.1) | `GET /api/v1/classes/{id}/absences/matieres?du=&au=` : par matière, cours manqués (élève × séance), élèves concernés, heures, dont non justifiées, retards ; les plus manquées d'abord ; une ligne sans matière pour les appels généraux | personnel*, enseignant de la classe |
-| Justificatifs | `GET/POST /api/v1/inscriptions/{id}/justificatifs` `{"du":"…","au":"…","type":"MALADIE","motif":"…"}`, `DELETE /api/v1/justificatifs/{id}` | SURVEILLANT, CENSEUR, ADMIN_ECOLE, SECRETARIAT |
+| Justificatifs | `GET/POST /api/v1/inscriptions/{id}/justificatifs` `{"du":"…","au":"…","type":"MALADIE","motif":"…"}`, `DELETE /api/v1/justificatifs/{id}` | lecture : personnel* ; saisie et suppression : SURVEILLANT (CPE) seul (v0.47) |
 | Espace parent | `GET /api/v1/espace-parent/enfants/{eleveId}/absences` | PARENT (ses enfants uniquement) |
 | Suivi des SMS | `GET /api/v1/notifications?statut=ECHEC&limite=100` | ADMIN_ECOLE, SURVEILLANT |
 
-\* ADMIN_ECOLE, CENSEUR, SURVEILLANT, SECRETARIAT, INTENDANT.
+\* ADMIN_ECOLE, CENSEUR, CHEF_TRAVAUX, SURVEILLANT (CPE), SECRETARIAT, INTENDANT.
+
+**v0.47.** Les retards et absences sont relevés par les enseignants à l'appel ; le Conseiller principal d'éducation
+(rôle `SURVEILLANT`) fait l'appel de toute classe, le corrige à tout moment et enregistre les justificatifs. Le chef
+d'établissement, le censeur et le chef des travaux consultent.
 
 **Discipline (v0.18.1).** Chaque absence et chaque créneau de la liste du jour indiquent la matière du cours manqué
 (`matiereId`, `matiereCode`, `matiereLibelle`), reprise de l'appel. Elles sont nulles pour un appel général, fait

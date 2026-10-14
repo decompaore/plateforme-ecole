@@ -16,16 +16,32 @@ import Excel et espace parent. Migration `V4__eleves_inscriptions.sql`, cloisonn
 Matricule généré : `AAAA-NNNNN` (ex. `2026-00001`), numérotation propre à chaque établissement. Un matricule attribué
 par l'établissement peut aussi être saisi.
 
+## Qui fait quoi (v0.47)
+
+Organisation vue avec les établissements : **l'intendant inscrit** (il reçoit le dossier et les frais) ; une fois
+l'inscription enregistrée, **seul le chef d'établissement modifie** (identité, parents, bourse, sortie, mode
+d'admission, pièces retirées) ; **le censeur répartit** les élèves dans les classes (même niveau ; un changement de
+niveau revient au chef d'établissement, `409 CHANGEMENT_DE_NIVEAU`) ; le secrétariat consulte et édite les documents
+remis aux familles (cartes scolaires, accès à l'espace parent).
+
+| Groupe | Rôles | Opérations |
+|---|---|---|
+| Saisie | ADMIN_ECOLE, INTENDANT | nouveau dossier, inscription, import Excel, dépôt de la photo, pièces reçues |
+| Modification | ADMIN_ECOLE | `PUT` élève et responsables, ajout et retrait d'un responsable, bourse, sortie, retrait de la photo, liste des pièces |
+| Répartition | ADMIN_ECOLE, CENSEUR | changement de classe, réinscriptions par classe, plan de passage |
+| Documents | ADMIN_ECOLE, INTENDANT, SECRETARIAT | cartes scolaires, espace parent (un parent, une classe) |
+
 ## Parcours type de la rentrée
 
 | # | Appel | Rôle |
 |---|---|---|
-| 1 | `GET /api/v1/annees/{id}/eleves/import/modele` : modèle Excel avec la liste des classes | ADMIN_ECOLE, SECRETARIAT |
-| 2 | `POST /api/v1/annees/{id}/eleves/import?simulation=true` (multipart, champ `fichier`) : rapport ligne par ligne | ADMIN_ECOLE, SECRETARIAT |
-| 3 | Même appel avec `simulation=false` : les lignes valides sont enregistrées, les autres restent dans le rapport | ADMIN_ECOLE, SECRETARIAT |
-| 4 | Nouveaux élèves isolés : `POST /api/v1/eleves` puis `POST /api/v1/inscriptions` | ADMIN_ECOLE, SECRETARIAT |
-| 5 | Anciens élèves : `POST /api/v1/classes/{classeCible}/reinscriptions` `{"inscriptions":[…],"redoublant":false}` | ADMIN_ECOLE, SECRETARIAT |
-| 6 | Espace parent : `POST /api/v1/responsables/{id}/espace-parent` → mot de passe temporaire à transmettre | ADMIN_ECOLE, SECRETARIAT |
+| 1 | `GET /api/v1/annees/{id}/eleves/import/modele` : modèle Excel avec la liste des classes | ADMIN_ECOLE, INTENDANT |
+| 2 | `POST /api/v1/annees/{id}/eleves/import?simulation=true` (multipart, champ `fichier`) : rapport ligne par ligne | ADMIN_ECOLE, INTENDANT |
+| 3 | Même appel avec `simulation=false` : les lignes valides sont enregistrées, les autres restent dans le rapport | ADMIN_ECOLE, INTENDANT |
+| 4 | Nouveaux élèves isolés : `POST /api/v1/eleves` puis `POST /api/v1/inscriptions` (avec `modeAdmission`) | ADMIN_ECOLE, INTENDANT |
+| 5 | Pièces du dossier : `PUT /api/v1/inscriptions/{id}/dossier` | ADMIN_ECOLE, INTENDANT |
+| 6 | Répartition : `PATCH /api/v1/inscriptions/{id}/classe` ; anciens élèves : `POST /api/v1/classes/{classeCible}/reinscriptions` | ADMIN_ECOLE, CENSEUR |
+| 7 | Espace parent : `POST /api/v1/responsables/{id}/espace-parent` → mot de passe temporaire à transmettre | ADMIN_ECOLE, INTENDANT, SECRETARIAT |
 
 Exemple de création d'un dossier :
 
@@ -40,30 +56,56 @@ POST /api/v1/eleves
 | Ressource | Méthodes | Rôles |
 |---|---|---|
 | Élèves | `GET /api/v1/eleves?q=&page=0&taille=20`, `GET /api/v1/eleves/{id}` (dossier complet) | personnel administratif* |
-| | `POST /api/v1/eleves`, `PUT /api/v1/eleves/{id}` | ADMIN_ECOLE, SECRETARIAT |
-| Responsables | `POST /api/v1/eleves/{id}/responsables`, `DELETE /api/v1/eleves/{id}/responsables/{responsableId}`, `PUT /api/v1/responsables/{id}` | ADMIN_ECOLE, SECRETARIAT |
-| Inscriptions | `POST /api/v1/inscriptions`, `PATCH /api/v1/inscriptions/{id}/classe`, `POST /api/v1/inscriptions/{id}/sortie` | ADMIN_ECOLE, SECRETARIAT |
+| | `POST /api/v1/eleves` | ADMIN_ECOLE, INTENDANT |
+| | `PUT /api/v1/eleves/{id}` | ADMIN_ECOLE |
+| Responsables | `POST /api/v1/eleves/{id}/responsables`, `DELETE /api/v1/eleves/{id}/responsables/{responsableId}`, `PUT /api/v1/responsables/{id}` | ADMIN_ECOLE |
+| Inscriptions | `POST /api/v1/inscriptions` `{"eleveId":…,"classeId":…,"modeAdmission":"AFFECTATION_ETAT"}` | ADMIN_ECOLE, INTENDANT |
+| | `PATCH /api/v1/inscriptions/{id}/classe` (censeur : même niveau) | ADMIN_ECOLE, CENSEUR |
+| | `POST /api/v1/inscriptions/{id}/sortie` | ADMIN_ECOLE |
 | | `GET /api/v1/inscriptions/{id}` | personnel administratif* |
-| Bourse | `PATCH /api/v1/inscriptions/{id}/bourse` `{"statutBourse":"SEMI_BOURSIER"}` | ADMIN_ECOLE, SECRETARIAT, INTENDANT |
+| Bourse | `PATCH /api/v1/inscriptions/{id}/bourse` `{"statutBourse":"SEMI_BOURSIER"}` (à l'inscription, le statut est saisi avec elle) | ADMIN_ECOLE |
 | Liste de classe | `GET /api/v1/classes/{id}/inscriptions?sorties=false` | personnel administratif*, ENSEIGNANT |
-| Réinscriptions | `POST /api/v1/classes/{id}/reinscriptions` | ADMIN_ECOLE, SECRETARIAT |
-| Import | `GET /api/v1/annees/{id}/eleves/import/modele`, `POST /api/v1/annees/{id}/eleves/import` | ADMIN_ECOLE, SECRETARIAT |
-| Espace parent | `POST /api/v1/responsables/{id}/espace-parent` | ADMIN_ECOLE, SECRETARIAT |
-| | `POST /api/v1/classes/{classeId}/espaces-parents[?format=pdf\|xlsx]` (v0.29) : ouvre l'espace parent des responsables légaux et des contacts prioritaires des élèves inscrits (un compte pour les frères et sœurs) et renvoie la **fiche de remise des accès** (PDF par défaut) avec le mot de passe provisoire de chaque nouveau compte, « compte existant » sinon ; `409 AUCUN_RESPONSABLE` si personne à traiter | ADMIN_ECOLE, SECRETARIAT |
+| Réinscriptions | `POST /api/v1/classes/{id}/reinscriptions` | ADMIN_ECOLE, CENSEUR |
+| Import | `GET /api/v1/annees/{id}/eleves/import/modele`, `POST /api/v1/annees/{id}/eleves/import` | ADMIN_ECOLE, INTENDANT |
+| Espace parent | `POST /api/v1/responsables/{id}/espace-parent` | ADMIN_ECOLE, INTENDANT, SECRETARIAT |
+| | `POST /api/v1/classes/{classeId}/espaces-parents[?format=pdf\|xlsx]` (v0.29) : ouvre l'espace parent des responsables légaux et des contacts prioritaires des élèves inscrits (un compte pour les frères et sœurs) et renvoie la **fiche de remise des accès** (PDF par défaut) avec le mot de passe provisoire de chaque nouveau compte, « compte existant » sinon ; `409 AUCUN_RESPONSABLE` si personne à traiter | ADMIN_ECOLE, INTENDANT, SECRETARIAT |
 | | `GET /api/v1/espace-parent/enfants` | PARENT |
 
-\* ADMIN_ECOLE, CENSEUR, SECRETARIAT, INTENDANT, SURVEILLANT. Les dossiers concernent des mineurs : les enseignants voient
+\* ADMIN_ECOLE, CENSEUR, CHEF_TRAVAUX, SECRETARIAT, INTENDANT, SURVEILLANT (CPE). Les dossiers concernent des mineurs : les enseignants voient
 les listes de leurs classes seulement (celles où ils ont au moins une matière), pas les dossiers.
+
+## Dossier d'inscription : mode d'admission et pièces (v0.47)
+
+Migration `V34`. Le **mode d'admission** de l'inscription détermine les pièces attendues : `AFFECTATION_ETAT`
+(entrée en 6e ou en 2nde après le CEP ou le BEPC : la décision d'orientation remplace l'étude du dossier),
+`COMPLEMENT_EFFECTIF` (place attribuée par la commission de recrutement), `TRANSFERT`, `REINSCRIPTION` (posé
+automatiquement par la réinscription et le plan de passage), `PRIVE`, `AUTRE`. Vide pour les inscriptions antérieures.
+
+| Appel | Rôles |
+|---|---|
+| `GET /api/v1/pieces-dossier` : pièces attendues de l'établissement (liste par défaut créée à la première lecture) | personnel administratif* |
+| `PUT /api/v1/pieces-dossier` `[{"id":…,"libelle":"…","modes":["TRANSFERT"],"obligatoire":true}]` : remplace la liste (une pièce absente n'est plus demandée) | ADMIN_ECOLE |
+| `GET /api/v1/inscriptions/{id}/dossier` → mode, pièces attendues (reçue, date), `complet`, `manquantes` | personnel administratif* |
+| `PUT /api/v1/inscriptions/{id}/dossier` `{"modeAdmission":null,"piecesRecues":["…"]}` | ADMIN_ECOLE, INTENDANT |
+| `GET /api/v1/annees/{id}/dossiers-inscription?incomplets=true` : élèves inscrits et pièces manquantes | personnel administratif* |
+
+Liste par défaut (pratique des lycées du Burkina Faso) : demande de place adressée au chef d'établissement ; extrait
+d'acte de naissance légalisé (ou jugement supplétif) ; décision d'affectation de l'État ; bulletins de l'année
+écoulée ; certificat de scolarité de l'établissement d'origine ; copie légalisée du CEP ou du BEPC (facultative) ;
+certificat de non-redevance ; photos d'identité. L'intendant enregistre le mode s'il est vide et coche les pièces
+reçues ; changer un mode enregistré ou retirer une pièce reçue : chef d'établissement (`403` sinon). Sans mode
+d'admission, le dossier n'est pas complet (« Mode d'admission à préciser »).
 
 ## Photos d'identité et cartes scolaires (v0.44)
 
 | Appel | Rôles |
 |---|---|
 | `GET /api/v1/eleves/{id}/photo[?miniature=true]` (JPEG ; miniature 96 × 120 pour les listes) | personnel administratif*, ENSEIGNANT d'une classe actuelle de l'élève |
-| `POST /api/v1/eleves/{id}/photo` (multipart, champ `fichier`) ; `DELETE /api/v1/eleves/{id}/photo` | ADMIN_ECOLE, SECRETARIAT |
+| `POST /api/v1/eleves/{id}/photo` (multipart, champ `fichier`) | ADMIN_ECOLE, INTENDANT |
+| `DELETE /api/v1/eleves/{id}/photo` | ADMIN_ECOLE |
 | `GET /api/v1/classes/{id}/photos` → identifiants des élèves de la classe qui ont une photo | personnel administratif*, ENSEIGNANT de la classe |
 | `GET /api/v1/eleves/photos?ids=a,b,…` (200 au plus, v0.44.1) → ceux de ces élèves qui ont une photo (page de la recherche) | personnel administratif* |
-| `GET /api/v1/classes/{id}/cartes` (élèves actifs, ordre alphabétique) ; `GET /api/v1/eleves/{id}/carte` | ADMIN_ECOLE, SECRETARIAT |
+| `GET /api/v1/classes/{id}/cartes` (élèves actifs, ordre alphabétique) ; `GET /api/v1/eleves/{id}/carte` | ADMIN_ECOLE, INTENDANT, SECRETARIAT |
 
 - Formats acceptés : JPEG, PNG (5 Mo, 8000 pixels de côté au plus). L'image est **ré-encodée** par le serveur
   (JPEG, 480 × 600 au plus) : les métadonnées (position GPS, appareil) disparaissent. Le navigateur réduit déjà la

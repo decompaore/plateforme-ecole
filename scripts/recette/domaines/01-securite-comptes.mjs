@@ -933,11 +933,11 @@ scenario('ROL-05', D_ROL, 'Statistiques de l’année : administrateur, censeur,
     requete: (s) => appel(s, 'GET', `/annees/${ctx.ecole(1).anneeId}/statistiques`),
   }));
 
-scenario('ROL-06', D_ROL, 'Dossier d’un élève : personnel administratif et vie scolaire, ni enseignant, ni chef des travaux, ni parent', async (ctx) => {
+scenario('ROL-06', D_ROL, 'Dossier d’un élève : personnel administratif, vie scolaire et chef des travaux (v0.47) ; ni enseignant, ni parent', async (ctx) => {
   const eleve = premierEleve(ctx.ecole(1));
   if (!eleve) ignorer('aucun élève');
   return matrice(ctx, {
-    autorises: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'INTENDANT', 'SURVEILLANT'],
+    autorises: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SECRETARIAT', 'INTENDANT', 'SURVEILLANT'],
     requete: (s) => appel(s, 'GET', `/eleves/${eleve.eleveId}`),
   });
 });
@@ -956,12 +956,12 @@ scenario('ROL-07', D_ROL, 'Création d’une évaluation : enseignant, censeur, 
   });
 });
 
-scenario('ROL-08', D_ROL, 'Appels d’une classe : enseignant de la classe, vie scolaire et administration ; ni chef des travaux ni parent', async (ctx) => {
+scenario('ROL-08', D_ROL, 'Appels d’une classe : enseignant de la classe, vie scolaire, administration et chef des travaux (v0.47, en lecture) ; pas le parent', async (ctx) => {
   const e = ctx.ecole(1);
   const ref = enseignantDeReference(ctx, e);
   if (!ref) ignorer('enseignant de référence absent');
   return matrice(ctx, {
-    autorises: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'INTENDANT', 'SURVEILLANT', 'ENSEIGNANT'],
+    autorises: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SECRETARIAT', 'INTENDANT', 'SURVEILLANT', 'ENSEIGNANT'],
     requete: (s) => appel(s, 'GET', `/classes/${ref.sienne.id}/appels`, undefined, { params: { date: ctx.aujourdhui } }),
   });
 });
@@ -985,6 +985,26 @@ scenario('ROL-11', D_ROL, 'Journal d’audit : l’administrateur seulement', as
 
 scenario('ROL-12', D_ROL, 'Exports complets des données : l’administrateur seulement', async (ctx) =>
   matrice(ctx, { autorises: ['ADMIN_ECOLE'], requete: (s) => appel(s, 'GET', '/exports') }));
+
+scenario('ROL-13', D_ROL, 'Saisie de la vie scolaire (incident) : le CPE seul (v0.47) ; inscription fictive, rien n’est créé', async (ctx) =>
+  matrice(ctx, {
+    autorises: ['SURVEILLANT'],
+    ecriture: true,
+    requete: (s) => appel(s, 'POST', `/inscriptions/${randomUUID()}/incidents`, { type: 'AVERTISSEMENT', motif: 'Recette droits' }),
+  }));
+
+scenario('ROL-14', D_ROL, 'Saisie des inscriptions (modèle d’import des élèves) : l’intendance et le chef d’établissement (v0.47)', async (ctx) =>
+  matrice(ctx, {
+    autorises: ['ADMIN_ECOLE', 'INTENDANT'],
+    requete: (s) => appel(s, 'GET', `/annees/${ctx.ecole(1).anneeId}/eleves/import/modele`, undefined, { fichier: true }),
+  }));
+
+scenario('ROL-15', D_ROL, 'Répartition dans une classe : le censeur et le chef d’établissement (v0.47) ; inscription fictive', async (ctx) =>
+  matrice(ctx, {
+    autorises: ['ADMIN_ECOLE', 'CENSEUR'],
+    ecriture: true,
+    requete: (s) => appel(s, 'PATCH', `/inscriptions/${randomUUID()}/classe`, { classeId: ctx.ecole(1).classes[0].id }),
+  }));
 
 // ===================================================================== MOD : modules
 

@@ -108,7 +108,7 @@ describe('Vie scolaire', () => {
     expect(texte(f)).toContain('0 absence(s) à justifier');
   });
 
-  it('fiche élève : contacts, avertissement avec SMS, convocation ; blâme réservé à la direction', async () => {
+  it('fiche élève : contacts, avertissement avec SMS, convocation, par le CPE', async () => {
     await session(http, 'SURVEILLANT');
     const f = TestBed.createComponent(FicheElevePage);
     f.componentRef.setInput('eleveId', 'e1');
@@ -163,7 +163,8 @@ describe('Vie scolaire', () => {
     f.detectChanges();
     await f.whenStable();
     const types = [...(f.nativeElement as HTMLElement).querySelectorAll('#iType option')].map((o) => o.textContent?.trim());
-    expect(types).toEqual(["Retard à l'entrée", 'Avertissement']);
+    // v0.47 : le CPE prononce aussi blâme et exclusion (il est seul à saisir la vie scolaire)
+    expect(types).toEqual(["Retard à l'entrée", 'Avertissement', 'Blâme', 'Exclusion temporaire']);
     saisir(f, '#iMotif', 'Bavardages répétés');
     cliquer(f, 'Enregistrer');
     await attendre();
@@ -196,8 +197,8 @@ describe('Vie scolaire', () => {
     expect(texte(f)).toContain('Parents convoqués le 20/10/2026 à 09h30');
   });
 
-  it('convocations : un rendez-vous passé se clôture « parent venu »', async () => {
-    await session(http, 'CENSEUR');
+  it('convocations : un rendez-vous passé se clôture « parent venu » (par le CPE)', async () => {
+    await session(http, 'SURVEILLANT');
     const f = TestBed.createComponent(ConvocationsPage);
     f.detectChanges();
     http.expectOne((r) => r.url === '/api/v1/convocations').flush([]);
@@ -219,6 +220,22 @@ describe('Vie scolaire', () => {
     await attendre();
     expect(texte(f)).toContain('Awa OUEDRAOGO : honorée.');
     expect(texte(f)).not.toContain('à clôturer');
+  });
+
+  it('convocations : le censeur consulte sans clôturer (v0.47)', async () => {
+    await session(http, 'CENSEUR');
+    const f = TestBed.createComponent(ConvocationsPage);
+    f.detectChanges();
+    http.expectOne((r) => r.url === '/api/v1/convocations').flush([]);
+    await attendre();
+    cliquer(f, '14 derniers jours');
+    await attendre();
+    const passee = { id: 'cv1', inscriptionId: 'i1', nom: 'OUEDRAOGO', prenoms: 'Awa', classe: '6e A', rendezVous: '2026-01-05T10:00:00', motif: 'Comportement', statut: 'PREVUE', compteRendu: null, incidentId: null };
+    http.expectOne((r) => r.url === '/api/v1/convocations').flush([passee]);
+    await attendre();
+    expect(texte(f)).toContain('Comportement');
+    const boutons = [...(f.nativeElement as HTMLElement).querySelectorAll('button')].map((b) => b.textContent?.trim());
+    expect(boutons).not.toContain('Venu');
   });
 
   it('classe : absences par discipline et par élève, sur l’année puis sur un trimestre', async () => {

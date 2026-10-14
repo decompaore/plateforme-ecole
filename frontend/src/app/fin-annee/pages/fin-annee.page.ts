@@ -298,7 +298,7 @@ function code(e: unknown): string | undefined {
               </div>
               <div class="champ">
                 <label for="redMax">Redoublements au plus dans un niveau</label>
-                <input id="redMax" name="redMax" type="number" min="0" max="5" [(ngModel)]="redoublementsMax" [disabled]="!admin()" placeholder="sans limite" />
+                <input id="redMax" name="redMax" type="number" min="1" max="5" [(ngModel)]="redoublementsMax" [disabled]="!admin()" placeholder="sans limite" />
               </div>
             </div>
             @if (admin()) {
@@ -315,7 +315,7 @@ function code(e: unknown): string | undefined {
                 @for (x of pp.poids; track x.ordre) {
                   <label>
                     {{ pp.libelles[x.ordre] ?? 'Période ' + x.ordre }}
-                    <input type="number" min="0" max="10" step="0.5" [(ngModel)]="x.poids" [name]="'poids' + pp.profil.id + x.ordre" [disabled]="!admin()" />
+                    <input type="number" min="0.5" max="10" step="0.5" [(ngModel)]="x.poids" [name]="'poids' + pp.profil.id + x.ordre" [disabled]="!admin()" />
                   </label>
                 }
                 @if (admin()) {
@@ -488,7 +488,8 @@ export class FinAnneePage {
 
   protected readonly direction = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'CENSEUR'));
   protected readonly admin = computed(() => this.session.aLeRole('ADMIN_ECOLE'));
-  protected readonly peutAppliquer = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'SECRETARIAT'));
+  /** Le censeur répartit les élèves dans les classes (v0.47). */
+  protected readonly peutAppliquer = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'CENSEUR'));
 
   protected readonly periodes = signal<PeriodeVue[]>([]);
   protected readonly classes = signal<ClasseVue[]>([]);

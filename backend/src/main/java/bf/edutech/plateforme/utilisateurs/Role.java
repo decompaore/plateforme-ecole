@@ -15,6 +15,10 @@ public enum Role {
     CHEF_TRAVAUX,
     SECRETARIAT,
     INTENDANT,
+    /**
+     * Conseiller principal d'éducation (CPE), qui remplace le surveillant général : seul à modifier la vie scolaire
+     * (incidents, convocations, justificatifs). Le nom technique est conservé pour ne pas migrer les comptes.
+     */
     SURVEILLANT,
     ENSEIGNANT,
     PARENT,

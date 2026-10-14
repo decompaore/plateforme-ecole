@@ -21,7 +21,10 @@ type Filtre = 'toutes' | 'a-viser' | 'non-commencees';
   imports: [RouterLink, RechercheComponent],
   template: `
     <div class="page large">
-      <h1>Progressions</h1>
+      <div class="entete-section">
+        <h1>Progressions</h1>
+        <a class="bouton secondaire petit" routerLink="/progression/cahiers">Visa mensuel des cahiers de textes</a>
+      </div>
       @if (domaines().length) {
         <p class="doux">{{ domaines().join(' · ') }}</p>
       }

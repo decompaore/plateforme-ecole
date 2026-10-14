@@ -179,3 +179,63 @@ export function effectifsPrevus(
     depasse: classe.effectifMax !== null && total > classe.effectifMax,
   };
 }
+
+// ---------------------------------------------------------------- Examens nationaux (v0.46)
+
+export interface ClasseExamenVue {
+  classeId: string;
+  classeCode: string;
+  inscrits: number;
+  resultatsConnus: number;
+  admis: number;
+  taux: number | null;
+}
+
+export interface ResultatExamenVue {
+  annee: string;
+  examen: string;
+  source: 'CALCULE' | 'SAISI';
+  historiqueId: string | null;
+  inscrits: number;
+  resultatsConnus: number;
+  admis: number;
+  resultatsFilles: number | null;
+  admisFilles: number | null;
+  taux: number | null;
+  tauxFilles: number | null;
+  tauxGarcons: number | null;
+  classes: ClasseExamenVue[];
+}
+
+export interface TableauExamensVue {
+  examens: string[];
+  annees: string[];
+  resultats: ResultatExamenVue[];
+}
+
+export interface SaisieHistorique {
+  annee: string;
+  examen: string;
+  candidats: number | null;
+  admis: number | null;
+  candidatesFilles: number | null;
+  admisesFilles: number | null;
+}
+
+/** « 62,5 % ». */
+export function pourcent(t: number | null | undefined): string {
+  return t === null || t === undefined ? '—' : `${String(Math.round(Number(t) * 10) / 10).replace('.', ',')} %`;
+}
+
+/** Série d'un examen, de la plus ancienne année à la plus récente, avec l'écart à l'année précédente. */
+export function serieExamen(t: TableauExamensVue, examen: string): { annee: string; taux: number | null; ecart: number | null }[] {
+  const lignes = t.resultats.filter((r) => r.examen === examen).sort((a, b) => a.annee.localeCompare(b.annee));
+  return lignes.map((r, i) => {
+    const prec = i > 0 ? lignes[i - 1].taux : null;
+    return {
+      annee: r.annee,
+      taux: r.taux,
+      ecart: r.taux !== null && prec !== null ? Math.round((Number(r.taux) - Number(prec)) * 10) / 10 : null,
+    };
+  });
+}

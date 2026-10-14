@@ -70,6 +70,22 @@ changement n'est demandé.
 | `POST /api/v1/comptes/{utilisateurId}/reinitialisation` | ADMIN_ECOLE | (v0.27) Mot de passe oublié : nouveau mot de passe provisoire renvoyé **une seule fois** (`motDePasseTemporaire`), `autresEtablissements` |
 | `POST /api/v1/comptes/{utilisateurId}/deverrouillage` | ADMIN_ECOLE | (v0.27) Lève le blocage sans changer le mot de passe |
 
+### Intérim du chef d'établissement (v0.47)
+
+En son absence, le chef d'établissement désigne le censeur (ou, à défaut, le chef des travaux) pour assurer la
+suppléance. Pendant la période, la fonction SQL `auth_etablissements_utilisateur` ajoute `ADMIN_ECOLE` aux rôles de
+l'intérimaire : ses jetons le portent **à sa prochaine connexion ou au prochain renouvellement de session** (jeton
+d'accès de courte durée). Migration `V34` (table `interim_direction`).
+
+| Méthode et chemin | Accès | Description |
+|---|---|---|
+| `GET /api/v1/interims` | ADMIN_ECOLE, CENSEUR, CHEF_TRAVAUX | Intérims (prévus, en cours, terminés), le plus récent d'abord |
+| `POST /api/v1/interims` `{"utilisateurId":"…","du":"2026-10-20","au":"2026-10-31","motif":"Mission"}` | ADMIN_ECOLE en titre | Désigne l'intérimaire : pas dans le passé, 180 jours au plus, sans chevauchement (`409 INTERIM_EXISTANT`) ; censeur ou chef des travaux actif (`409 INTERIMAIRE_NON_ELIGIBLE`) |
+| `POST /api/v1/interims/{id}/fin` | ADMIN_ECOLE en titre | Fin anticipée (retour du chef) ou annulation d'un intérim prévu ; `409 INTERIM_TERMINE` |
+
+« En titre » : membre `ADMIN_ECOLE` de l'établissement ; un intérimaire ne désigne ni ne termine d'intérim (`403`).
+Écran : « Personnel › Intérim du chef d'établissement ».
+
 ### Réinitialisation d'un mot de passe oublié (v0.27)
 
 - Le compte doit avoir un **rôle actif** dans l'établissement (`404` sinon) ; l'administrateur ne réinitialise pas son

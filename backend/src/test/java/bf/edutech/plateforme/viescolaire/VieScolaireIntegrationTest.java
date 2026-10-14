@@ -121,7 +121,7 @@ class VieScolaireIntegrationTest {
         UUID ali = inscrire(eleve("SAWADOGO", "Ali", null));
         UUID surveillant = membre(Role.SURVEILLANT);
 
-        // Surveillant : retard sans SMS par défaut, avertissement avec SMS, pas de blâme
+        // CPE (rôle SURVEILLANT, v0.47) : retard sans SMS par défaut, avertissement avec SMS
         String retard = incident(surveillant, "SURVEILLANT", awa,
                 "{\"type\":\"RETARD\",\"minutesRetard\":20,\"motif\":\"Arrivée à 7 h 20\"}")
                 .andExpect(status().isCreated())
@@ -134,12 +134,17 @@ class VieScolaireIntegrationTest {
                 .andExpect(jsonPath("$.famillePrevenue").value(true))
                 .andReturn().getResponse().getContentAsString();
         UUID avertissementId = UUID.fromString(avertissement.replaceAll(".*\"id\":\"([0-9a-f-]+)\".*", "$1"));
-        incident(surveillant, "SURVEILLANT", awa, "{\"type\":\"BLAME\",\"motif\":\"Insolence\"}")
+        // Le censeur et le chef des travaux consultent la vie scolaire sans la modifier
+        UUID censeur = membre(Role.CENSEUR);
+        UUID chefTravaux = membre(Role.CHEF_TRAVAUX);
+        incident(censeur, "CENSEUR", awa, "{\"type\":\"BLAME\",\"motif\":\"Insolence\"}")
+                .andExpect(status().isForbidden());
+        incident(chefTravaux, "CHEF_TRAVAUX", awa, "{\"type\":\"BLAME\",\"motif\":\"Insolence\"}")
                 .andExpect(status().isForbidden());
         assertThat(enAttente()).anySatisfy(n -> assertThat(n.message())
                 .contains("avertissement pour Awa OUEDRAOGO (6e A) le " + j.format(JOUR) + " : Bavardages répétés."));
 
-        // Enseignant : seulement dans les classes où il enseigne
+        // Enseignant : il ne saisit plus d'incident, même dans ses classes ; il les signale au CPE
         String tel = telephone();
         UUID engagement = dans(() -> enseignants.engager(new DonneesEngagement(tel, null, "SANOU", "Paul", Sexe.M,
                 null, TypeEngagement.TITULAIRE, j.minusDays(30), null, null))).enseignant().engagementId();
@@ -148,38 +153,47 @@ class VieScolaireIntegrationTest {
                 .andExpect(status().isForbidden());
         dans(() -> enseignants.affecter(classe, matiere, engagement));
         incident(professeur, "ENSEIGNANT", ali, "{\"type\":\"AVERTISSEMENT\",\"motif\":\"Devoir non fait\"}")
+                .andExpect(status().isForbidden());
+        incident(surveillant, "SURVEILLANT", ali, "{\"type\":\"AVERTISSEMENT\",\"motif\":\"Devoir non fait\"}")
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.famillePrevenue").value(false));      // Ali n'a pas de contact
 
-        // Direction : exclusion temporaire de 3 jours
-        IncidentVue exclusion = commeCenseur(() -> vieScolaire.signaler(awa, new SaisieIncident(
+        // CPE : exclusion temporaire de 3 jours (le proviseur n'écrit pas non plus)
+        assertThatThrownBy(() -> comme("ROLE_ADMIN_ECOLE", () -> vieScolaire.signaler(awa, new SaisieIncident(
+                TypeIncident.AVERTISSEMENT, null, "Chef", null, null, null, null))))
+                .isInstanceOf(bf.edutech.plateforme.socle.erreurs.AccesRefuseException.class);
+        IncidentVue exclusion = commeCpe(() -> vieScolaire.signaler(awa, new SaisieIncident(
                 TypeIncident.EXCLUSION_TEMPORAIRE, null, "Bagarre", null, j.plusDays(1), 3, null)));
         assertThat(exclusion.finExclusion()).isEqualTo(j.plusDays(3));
         assertThat(enAttente()).anySatisfy(n -> assertThat(n.message()).contains("exclusion temporaire de Awa "
                 + "OUEDRAOGO (6e A) pour 3 jour(s), du " + j.plusDays(1).format(JOUR) + " au "
                 + j.plusDays(3).format(JOUR) + " : Bagarre."));
-        assertThatThrownBy(() -> commeCenseur(() -> vieScolaire.signaler(awa, new SaisieIncident(TypeIncident.RETARD,
+        assertThatThrownBy(() -> commeCpe(() -> vieScolaire.signaler(awa, new SaisieIncident(TypeIncident.RETARD,
                 null, "Sans durée", null, null, null, null)))).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> commeCenseur(() -> vieScolaire.signaler(awa, new SaisieIncident(
+        assertThatThrownBy(() -> commeCpe(() -> vieScolaire.signaler(awa, new SaisieIncident(
                 TypeIncident.AVERTISSEMENT, j.plusDays(1), "Dans le futur", null, null, null, null))))
                 .isInstanceOf(IllegalArgumentException.class);
 
-        // Annulations : l'auteur dans les 24 h, pas l'incident d'un autre ; la direction toujours
+        // Annulations : le CPE seul
         String motif = "{\"motif\":\"Saisi par erreur\"}";
         mvc.perform(post("/api/v1/incidents/{id}/annulation", retardId).with(jeton(surveillant, "SURVEILLANT"))
                         .contentType(MediaType.APPLICATION_JSON).content(motif))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.annule").value(true));
-        mvc.perform(post("/api/v1/incidents/{id}/annulation", exclusion.id()).with(jeton(surveillant, "SURVEILLANT"))
+        mvc.perform(post("/api/v1/incidents/{id}/annulation", exclusion.id()).with(jeton(censeur, "CENSEUR"))
                         .contentType(MediaType.APPLICATION_JSON).content(motif))
                 .andExpect(status().isForbidden());
-        commeCenseur(() -> vieScolaire.annulerIncident(avertissementId, "Erreur d'élève"));
+        commeCpe(() -> vieScolaire.annulerIncident(avertissementId, "Erreur d'élève"));
         assertThat(dans(() -> notifications.dernieres(StatutNotification.ANNULE, 10)))
                 .anySatisfy(n -> assertThat(n.message()).contains("Bavardages répétés"));
-        assertThatThrownBy(() -> commeCenseur(() -> vieScolaire.annulerIncident(avertissementId, "encore")))
+        assertThatThrownBy(() -> commeCpe(() -> vieScolaire.annulerIncident(avertissementId, "encore")))
                 .isInstanceOf(RegleMetierException.class).extracting("code").isEqualTo("INCIDENT_DEJA_ANNULE");
 
-        // Convocation : SMS avec la date et l'heure
+        // Convocation : SMS avec la date et l'heure ; le censeur ne convoque pas
+        mvc.perform(post("/api/v1/inscriptions/{id}/convocations", awa).with(jeton(censeur, "CENSEUR"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"rendezVous\":\"%s\",\"motif\":\"x\"}".formatted(j.plusDays(2).atTime(10, 0))))
+                .andExpect(status().isForbidden());
         LocalDateTime rdv = j.plusDays(2).atTime(10, 0);
         String convocation = mvc.perform(post("/api/v1/inscriptions/{id}/convocations", awa)
                         .with(jeton(surveillant, "SURVEILLANT")).contentType(MediaType.APPLICATION_JSON)
@@ -197,15 +211,15 @@ class VieScolaireIntegrationTest {
                         .content("{\"statut\":\"HONOREE\",\"compteRendu\":\"Père venu\"}"))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.code").value("RENDEZ_VOUS_A_VENIR"));
-        var seconde = commeCenseur(() -> vieScolaire.convoquer(awa, j.plusDays(5).atTime(8, 30), "Suivi", null));
-        commeCenseur(() -> vieScolaire.cloturer(seconde.id(), StatutConvocation.ANNULEE, null));
+        var seconde = commeCpe(() -> vieScolaire.convoquer(awa, j.plusDays(5).atTime(8, 30), "Suivi", null));
+        commeCpe(() -> vieScolaire.cloturer(seconde.id(), StatutConvocation.ANNULEE, null));
         assertThat(enAttente()).noneSatisfy(n -> assertThat(n.message()).contains("Suivi"));
         assertThat(enAttente()).noneSatisfy(n -> assertThat(n.message()).contains("est annulée"));
-        assertThatThrownBy(() -> commeCenseur(() -> vieScolaire.cloturer(seconde.id(), StatutConvocation.ANNULEE,
+        assertThatThrownBy(() -> commeCpe(() -> vieScolaire.cloturer(seconde.id(), StatutConvocation.ANNULEE,
                 null))).isInstanceOf(RegleMetierException.class).extracting("code").isEqualTo("CONVOCATION_CLOSE");
 
         // Historique (direction) : tout, y compris les annulations ; synthèse sans les annulés
-        HistoriqueVue h = commeCenseur(() -> vieScolaire.historique(awa));
+        HistoriqueVue h = commeCpe(() -> vieScolaire.historique(awa));
         assertThat(h.incidents()).hasSize(3);
         assertThat(h.synthese().retards()).isZero();
         assertThat(h.synthese().avertissements()).isZero();
@@ -230,6 +244,11 @@ class VieScolaireIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[?(@.prenoms == 'Ali')].synthese.avertissements").value(1))
                 .andExpect(jsonPath("$[?(@.prenoms == 'Awa')].synthese.exclusions").value(1));
+        mvc.perform(get("/api/v1/classes/{id}/vie-scolaire", classe).param("du", j.minusDays(7).toString())
+                        .param("au", j.toString()).with(jeton(chefTravaux, "CHEF_TRAVAUX")))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/v1/inscriptions/{id}/vie-scolaire", awa).with(jeton(censeur, "CENSEUR")))
+                .andExpect(status().isOk());
         mvc.perform(get("/api/v1/convocations").param("du", j.toString()).param("au", j.plusDays(7).toString())
                         .with(jeton(surveillant, "SURVEILLANT")))
                 .andExpect(status().isOk())
@@ -270,10 +289,14 @@ class VieScolaireIntegrationTest {
                 .findFirst().orElseThrow().utilisateurId();
     }
 
-    private <T> T commeCenseur(Supplier<T> action) {
+    private <T> T commeCpe(Supplier<T> action) {
+        return comme("ROLE_SURVEILLANT", action);
+    }
+
+    private <T> T comme(String role, Supplier<T> action) {
         Authentication precedente = SecurityContextHolder.getContext().getAuthentication();
         SecurityContextHolder.getContext()
-                .setAuthentication(new TestingAuthenticationToken("censeur", null, "ROLE_CENSEUR"));
+                .setAuthentication(new TestingAuthenticationToken("cpe", null, role));
         try {
             return dans(action);
         } finally {

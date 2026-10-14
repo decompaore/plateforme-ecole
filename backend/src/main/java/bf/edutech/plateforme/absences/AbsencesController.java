@@ -40,11 +40,14 @@ public class AbsencesController {
 
     private static final ZoneId OUAGADOUGOU = ZoneId.of("Africa/Ouagadougou");
 
-    static final String APPEL = "hasAnyRole('ENSEIGNANT','SURVEILLANT','CENSEUR','ADMIN_ECOLE')";
+    /** Appel (v0.47) : les enseignants dans leurs classes, le CPE (rôle SURVEILLANT) partout. */
+    static final String APPEL = "hasAnyRole('ENSEIGNANT','SURVEILLANT')";
     static final String CONSULTATION =
-            "hasAnyRole('ENSEIGNANT','SURVEILLANT','CENSEUR','ADMIN_ECOLE','SECRETARIAT','INTENDANT')";
-    static final String PERSONNEL = "hasAnyRole('SURVEILLANT','CENSEUR','ADMIN_ECOLE','SECRETARIAT','INTENDANT')";
-    static final String JUSTIFICATION = "hasAnyRole('SURVEILLANT','CENSEUR','ADMIN_ECOLE','SECRETARIAT')";
+            "hasAnyRole('ENSEIGNANT','SURVEILLANT','CENSEUR','CHEF_TRAVAUX','ADMIN_ECOLE','SECRETARIAT','INTENDANT')";
+    static final String PERSONNEL =
+            "hasAnyRole('SURVEILLANT','CENSEUR','CHEF_TRAVAUX','ADMIN_ECOLE','SECRETARIAT','INTENDANT')";
+    /** Justificatifs : le CPE seul (vie scolaire). */
+    static final String JUSTIFICATION = "hasRole('SURVEILLANT')";
 
     public record LotAppels(@NotEmpty @Size(max = AppelsService.LOT_MAX) List<@NotNull DonneesAppel> appels) {
     }

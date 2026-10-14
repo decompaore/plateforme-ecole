@@ -29,12 +29,42 @@ public class ProgressionController {
     static final String LECTURE = "hasAnyRole('ADMIN_ECOLE','CENSEUR','CHEF_TRAVAUX','ENSEIGNANT')";
     private static final String BASE = "/api/v1/classes/{classeId}/matieres/{matiereId}/progression";
 
+    public record DemandeVisaCahier(java.time.YearMonth mois, String observation) {
+    }
+
     private final ProgressionService service;
     private final CahierTextesService cahier;
+    private final VisasCahierService visasCahier;
 
-    ProgressionController(ProgressionService service, CahierTextesService cahier) {
+    ProgressionController(ProgressionService service, CahierTextesService cahier, VisasCahierService visasCahier) {
         this.service = service;
         this.cahier = cahier;
+        this.visasCahier = visasCahier;
+    }
+
+    // ------------------------------------------------------------------ visa mensuel du cahier de textes (v0.47)
+
+    @GetMapping("/api/v1/classes/{classeId}/matieres/{matiereId}/cahier-textes/visas")
+    @PreAuthorize(LECTURE)
+    public List<VisasCahierService.VisaCahierVue> visasCahier(@PathVariable UUID classeId,
+            @PathVariable UUID matiereId) {
+        return visasCahier.visas(classeId, matiereId);
+    }
+
+    @PostMapping("/api/v1/classes/{classeId}/matieres/{matiereId}/cahier-textes/visas")
+    @ResponseStatus(HttpStatus.CREATED)
+    @PreAuthorize(SUPERVISION)
+    public VisasCahierService.VisaCahierVue viserCahier(@PathVariable UUID classeId, @PathVariable UUID matiereId,
+            @RequestBody DemandeVisaCahier d) {
+        return visasCahier.viser(classeId, matiereId, d.mois(), d.observation());
+    }
+
+    /** {@code mois} : AAAA-MM (par défaut le mois en cours). */
+    @GetMapping("/api/v1/annees/{anneeId}/cahiers-textes")
+    @PreAuthorize(SUPERVISION)
+    public List<VisasCahierService.SuiviCahierVue> suiviCahiers(@PathVariable UUID anneeId,
+            @org.springframework.web.bind.annotation.RequestParam(required = false) java.time.YearMonth mois) {
+        return visasCahier.suivi(anneeId, mois);
     }
 
     @GetMapping(BASE)

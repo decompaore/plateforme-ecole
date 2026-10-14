@@ -1,5 +1,6 @@
 package bf.edutech.plateforme.eleves;
 
+import java.util.Objects;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -44,10 +45,20 @@ public class InscriptionsService {
 
     @Transactional
     public InscriptionVue inscrire(UUID eleveId, UUID classeId, boolean redoublant, StatutBourse statutBourse) {
+        return inscrire(eleveId, classeId, redoublant, statutBourse, null);
+    }
+
+    /** Inscription avec le mode d'admission (v0.47), qui détermine les pièces attendues du dossier. */
+    @Transactional
+    public InscriptionVue inscrire(UUID eleveId, UUID classeId, boolean redoublant, StatutBourse statutBourse,
+            ModeAdmission mode) {
         Eleve eleve = chargerEleve(eleveId);
         ClasseVue classe = registre.classe(classeId);
         AnneeVue annee = registre.anneeOuverte(classe.anneeId());
         Inscription inscription = registre.inscrire(eleve.getId(), classe, redoublant, statutBourse);
+        if (mode != null) {
+            inscription.changerModeAdmission(mode);
+        }
         audit.enregistrer("ELEVE_INSCRIT", eleve.getMatricule(),
                 Map.of("annee", annee.libelle(), "classe", classe.code()));
         return InscriptionVue.depuis(inscription, eleve, annee.libelle(), classe.code());
@@ -95,8 +106,15 @@ public class InscriptionsService {
         }
         registre.anneeOuverte(inscription.getAnneeId());
         if (!cible.id().equals(inscription.getClasseId())) {
+            ClasseVue actuelle = registre.classe(inscription.getClasseId());
+            if (UtilisateurConnecte.aUnRole("CENSEUR") && !UtilisateurConnecte.aUnRole("ADMIN_ECOLE")
+                    && !Objects.equals(actuelle.niveau(), cible.niveau())) {
+                throw new RegleMetierException("CHANGEMENT_DE_NIVEAU", "Le censeur répartit les élèves entre les "
+                        + "classes d'un même niveau ; un changement de niveau (" + actuelle.niveau() + " → "
+                        + cible.niveau() + ") relève du chef d'établissement");
+            }
             registre.verifierPlace(cible);
-            String ancienne = registre.classe(inscription.getClasseId()).code();
+            String ancienne = actuelle.code();
             inscription.changerClasse(cible.id());
             audit.enregistrer("CHANGEMENT_CLASSE", matricule(inscription), Map.of("de", ancienne, "vers", cible.code()));
         }

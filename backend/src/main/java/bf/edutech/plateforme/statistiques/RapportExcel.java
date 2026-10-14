@@ -180,7 +180,7 @@ class RapportExcel {
             case CHEF_TRAVAUX -> "Chef des travaux";
             case SECRETARIAT -> "Secrétariat";
             case INTENDANT -> "Intendance";
-            case SURVEILLANT -> "Surveillance";
+            case SURVEILLANT -> "Conseiller principal d'éducation (CPE)";
             default -> role.name();
         };
     }

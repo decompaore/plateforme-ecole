@@ -20,7 +20,7 @@ function veille(jour: string): string {
 
 /**
  * Absences du jour : tous les élèves absents ou en retard dans l'établissement, classe
- * par classe, d'après les appels reçus. C'est la liste de travail du surveillant :
+ * par classe, d'après les appels reçus. C'est la liste de travail du CPE :
  * appeler les familles, enregistrer les justificatifs.
  */
 @Component({
@@ -230,7 +230,7 @@ export class AbsencesJourPage implements OnInit {
   protected readonly ouvert = signal<string | null>(null);
   protected readonly message = signal<string | null>(null);
   protected readonly peutJustifier = computed(() =>
-    this.session.roles().some((r) => ['SURVEILLANT', 'CENSEUR', 'ADMIN_ECOLE', 'SECRETARIAT'].includes(r)),
+    this.session.roles().includes('SURVEILLANT'),
   );
 
   protected readonly affiches = computed(() =>

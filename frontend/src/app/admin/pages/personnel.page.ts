@@ -12,6 +12,7 @@ import { AdminNavComponent } from '../admin-nav.component';
 import {
   AffectationVue,
   EnseignantVue,
+  InterimVue,
   LIBELLE_ROLE,
   LIBELLE_STATUT_ENGAGEMENT,
   MembreVue,
@@ -153,8 +154,45 @@ export class PersonnelPage implements OnInit {
   protected readonly mPrenoms = signal('');
   protected readonly mRole = signal<Role>('SECRETARIAT');
 
+  // Intérim du chef d'établissement (v0.47)
+  protected readonly aujourdhui = dateLocale();
+  protected readonly interims = signal<InterimVue[] | null>(null);
+  protected readonly iPersonne = signal('');
+  protected readonly iDu = signal(dateLocale());
+  protected readonly iAu = signal('');
+  protected readonly iMotif = signal('');
+  protected readonly interimairesPossibles = computed(() =>
+    this.membres().filter((m) => m.actif && (m.role === 'CENSEUR' || m.role === 'CHEF_TRAVAUX')),
+  );
+
   async ngOnInit(): Promise<void> {
     await this.recharger();
+  }
+
+  protected async chargerInterims(): Promise<void> {
+    const l = await this.action.executer(() => this.api.interims());
+    if (l) {
+      this.interims.set(l);
+    }
+  }
+
+  protected async designerInterim(): Promise<void> {
+    const i = await this.action.executer(() =>
+      this.api.designerInterim({ utilisateurId: this.iPersonne(), du: this.iDu(), au: this.iAu(), motif: this.iMotif().trim() }),
+    );
+    if (i) {
+      this.interims.set([i, ...(this.interims() ?? [])]);
+      this.iPersonne.set('');
+      this.iAu.set('');
+      this.iMotif.set('');
+    }
+  }
+
+  protected async terminerInterim(id: string): Promise<void> {
+    const i = await this.action.executer(() => this.api.terminerInterim(id));
+    if (i) {
+      this.interims.set((this.interims() ?? []).map((x) => (x.id === id ? i : x)));
+    }
   }
 
   private async recharger(): Promise<void> {

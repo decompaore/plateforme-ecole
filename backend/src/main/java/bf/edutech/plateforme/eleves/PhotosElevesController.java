@@ -42,14 +42,14 @@ public class PhotosElevesController {
 
     @PostMapping(path = "/api/v1/eleves/{id}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize(Roles.GESTION)
+    @PreAuthorize(Roles.SAISIE)
     public void enregistrer(@PathVariable UUID id, @RequestParam("fichier") MultipartFile fichier) throws IOException {
         photos.enregistrer(id, fichier.getBytes());
     }
 
     @DeleteMapping("/api/v1/eleves/{id}/photo")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    @PreAuthorize(Roles.GESTION)
+    @PreAuthorize(Roles.MODIFICATION)
     public void supprimer(@PathVariable UUID id) {
         photos.supprimer(id);
     }
@@ -69,13 +69,13 @@ public class PhotosElevesController {
     }
 
     @GetMapping("/api/v1/classes/{id}/cartes")
-    @PreAuthorize(Roles.GESTION)
+    @PreAuthorize(Roles.DOCUMENTS)
     public ResponseEntity<byte[]> cartesClasse(@PathVariable UUID id) {
         return pdf(photos.cartesClasse(id), "cartes-scolaires.pdf");
     }
 
     @GetMapping("/api/v1/eleves/{id}/carte")
-    @PreAuthorize(Roles.GESTION)
+    @PreAuthorize(Roles.DOCUMENTS)
     public ResponseEntity<byte[]> carte(@PathVariable UUID id) {
         return pdf(photos.carte(id), "carte-scolaire.pdf");
     }

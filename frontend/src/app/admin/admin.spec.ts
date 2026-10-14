@@ -219,7 +219,13 @@ describe('Espace d’administration', () => {
     photo.flush(null);
     await attendre();
     const inscription = http.expectOne('/api/v1/inscriptions');
-    expect(inscription.request.body).toEqual({ eleveId: 'el1', classeId: 'c2', redoublant: false, statutBourse: 'NON_BOURSIER' });
+    expect(inscription.request.body).toEqual({
+      eleveId: 'el1',
+      classeId: 'c2',
+      redoublant: false,
+      statutBourse: 'NON_BOURSIER',
+      modeAdmission: 'AFFECTATION_ETAT',
+    });
     inscription.flush({ id: 'i1', classeCode: '2nde F3' });
     await attendre();
     http.expectOne((r) => r.url === '/api/v1/eleves' && r.method === 'GET').flush({ elements: [], page: 0, taille: 20, total: 0, nombrePages: 0 });

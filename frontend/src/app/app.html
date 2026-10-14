@@ -6,6 +6,11 @@
         <span class="utilisateur">{{ profil.prenoms }} {{ profil.nom }}</span>
       }
     </a>
+    @if (messagerie.nonLus() > 0) {
+      <a routerLink="/messages" class="compteur messages" [attr.aria-label]="messagerie.nonLus() + ' message(s) non lu(s)'" (click)="menuOuvert.set(false)">
+        ✉ {{ messagerie.nonLus() }}
+      </a>
+    }
     @if (aEnvoyer() > 0 || refuses() > 0) {
       <a
         routerLink="/envois"
@@ -30,6 +35,9 @@
   @if (menuOuvert()) {
     <nav class="tiroir" (click)="menuOuvert.set(false)">
       <a routerLink="/">Accueil</a>
+      @if (profil.etablissement && !session.horsConnexion()) {
+        <a routerLink="/messages">Messages@if (messagerie.nonLus() > 0) { ({{ messagerie.nonLus() }}) }</a>
+      }
       @if (session.aLeRole('ENSEIGNANT')) {
         <a routerLink="/appel">Faire l'appel</a>
         <a routerLink="/notes">Saisie des notes</a>
@@ -51,6 +59,9 @@
         <a routerLink="/admin/eleves">Élèves</a>
         <a routerLink="/admin/bulletins">Bulletins</a>
         <a routerLink="/admin/fin-annee">Fin d'année</a>
+        @if (session.aLeRole('ADMIN_ECOLE', 'CENSEUR')) {
+          <a routerLink="/admin/examens">Examens</a>
+        }
       }
       @if (session.aLeRole('ADMIN_ECOLE')) {
         <a routerLink="/admin/personnel">Personnel</a>

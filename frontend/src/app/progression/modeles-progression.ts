@@ -222,3 +222,42 @@ export function versEdition(s: SequenceVue): SequenceEditee {
     semaineDebut: s.semaineDebut ?? '',
   };
 }
+
+/** Visa mensuel du cahier de textes (v0.47). */
+export interface VisaCahierVue {
+  id: string;
+  classeId: string;
+  matiereId: string;
+  /** AAAA-MM */
+  mois: string;
+  seances: number;
+  observation: string | null;
+  visePar: string | null;
+  viseLe: string;
+}
+
+export interface SuiviCahierVue {
+  classeId: string;
+  classeCode: string;
+  matiereId: string;
+  matiereLibelle: string;
+  domaine: Domaine;
+  enseignant: string | null;
+  mois: string;
+  seances: number;
+  vise: boolean;
+  visePar: string | null;
+  viseLe: string | null;
+}
+
+/** « 2026-10 » → « octobre 2026 ». */
+export function libelleMois(mois: string): string {
+  const [a, m] = mois.split('-').map(Number);
+  const noms = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  return a && m ? `${noms[m - 1]} ${a}` : mois;
+}
+
+/** Mois en cours (AAAA-MM), à l'heure de Ouagadougou (UTC). */
+export function moisCourant(maintenant = new Date()): string {
+  return maintenant.toISOString().slice(0, 7);
+}

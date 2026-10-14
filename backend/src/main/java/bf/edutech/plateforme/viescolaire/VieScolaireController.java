@@ -30,9 +30,11 @@ import bf.edutech.plateforme.viescolaire.VieScolaireService.SaisieIncident;
 @RestController
 public class VieScolaireController {
 
-    static final String SAISIE = "hasAnyRole('SURVEILLANT','ENSEIGNANT','CENSEUR','ADMIN_ECOLE')";
-    static final String ENCADREMENT = "hasAnyRole('SURVEILLANT','CENSEUR','ADMIN_ECOLE')";
-    static final String CONSULTATION = "hasAnyRole('SURVEILLANT','CENSEUR','ADMIN_ECOLE','SECRETARIAT')";
+    /** Saisie (v0.47) : le Conseiller principal d'éducation (CPE, rôle SURVEILLANT) seul. */
+    static final String SAISIE = "hasRole('SURVEILLANT')";
+    static final String ENCADREMENT = SAISIE;
+    /** Consultation : CPE, chef d'établissement, censeur, chef des travaux, secrétariat. */
+    static final String CONSULTATION = "hasAnyRole('SURVEILLANT','CENSEUR','CHEF_TRAVAUX','ADMIN_ECOLE','SECRETARIAT')";
 
     public record DemandeMotif(@NotBlank @Size(max = 300) String motif) {
     }

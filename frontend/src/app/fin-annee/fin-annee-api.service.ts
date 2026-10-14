@@ -12,6 +12,8 @@ import {
   PoidsPeriode,
   ResultatPlan,
   SaisieDecision,
+  SaisieHistorique,
+  TableauExamensVue,
   TableauPassageVue,
 } from './modeles-fin-annee';
 
@@ -96,5 +98,29 @@ export class FinAnneeApi {
 
   ouvrir(anneeId: string): Promise<AnneeVue> {
     return firstValueFrom(this.http.post<AnneeVue>(`${API}/annees/${anneeId}/ouverture`, null));
+  }
+
+  // ---------- Examens nationaux (v0.46)
+
+  examens(): Promise<TableauExamensVue> {
+    return firstValueFrom(this.http.get<TableauExamensVue>(`${API}/examens/resultats`));
+  }
+
+  exportExamens(format: 'xlsx' | 'pdf'): Promise<Blob> {
+    return firstValueFrom(
+      this.http.get(`${API}/examens/resultats/export`, { responseType: 'blob', params: new HttpParams().set('format', format) }),
+    );
+  }
+
+  ajouterHistorique(s: SaisieHistorique): Promise<TableauExamensVue> {
+    return firstValueFrom(this.http.post<TableauExamensVue>(`${API}/examens/historique`, s));
+  }
+
+  modifierHistorique(id: string, s: SaisieHistorique): Promise<TableauExamensVue> {
+    return firstValueFrom(this.http.put<TableauExamensVue>(`${API}/examens/historique/${id}`, s));
+  }
+
+  supprimerHistorique(id: string): Promise<TableauExamensVue> {
+    return firstValueFrom(this.http.delete<TableauExamensVue>(`${API}/examens/historique/${id}`));
   }
 }

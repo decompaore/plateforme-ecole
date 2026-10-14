@@ -147,7 +147,7 @@ public class PassageController {
 
     /** {"classeAdmisId":"…","classeRedoublantsId":"…","conserverStatutBourse":false}. */
     @PostMapping("/api/v1/classes/{classeId}/decisions/reinscriptions")
-    @PreAuthorize("hasAnyRole('SECRETARIAT','ADMIN_ECOLE')")
+    @PreAuthorize("hasAnyRole('CENSEUR','ADMIN_ECOLE')")       // v0.47 : le censeur répartit
     public ReinscriptionsVue reinscrire(@PathVariable UUID classeId, @RequestBody DemandeReinscriptions d) {
         return passage.reinscrire(classeId, d.classeAdmisId(), d.classeRedoublantsId(),
                 Boolean.TRUE.equals(d.conserverStatutBourse()));
