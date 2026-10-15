@@ -7,6 +7,7 @@ import { RouterLink } from '@angular/router';
 
 import { AdministrateurPaysVue, CompteDirectionVue, DirectionVue, DonneesPays, MinistereVue, PaysVue, RapportImportDirections } from '../modeles-territoire';
 import { SessionService } from '../../core/session.service';
+import { ArmoiriesPaysComponent } from '../armoiries-pays.component';
 import { MotDePasseTemporaireComponent } from '../mot-de-passe-temporaire.component';
 import { PlateformeNavComponent } from '../plateforme-nav.component';
 import { TerritoireApi } from '../territoire-api.service';
@@ -51,7 +52,7 @@ const PAYS_VIDE: DonneesPays = {
  */
 @Component({
   selector: 'app-territoire',
-  imports: [FormsModule, LowerCasePipe, RouterLink, PlateformeNavComponent, MotDePasseTemporaireComponent],
+  imports: [FormsModule, LowerCasePipe, RouterLink, PlateformeNavComponent, MotDePasseTemporaireComponent, ArmoiriesPaysComponent],
   template: `
     <div class="page large">
       <h1>Territoire</h1>
@@ -89,6 +90,7 @@ const PAYS_VIDE: DonneesPays = {
               <button type="button" class="bouton discret petit" (click)="modifierPays(p)">Modifier</button>
             }
           </p>
+          <app-armoiries-pays [paysId]="p.id" [nom]="p.nom" />
           @if (superAdmin()) {
             <h3>Administrateurs du pays</h3>
             <p class="doux">

@@ -177,7 +177,7 @@ describe('Fiches de progression', () => {
     ]);
     await attendre();
     const tuiles = [...(f.nativeElement as HTMLElement).querySelectorAll('.chiffres strong')].map((x) => x.textContent?.trim());
-    expect(tuiles).toEqual(['1', '1', '1', '1']);
+    expect(tuiles).toEqual(['1', '1', '1', '1', '0']); // dernière : en retard (v0.48.1)
     expect(texte(f)).toContain('Matières techniques et pratiques');
     bouton(f, 'À viser').click();
     f.detectChanges();

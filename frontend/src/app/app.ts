@@ -4,6 +4,7 @@ import { Router, RouterLink, RouterOutlet } from '@angular/router';
 import { SwUpdate } from '@angular/service-worker';
 
 import { AnneeCourante } from './admin/annee-courante.service';
+import { ArmoiriesEcran } from './core/armoiries.service';
 import { SessionService } from './core/session.service';
 import { CahierService } from './hors-ligne/cahier.service';
 import { EnvoisService } from './hors-ligne/envois.service';
@@ -32,12 +33,15 @@ export class App {
   private readonly router = inject(Router);
   private readonly sw = inject(SwUpdate);
 
+  /** Armoiries du pays en filigrane (v0.48.1). */
+  protected readonly armoiries = inject(ArmoiriesEcran);
   protected readonly menuOuvert = signal(false);
   protected readonly miseAJour = signal(false);
   protected readonly reseau = signal(typeof navigator === 'undefined' || navigator.onLine);
 
   constructor() {
     const destroyRef = inject(DestroyRef);
+    this.armoiries.demarrer();
     this.envois.demarrer(destroyRef);
     this.notes.demarrer((f) => destroyRef.onDestroy(f));
     this.cahier.demarrer((f) => destroyRef.onDestroy(f));

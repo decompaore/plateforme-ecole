@@ -148,6 +148,98 @@ export interface SuiviProgressionVue {
   soumiseLe: string | null;
   viseLe: string | null;
   avancement: Avancement;
+  /** Retard d'après les semaines prévues et le cahier de textes (v0.48.1). */
+  retard?: Retard;
+  /** Interpellations en cours sur cette matière (v0.48.1). */
+  interpellations?: number;
+}
+
+export interface Retard {
+  heuresPrevuesADate: number;
+  heuresRealisees: number;
+  ecart: number;
+  sequencesEnRetard: number;
+  joursSansSeance: number | null;
+  enRetard: boolean;
+}
+
+// ---------- Interpellation des enseignants (v0.48.1)
+
+export type TypeInterpellation = 'RAPPEL' | 'DEMANDE_EXPLICATION';
+export type StatutInterpellation = 'ENVOYEE' | 'LUE' | 'REPONDUE' | 'CLOSE';
+
+export const LIBELLE_TYPE_INTERPELLATION: Record<TypeInterpellation, string> = {
+  RAPPEL: 'Rappel',
+  DEMANDE_EXPLICATION: "Demande d'explication",
+};
+
+export const LIBELLE_STATUT_INTERPELLATION: Record<StatutInterpellation, string> = {
+  ENVOYEE: 'Envoyée',
+  LUE: 'Lue',
+  REPONDUE: 'Répondue',
+  CLOSE: 'Close',
+};
+
+export const CLASSE_STATUT_INTERPELLATION: Record<StatutInterpellation, string> = {
+  ENVOYEE: 'absent',
+  LUE: '',
+  REPONDUE: 'present',
+  CLOSE: 'present',
+};
+
+export interface PropositionInterpellation {
+  classeId: string;
+  classeCode: string;
+  matiereId: string;
+  matiere: string;
+  domaine: Domaine;
+  enseignant: string;
+  retard: Retard;
+  objet: string;
+  constat: string;
+  demandeRappel: string;
+  demandeExplication: string;
+  delaiReponse: string;
+  interpellationsEnCours: number;
+}
+
+export interface DonneesInterpellation {
+  type: TypeInterpellation;
+  objet: string;
+  constat: string;
+  demande: string | null;
+  delaiReponse: string | null;
+}
+
+export interface InterpellationVue {
+  id: string;
+  numero: string | null;
+  type: TypeInterpellation;
+  classeId: string;
+  classeCode: string;
+  matiereId: string;
+  matiere: string;
+  domaine: Domaine;
+  enseignant: string;
+  objet: string;
+  constat: string;
+  demande: string | null;
+  heuresPrevues: number | null;
+  heuresRealisees: number | null;
+  delaiReponse: string | null;
+  emetteur: string;
+  qualiteEmetteur: string;
+  emiseLe: string;
+  statut: StatutInterpellation;
+  lueLe: string | null;
+  reponse: string | null;
+  reponduLe: string | null;
+  suite: string | null;
+  closeLe: string | null;
+  closePar: string | null;
+  delaiDepasse: boolean;
+  peutRepondre: boolean;
+  peutClore: boolean;
 }
 
 export interface SaisieSequence {

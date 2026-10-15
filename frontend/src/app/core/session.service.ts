@@ -374,6 +374,15 @@ export class SessionService {
     return !!p && (p.superAdmin || !!p.adminPays || !!p.direction);
   }
 
+  /**
+   * Besoins et dotations (v0.48.1) : administrateurs du territoire seulement (administrateur pays, comptes de
+   * direction) ; jamais le super administrateur de la plateforme.
+   */
+  gereMoyens(): boolean {
+    const p = this.profilSignal();
+    return !!p && !p.superAdmin && (!!p.adminPays || !!p.direction);
+  }
+
   /** Relit le nombre d'établissements du compte (après l'acceptation d'une invitation, par exemple). */
   async actualiserEtablissements(): Promise<void> {
     const profil = this.profilSignal();

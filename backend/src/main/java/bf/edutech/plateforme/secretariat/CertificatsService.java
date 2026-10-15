@@ -20,6 +20,7 @@ import bf.edutech.plateforme.eleves.InscriptionsService;
 import bf.edutech.plateforme.eleves.StatutInscription;
 import bf.edutech.plateforme.eleves.Vues.EleveVue;
 import bf.edutech.plateforme.eleves.Vues.InscriptionVue;
+import bf.edutech.plateforme.socle.documents.RenduDocument;
 import bf.edutech.plateforme.socle.audit.AuditService;
 import bf.edutech.plateforme.socle.compteurs.Compteurs;
 import bf.edutech.plateforme.socle.export.Tableau;

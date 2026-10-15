@@ -24,8 +24,11 @@ import { SessionService } from '../core/session.service';
         <a routerLink="/plateforme/territoire" routerLinkActive="actif">Territoire</a>
         <a routerLink="/plateforme/adoption" routerLinkActive="actif">Adoption</a>
         <a routerLink="/pilotage" routerLinkActive="actif" [routerLinkActiveOptions]="{ exact: true }">Pilotage</a>
-        <a routerLink="/pilotage/besoins" routerLinkActive="actif">Besoins</a>
-        <a routerLink="/pilotage/dotations" routerLinkActive="actif">Dotations</a>
+        @if (pays()) {
+          <!-- Besoins et dotations (v0.48.1) : administrateur pays seulement, jamais le super administrateur -->
+          <a routerLink="/pilotage/besoins" routerLinkActive="actif">Besoins</a>
+          <a routerLink="/pilotage/dotations" routerLinkActive="actif">Dotations</a>
+        }
       </nav>
     }
   `,

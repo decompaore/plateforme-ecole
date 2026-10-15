@@ -77,6 +77,56 @@ supprime plus de séance (`409 CAHIER_VISE`). Migration `V34` (table `visa_cahie
 Écrans : « Progressions › Visa mensuel des cahiers de textes » (`/progression/cahiers`) et, dans le cahier d'une
 matière, le formulaire « Visa mensuel ».
 
+## Retard sur le programme et interpellation des enseignants (v0.48.1)
+
+### Retard (suivi des progressions)
+
+Chaque ligne du suivi (`GET /api/v1/annees/{id}/progressions`) porte deux nouveaux champs :
+- `retard` : `heuresPrevuesADate`, `heuresRealisees`, `ecart`, `sequencesEnRetard`, `joursSansSeance`, `enRetard` ;
+- `interpellations` : le nombre d'interpellations en cours sur la matière.
+
+**Calcul du retard**
+- **Échéance d'une séquence.** Une séquence est échue dès que la suivante a commencé (sa semaine de début est passée). La dernière l'est après autant de semaines que ses heures le demandent au volume hebdomadaire du programme.
+- **Heures prévues à date.** C'est la somme des heures des séquences échues. Une séquence échue sans aucune séance au cahier de textes compte dans `sequencesEnRetard`.
+- **En retard.** `enRetard` est vrai si l'écart atteint une semaine de cours (le volume hebdomadaire, 2 h à défaut), ou si une séquence échue n'a aucune séance.
+- **Semaine non renseignée.** Les séquences sans semaine prévue ne comptent pas.
+
+### Interpellation
+
+L'interpellation est adressée par le **censeur** (matières générales), le **chef des travaux** (matières techniques et pratiques) ou le **chef d'établissement** à l'enseignant d'une matière d'une classe. Il en existe deux types :
+- **`RAPPEL`** : un message de rappel, sans numéro ni délai ;
+- **`DEMANDE_EXPLICATION`** : une lettre numérotée `DE-AAAA-NNNN`, avec un **délai de réponse** (postérieur à aujourd'hui). Le chef d'établissement en reçoit copie dans sa messagerie.
+
+Le constat chiffré (heures prévues à date, heures faites) est **figé à l'émission**. L'interpellation arrive dans la messagerie de l'enseignant. Il l'ouvre (elle passe à `LUE`), puis y répond **une fois** (`REPONDUE`), et l'émetteur reçoit la réponse. La direction note la **suite donnée** et clôt (`CLOSE`). Pour une demande d'explication, la suite est obligatoire.
+
+| Méthode | Chemin | Rôles | Effet |
+|---|---|---|---|
+| GET | `/api/v1/classes/{c}/matieres/{m}/interpellations/proposition` | Direction du domaine | Constat chiffré proposé, textes de rappel et de demande, délai proposé (J+7) |
+| POST | `/api/v1/classes/{c}/matieres/{m}/interpellations` | Direction du domaine | Émet. Corps : `{ type, objet, constat, demande, delaiReponse }`. |
+| GET | `/api/v1/interpellations?anneeId=&classeId=&matiereId=` | ADMIN_ECOLE, CENSEUR, CHEF_TRAVAUX | Interpellations de son domaine (toutes pour le chef d'établissement) |
+| GET | `/api/v1/espace-enseignant/interpellations` | ENSEIGNANT | Celles que l'enseignant a reçues |
+| GET | `/api/v1/interpellations/{id}` | Direction du domaine, enseignant destinataire | Détail. L'ouverture par l'enseignant la marque lue. |
+| POST | `/api/v1/interpellations/{id}/reponse` | Enseignant destinataire | Réponse. Corps : `{ "reponse" }`. |
+| POST | `/api/v1/interpellations/{id}/cloture` | Direction du domaine | Clôture. Corps : `{ "suite" }`. |
+| GET | `/api/v1/interpellations/{id}/lettre` | Direction du domaine, enseignant destinataire | Lettre en PDF A4, avec en-tête officiel, constat, demande, réponse, suite et signature numérisée de l'émetteur |
+
+**Erreurs**
+
+| Code | Statut HTTP | Cas |
+|---|---|---|
+| — | 403 | Matière hors du domaine (par exemple, le chef des travaux sur une matière générale) |
+| — | 400 | Délai manquant ou passé pour une demande d'explication ; clôture d'une demande d'explication sans suite |
+| `MATIERE_SANS_ENSEIGNANT` | 409 | La matière n'a pas d'enseignant |
+| `AUTO_INTERPELLATION` | 409 | La personne s'interpelle elle-même |
+| `DEJA_REPONDUE` | 409 | Seconde réponse |
+| `INTERPELLATION_CLOSE` | 409 | Action sur une interpellation close |
+
+Ces routes appartiennent au module « Progressions et cahier de textes ».
+
+**Interface**
+- **Direction :** dans « Progressions », un filtre « En retard » et une pastille de retard par matière, puis le bouton « Interpeller ». L'écran « Interpellations » (`/progression/interpellations`) permet la rédaction, le suivi, la suite et la lettre.
+- **Enseignant :** tuile « Mes interpellations », pour la lecture, la réponse et la lettre.
+
 ## À venir
 
 - Format officiel : si l'inspection impose un modèle de fiche (colonnes, découpage), il s'adaptera sur ces séquences.

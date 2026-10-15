@@ -56,6 +56,7 @@ Code de sortie : 0 si tout est réussi, 1 s'il y a des échecs, 2 si la recette 
 | 12 | COU, ADM, DEM, ACC, REU, ARC, CER | Secrétariat (v0.47.1) : courrier arrivée et départ, transmission et registre ; note de service signée et affichée ; demande d'autorisation d'absence jusqu'à la hiérarchie ; accueil et message transmis ; compte rendu validé ; archives ; certificat de scolarité et candidats aux examens |
 | 13 | TPR | Travaux pratiques (v0.47.2), sur un atelier de recette : consignes à lire avant toute demande, demande et validation, conflit refusé, production, préparation (sortie du stock), compte rendu, bilan (retour au stock), journal HSE, plannings, annulation |
 | 14 | EBD, DOT | Besoins et dotations (v0.48) : état des besoins du lycée technique (censeur, chef des travaux, proviseur), réception par la DP, arbitrage plafonné, renvoi pour correction, transmissions DP → DR → niveau central, cloisonnement et export ; dotation nationale à la DR, répartition à la DP puis au lycée, accusés de réception avec quantité non conforme |
+| 15 | IPL, ARM | Ajustements v0.48.1 : retard dans le suivi des progressions, demande d'explication numérotée (messagerie, lecture, réponse unique, lettre PDF, clôture avec suite), rappel sans numéro ; armoiries du pays servies aux comptes du pays, jamais au super administrateur (sans toucher aux armoiries déjà déposées) |
 | 11 | CAH, INT | Organisation des rôles (v0.47) : visa mensuel des cahiers de textes (droits et refus, sans figer les données de démonstration), intérim du chef d'établissement (prévu puis annulé). Les lots 01, 03 et 05 vérifient aussi l'intendant qui inscrit, le chef d'établissement seul à modifier, le censeur qui répartit et le CPE seul à saisir la vie scolaire |
 
 **Ce que la recette laisse dans la base** (elle reste rejouable) :
@@ -87,10 +88,15 @@ Cochez chaque point sur l'interface (`cd frontend && npm start`, puis http://loc
 - [ ] Les établissements sans rattachement sont regroupés sous « Sans rattachement », en dernier.
 - [ ] Depuis l'arbre du territoire, « Nouvel établissement » ouvre le formulaire avec la direction déjà choisie.
 - [ ] Un compte de direction voit les onglets Pilotage, Adoption, Besoins et Dotations de son ressort ; les exports Excel et PDF du pilotage et des besoins s'ouvrent correctement.
+- [ ] **v0.48.1** : le super administrateur n'a plus les onglets Besoins et Dotations ; la direction régionale ne voit pas le détail d'un état encore à la DP, ni les dotations de la DP aux lycées.
+- [ ] **v0.48.1** : dans Territoire, l'administrateur du pays téléverse les armoiries du Burkina Faso ; elles apparaissent en filigrane chez un enseignant du pays (même après un passage en mode avion), pas chez le super administrateur.
 - [ ] **v0.48** : la direction provinciale ouvre l'état d'un lycée, retient moins sur une ligne (au-delà de la demande : refus), le renvoie avec un motif ; le lycée corrige et retransmet ; la DP transmet ; la DR voit les besoins consolidés de ses provinces et transmet ; l'administrateur pays voit le niveau national.
 - [ ] **v0.48** : l'administrateur pays dote la DR ; la DR accuse réception (un article non conforme), répartit entre ses DP (la quantité disponible baisse) ; la DP dote un lycée ; l'intendant du lycée accuse réception depuis « Besoins et dotations ».
 
 ### Établissement
+
+- [ ] **v0.48.1** : le censeur filtre « En retard » dans Progressions, interpelle un enseignant (demande d'explication avec délai) ; l'enseignant la lit dans « Mes interpellations » et répond ; le censeur clôt avec la suite donnée ; la lettre PDF porte l'en-tête et le numéro. Le chef des travaux ne peut pas interpeller sur une matière générale.
+- [ ] **v0.48.1** : le nouveau thème (bleu et or) est lisible en plein soleil et en mode sombre.
 
 - [ ] **v0.48** : le censeur ajoute un besoin en personnel (seul le domaine général lui est proposé), le chef des travaux un tour parallèle ; le proviseur transmet ; plus rien n'est modifiable jusqu'au renvoi de la direction, dont le motif s'affiche.
 

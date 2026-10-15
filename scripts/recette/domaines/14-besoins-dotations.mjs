@@ -205,18 +205,20 @@ scenario('EBD-05', D, 'La DP transmet à la DR, une seule fois ; la DR arbitre d
   refuse(await appel(central, 'POST', '/pilotage/besoins/transmettre', { annee }));
 });
 
-scenario('EBD-06', D, 'Cloisonnement : pas de route de pilotage pour un établissement, pas d’état d’établissement pour une direction ; le super administrateur consulte sans arbitrer ; export', async (ctx) => {
-  const { proviseur, dp, dr, idDr } = acteurs(ctx);
+scenario('EBD-06', D, 'Cloisonnement : pas de route de pilotage pour un établissement, pas d’état d’établissement pour une direction ; chaque niveau ne voit que ses données, le super administrateur de la plateforme rien (v0.48.1) ; export', async (ctx) => {
+  const { proviseur, dp, dr, idDr, idDp } = acteurs(ctx);
   refuse(await appel(proviseur, 'GET', '/pilotage/besoins'));
   refuse(await appel(proviseur, 'GET', '/pilotage/dotations'));
   refuse(await appel(dp, 'GET', '/etat-besoins'));
   refuse(await appel(dp, 'GET', '/dotations-recues'));
   refuse(await appel(dp, 'GET', '/pilotage/besoins', undefined, { params: { direction: idDr } }), 'Une DP ne remonte pas à sa DR');
-  const sa = await exiger(ctx.sa, 'GET', '/pilotage/besoins', undefined, { params: { direction: idDr } });
-  vrai(!sa.peutArbitrer && !sa.peutTransmettre, 'Le super administrateur consulte seulement');
+  refuse(await appel(dr, 'GET', '/pilotage/besoins', undefined, { params: { direction: idDp } }), 'Une DR ne descend pas dans les données de sa DP');
+  refuse(await appel(ctx.sa, 'GET', '/pilotage/besoins'), 'Le super administrateur de la plateforme ne voit pas les besoins');
+  refuse(await appel(ctx.sa, 'GET', '/pilotage/besoins', undefined, { params: { direction: idDr } }));
+  refuse(await appel(ctx.sa, 'GET', '/pilotage/dotations'), 'Le super administrateur de la plateforme ne voit pas les dotations');
   const id = partage(ctx).remontee;
   if (id) {
-    const r = await exiger(dr, 'GET', `/pilotage/besoins/remontees/${id}`);
+    const r = await exiger(dp, 'GET', `/pilotage/besoins/remontees/${id}`);
     refuse(await appel(ctx.sa, 'PUT', `/pilotage/besoins/remontees/${id}/arbitrages`,
       { lignes: [{ ligneId: r.lignes[0].id, quantiteRetenue: 0 }] }));
   }
@@ -280,7 +282,7 @@ scenario('DOT-02', D, 'La DR répartit vers la DP dans la limite des quantités 
   partage(ctx).provinciale = a;
 });
 
-scenario('DOT-03', D, 'La DP dote son lycée (pas celui d’une autre DP) ; l’intendant accuse réception, le censeur ne le peut pas ; la DR suit', async (ctx) => {
+scenario('DOT-03', D, 'La DP dote son lycée (pas celui d’une autre DP) ; l’intendant accuse réception, le censeur ne le peut pas ; la DP suit, la DR n’y a pas accès (v0.48.1)', async (ctx) => {
   const { e, autre, dp, dr, intendant, censeur } = acteurs(ctx);
   const p = requis(ctx, 'provinciale');
   const acier = p.lignes.find((l) => l.unite === 'barre');
@@ -308,8 +310,9 @@ scenario('DOT-03', D, 'La DP dote son lycée (pas celui d’une autre DP) ; l’
   });
   egal(a.statut, 'RECUE', 'Réception accusée par le lycée');
   statut(await appel(intendant, 'POST', `/dotations-recues/${d.id}/accuser`, {}), 409, 'DEJA_ACCUSEE');
-  const vu = await exiger(dr, 'GET', `/pilotage/dotations/${d.id}`);
-  egal(Number(vu.lignes[0].quantiteConforme), 58, 'La DR voit la quantité conforme');
+  const vu = await exiger(dp, 'GET', `/pilotage/dotations/${d.id}`);
+  egal(Number(vu.lignes[0].quantiteConforme), 58, 'La DP voit la quantité conforme');
+  refuse(await appel(dr, 'GET', `/pilotage/dotations/${d.id}`), 'La DR ne voit pas les dotations de la DP aux établissements');
   if (autre) {
     const s = autre.session('ADMIN_ECOLE');
     if (s) refuse(await appel(s, 'GET', `/dotations-recues/${d.id}`), 'Un autre établissement ne voit pas la dotation');

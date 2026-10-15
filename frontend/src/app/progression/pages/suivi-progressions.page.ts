@@ -10,11 +10,12 @@ import { Domaine, heures, LIBELLE_DOMAINE, SuiviProgressionVue } from '../modele
 import { ProgressionApi } from '../progression-api.service';
 import { pastille } from './mes-progressions.page';
 
-type Filtre = 'toutes' | 'a-viser' | 'non-commencees';
+type Filtre = 'toutes' | 'a-viser' | 'non-commencees' | 'en-retard';
 
 /**
  * Suivi des progressions par la direction : chaque matière de son domaine (général pour le
  * censeur, technique et pratique pour le chef des travaux), fiche commencée ou non, à viser.
+ * Retard sur le programme et interpellation de l'enseignant (v0.48.1).
  */
 @Component({
   selector: 'app-suivi-progressions',
@@ -23,7 +24,10 @@ type Filtre = 'toutes' | 'a-viser' | 'non-commencees';
     <div class="page large">
       <div class="entete-section">
         <h1>Progressions</h1>
-        <a class="bouton secondaire petit" routerLink="/progression/cahiers">Visa mensuel des cahiers de textes</a>
+        <span class="actions-ligne">
+          <a class="bouton secondaire petit" routerLink="/progression/interpellations">Interpellations</a>
+          <a class="bouton secondaire petit" routerLink="/progression/cahiers">Visa mensuel des cahiers de textes</a>
+        </span>
       </div>
       @if (domaines().length) {
         <p class="doux">{{ domaines().join(' · ') }}</p>
@@ -39,12 +43,14 @@ type Filtre = 'toutes' | 'a-viser' | 'non-commencees';
           <div><strong>{{ bilan().visees }}</strong><span>visées</span></div>
           <div><strong>{{ bilan().enCours }}</strong><span>en préparation ou à revoir</span></div>
           <div [class.alerte-valeur]="bilan().nonCommencees > 0"><strong>{{ bilan().nonCommencees }}</strong><span>non commencées</span></div>
+          <div [class.alerte-valeur]="bilan().enRetard > 0"><strong>{{ bilan().enRetard }}</strong><span>en retard sur le programme</span></div>
         </div>
 
         <div class="bascule" role="group" aria-label="Fiches affichées">
           <button type="button" [class.actif]="filtreStatut() === 'toutes'" (click)="filtreStatut.set('toutes')">Toutes</button>
           <button type="button" [class.actif]="filtreStatut() === 'a-viser'" (click)="filtreStatut.set('a-viser')">À viser ({{ bilan().aViser }})</button>
           <button type="button" [class.actif]="filtreStatut() === 'non-commencees'" (click)="filtreStatut.set('non-commencees')">Non commencées</button>
+          <button type="button" [class.actif]="filtreStatut() === 'en-retard'" (click)="filtreStatut.set('en-retard')">En retard ({{ bilan().enRetard }})</button>
         </div>
 
         <app-recherche libelle="Classe, matière ou enseignant" [(valeur)]="filtre" [total]="lignes().length" [trouves]="affichees().length" />
@@ -66,6 +72,17 @@ type Filtre = 'toutes' | 'a-viser' | 'non-commencees';
                     </span>
                     <span class="pastille {{ pastille(l.statut).classe }}">{{ pastille(l.statut).texte }}</span>
                   </a>
+                  @if (l.retard?.enRetard || l.interpellations || l.engagementId) {
+                    <div class="retard">
+                      @if (l.retard?.enRetard) {
+                        <span class="pastille absent">Retard {{ heures(l.retard!.ecart) }}@if (l.retard!.sequencesEnRetard) { · {{ l.retard!.sequencesEnRetard }} séq. échue(s) }</span>
+                      }
+                      @if (l.interpellations) { <span class="pastille">{{ l.interpellations }} interpellation(s) en cours</span> }
+                      @if (l.engagementId) {
+                        <a class="bouton discret petit" routerLink="/progression/interpellations" [queryParams]="{ classeId: l.classeId, matiereId: l.matiereId }">Interpeller</a>
+                      }
+                    </div>
+                  }
                 </li>
               }
             </ul>
@@ -128,6 +145,13 @@ type Filtre = 'toutes' | 'a-viser' | 'non-commencees';
         color: var(--sur-primaire);
       }
     }
+    .retard {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0 0.25rem 0.6rem;
+    }
     h2 {
       font-size: 1.05rem;
       margin: 0 0 0.25rem;
@@ -158,12 +182,15 @@ export class SuiviProgressionsPage {
       visees: l.filter((x) => x.statut === 'VISEE').length,
       enCours: l.filter((x) => x.statut === 'BROUILLON' || x.statut === 'A_REVOIR').length,
       nonCommencees: l.filter((x) => !x.statut).length,
+      enRetard: l.filter((x) => x.retard?.enRetard).length,
     };
   });
 
   protected readonly affichees = computed(() => {
     const f = this.filtreStatut();
-    const base = this.lignes().filter((l) => (f === 'a-viser' ? l.statut === 'SOUMISE' : f === 'non-commencees' ? !l.statut : true));
+    const base = this.lignes().filter((l) =>
+      f === 'a-viser' ? l.statut === 'SOUMISE' : f === 'non-commencees' ? !l.statut : f === 'en-retard' ? !!l.retard?.enRetard : true,
+    );
     return filtrer(base, this.filtre(), (l) => [l.classeCode, l.matiereLibelle, l.matiereCode, l.enseignant]);
   });
 

@@ -100,6 +100,11 @@
   </div>
 }
 
+@if (armoiries.image(); as a) {
+  <!-- Armoiries du pays en filigrane (v0.48.1) -->
+  <div class="filigrane" aria-hidden="true" [style.background-image]="'url(' + a + ')'"></div>
+}
+
 <main>
   <router-outlet />
 </main>

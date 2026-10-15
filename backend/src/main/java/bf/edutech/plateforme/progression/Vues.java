@@ -73,6 +73,16 @@ public final class Vues {
     public record SuiviProgressionVue(UUID classeId, String classeCode, String niveau, UUID matiereId,
             String matiereCode, String matiereLibelle, TypeMatiere type, Domaine domaine, UUID engagementId,
             String enseignant, StatutFiche statut, int sequences, BigDecimal heuresPrevues, BigDecimal volumeHebdo,
-            Instant soumiseLe, Instant viseLe, Avancement avancement) {
+            Instant soumiseLe, Instant viseLe, Avancement avancement, Retard retard, int interpellations) {
+    }
+
+    /**
+     * Retard sur la progression (v0.48.1), d'après les semaines prévues des séquences et le cahier de textes :
+     * heures qui auraient dû être faites à ce jour (séquences dont l'échéance est passée), écart avec le réalisé,
+     * séquences échues sans aucune séance, jours depuis la dernière séance. {@code enRetard} : écart d'au moins une
+     * semaine de cours (volume hebdomadaire, 2 h à défaut) ou séquence échue sans séance.
+     */
+    public record Retard(BigDecimal heuresPrevuesADate, BigDecimal heuresRealisees, BigDecimal ecart,
+            int sequencesEnRetard, Integer joursSansSeance, boolean enRetard) {
     }
 }

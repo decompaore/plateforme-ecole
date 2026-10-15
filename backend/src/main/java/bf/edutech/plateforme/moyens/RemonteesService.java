@@ -127,24 +127,28 @@ public class RemonteesService {
         Transmission propre = cible.type() == TypeInstance.DIRECTION ? c.transmissions.get(cible.id()) : null;
         boolean ouvert = ici && (cible.type() == TypeInstance.PAYS || propre == null || !propre.transmise());
 
-        // Établissements du ressort
+        // Établissements du ressort (v0.48.1) : le détail d'un état n'apparaît qu'une fois arrivé à ce niveau ; avant,
+        // seul l'endroit où il se trouve est indiqué
         List<EtablissementBesoins> etablissements = new ArrayList<>();
         for (Etab e : c.etablissements) {
             Remontee r = c.parEtablissement.get(e.id);
-            StatutEtablissement s;
-            String etape = null;
+            boolean direct = cible.type() == TypeInstance.DIRECTION && e.directionId.equals(cible.id());
             if (r == null) {
-                s = StatutEtablissement.NON_TRANSMIS;
-            } else if (r.renvoyee()) {
-                s = StatutEtablissement.RENVOYE;
+                etablissements.add(new EtablissementBesoins(e.id, e.code, e.nom, e.direction,
+                        StatutEtablissement.NON_TRANSMIS, null, null, null, 0, null));
+            } else if (r.renvoyee() && direct) {
+                etablissements.add(new EtablissementBesoins(e.id, e.code, e.nom, e.direction,
+                        StatutEtablissement.RENVOYE, null, null, r.transmiseLe, 0, r.motif));
             } else {
-                UUID bloquee = c.bloqueeA(r);
-                s = bloquee == null ? StatutEtablissement.RECU : StatutEtablissement.EN_COURS;
-                etape = bloquee == null ? null : c.nom(bloquee);
+                UUID bloquee = r.renvoyee() ? r.directionId : c.bloqueeA(r);
+                if (bloquee == null) {
+                    etablissements.add(new EtablissementBesoins(e.id, e.code, e.nom, e.direction,
+                            StatutEtablissement.RECU, null, r.id, r.transmiseLe, r.lignes, null));
+                } else {
+                    etablissements.add(new EtablissementBesoins(e.id, e.code, e.nom, e.direction,
+                            StatutEtablissement.EN_COURS, c.nom(bloquee), null, null, 0, null));
+                }
             }
-            etablissements.add(new EtablissementBesoins(e.id, e.code, e.nom, e.direction, s, etape,
-                    r == null ? null : r.id, r == null ? null : r.transmiseLe, r == null ? 0 : r.lignes,
-                    r == null ? null : r.motif));
         }
 
         // Directions immédiatement inférieures
@@ -200,12 +204,18 @@ public class RemonteesService {
     @Transactional(readOnly = true)
     public RemonteeVue remontee(UUID id, UUID direction) {
         Acteur a = portee.acteur();
+        Instance cible = portee.cible(a, direction, null);
         Remontee r = chargerRemontee(id);
-        Instance cible = cibleRemontee(a, r, direction);
+        if (!portee.directionsDe(cible).contains(r.directionId)) {
+            throw new AccesRefuseException("Cet établissement n'est pas dans votre ressort");
+        }
         Contexte c = contexte(cible, r.annee);
         Remontee rc = c.parId.get(id);
         if (rc == null) {
             throw new RessourceIntrouvableException("État des besoins introuvable");
+        }
+        if (rc.renvoyee() || c.bloqueeA(rc) != null) {
+            throw new AccesRefuseException("Cet état des besoins n'est pas arrivé à votre niveau");
         }
         return vueRemontee(a, cible, c, rc);
     }
@@ -543,23 +553,6 @@ public class RemonteesService {
                 r.transmisePar, r.observations, r.motif, cible.nom(), arbitrable, renvoyable, lignes);
     }
 
-    private Instance cibleRemontee(Acteur a, Remontee r, UUID direction) {
-        if (direction != null) {
-            Instance cible = portee.cible(a, direction, null);
-            if (!portee.descendantes(direction).contains(r.directionId)) {
-                throw new AccesRefuseException("Cet établissement ne dépend pas de cette direction");
-            }
-            return cible;
-        }
-        if (a.superAdmin()) {
-            return portee.instance(TypeInstance.PAYS, portee.paysDeDirection(r.directionId));
-        }
-        if (!portee.directionsDe(a.instance()).contains(r.directionId)) {
-            throw new AccesRefuseException("Cet établissement n'est pas dans votre ressort");
-        }
-        return a.instance();
-    }
-
     private Remontee chargerRemontee(UUID id) {
         return jdbc.query("""
                 select r.id, r.tenant_id, t.nom, r.direction_id, d.nom, r.annee, r.statut, r.transmise_le, null,
@@ -572,11 +565,7 @@ public class RemonteesService {
     }
 
     private Acteur exigerActeurQuiAgit() {
-        Acteur a = portee.acteur();
-        if (a.superAdmin()) {
-            throw new AccesRefuseException("Le super administrateur consulte les besoins sans les arbitrer");
-        }
-        return a;
+        return portee.acteur();
     }
 
     private static void exigerOuvert(Contexte c, Instance cible) {

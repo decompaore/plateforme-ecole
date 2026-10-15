@@ -277,8 +277,9 @@ export interface LigneDotationVue {
   quantiteRecue: number | null;
   quantiteConforme: number | null;
   observation: string | null;
-  repartie: number;
-  disponible: number;
+  /** Vides sauf pour le destinataire qui répartit (v0.48.1). */
+  repartie: number | null;
+  disponible: number | null;
 }
 
 export interface DotationVue {
