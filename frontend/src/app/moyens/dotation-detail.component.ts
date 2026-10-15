@@ -120,7 +120,8 @@ export class DotationDetailComponent {
     for (const l of d?.lignes ?? []) {
       this.saisies[l.id] = { recue: l.quantite, conforme: l.quantite, observation: '' };
     }
-    this.afficherRepartition = !!d && d.destinataire.type === 'DIRECTION' && d.statut === 'RECUE';
+    // La répartition n'est renvoyée qu'au destinataire qui répartit (v0.48.1)
+    this.afficherRepartition = !!d && d.statut === 'RECUE' && d.lignes.some((l) => l.repartie !== null);
   }
 
   protected accuserReception(): void {

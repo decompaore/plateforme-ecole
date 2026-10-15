@@ -16,10 +16,10 @@ import bf.edutech.plateforme.socle.securite.Portee;
 /**
  * Portée des comptes territoriaux dans le circuit des besoins et des dotations.
  * <ul>
- * <li>Un compte de direction agit au nom de sa direction ; il consulte aussi les directions qui en dépendent
- * (lecture seule), jamais au-dessus.</li>
+ * <li>Un compte de direction agit au nom de sa direction et ne consulte que les données de son niveau : ce qui lui
+ * est arrivé, ce qu'il a arbitré, transmis, envoyé ou reçu (v0.48.1).</li>
  * <li>L'administrateur pays agit au niveau central de son pays.</li>
- * <li>Le super administrateur consulte (lecture seule).</li>
+ * <li>Le super administrateur de la plateforme n'a pas accès à ces données (v0.48.1).</li>
  * </ul>
  */
 @Component
@@ -33,19 +33,19 @@ class PorteeMoyens {
         }
     }
 
-    /** Personne connectée : l'instance au nom de laquelle elle agit (vide pour le super administrateur). */
-    record Acteur(Instance instance, boolean superAdmin) {
+    /** Personne connectée : l'instance au nom de laquelle elle agit. */
+    record Acteur(Instance instance) {
 
         boolean agit(Instance i) {
-            return instance != null && instance.type() == i.type() && instance.id().equals(i.id());
+            return instance.type() == i.type() && instance.id().equals(i.id());
         }
 
         boolean estDirection() {
-            return instance != null && instance.type() == TypeInstance.DIRECTION;
+            return instance.type() == TypeInstance.DIRECTION;
         }
 
         boolean estPays() {
-            return instance != null && instance.type() == TypeInstance.PAYS;
+            return instance.type() == TypeInstance.PAYS;
         }
     }
 
@@ -58,62 +58,31 @@ class PorteeMoyens {
     Acteur acteur() {
         Optional<UUID> direction = Portee.direction();
         if (direction.isPresent()) {
-            return new Acteur(instance(TypeInstance.DIRECTION, direction.get()), false);
+            return new Acteur(instance(TypeInstance.DIRECTION, direction.get()));
         }
         if (Portee.superAdmin()) {
-            return new Acteur(null, true);
+            // v0.48.1 : les besoins et les dotations relèvent du territoire, pas de l'administration de la plateforme
+            throw new AccesRefuseException(
+                    "Les besoins et les dotations sont réservés aux administrateurs du territoire (pays, directions)");
         }
         UUID pays = Portee.pays().orElseThrow(() -> new AccesRefuseException("Réservé au pilotage"));
-        return new Acteur(instance(TypeInstance.PAYS, pays), false);
+        return new Acteur(instance(TypeInstance.PAYS, pays));
     }
 
     /**
-     * Instance consultée : la direction demandée (dans la portée), sinon celle de la personne connectée. Le super
-     * administrateur précise une direction ou un pays.
+     * Instance consultée (v0.48.1) : toujours celle de la personne connectée. Chaque niveau ne consulte que ses
+     * propres données : une direction ne descend pas vers une direction inférieure, le niveau central ne consulte
+     * pas une direction. Un paramètre désignant une autre instance est refusé.
      */
     Instance cible(Acteur a, UUID direction, UUID pays) {
-        if (direction != null) {
-            if (!voitDirection(a, direction)) {
-                throw new AccesRefuseException("Cette direction n'est pas dans votre ressort");
-            }
-            return instance(TypeInstance.DIRECTION, direction);
+        Instance moi = a.instance();
+        if (direction != null && !moi.est(TypeInstance.DIRECTION, direction)) {
+            throw new AccesRefuseException("Chaque niveau ne consulte que ses propres besoins et dotations");
         }
-        if (pays != null) {
-            if (!a.superAdmin() && !(a.estPays() && a.instance().id().equals(pays))) {
-                throw new AccesRefuseException("Hors de votre ressort");
-            }
-            return instance(TypeInstance.PAYS, pays);
+        if (pays != null && !moi.est(TypeInstance.PAYS, pays)) {
+            throw new AccesRefuseException("Chaque niveau ne consulte que ses propres besoins et dotations");
         }
-        if (a.superAdmin()) {
-            throw new IllegalArgumentException("Précisez la direction ou le pays");
-        }
-        return a.instance();
-    }
-
-    boolean voitDirection(Acteur a, UUID direction) {
-        if (a.superAdmin()) {
-            return true;
-        }
-        if (a.estPays()) {
-            return a.instance().id().equals(paysDeDirection(direction));
-        }
-        return descendantes(a.instance().id()).contains(direction);
-    }
-
-    boolean voitEtablissement(Acteur a, UUID tenant) {
-        if (a.superAdmin()) {
-            return true;
-        }
-        UUID direction = directionDe(tenant);
-        return direction != null && voitDirection(a, direction);
-    }
-
-    boolean voit(Acteur a, TypeInstance type, UUID id) {
-        return switch (type) {
-            case PAYS -> a.superAdmin() || (a.estPays() && a.instance().id().equals(id));
-            case DIRECTION -> voitDirection(a, id);
-            case ETABLISSEMENT -> voitEtablissement(a, id);
-        };
+        return moi;
     }
 
     Instance instance(TypeInstance type, UUID id) {

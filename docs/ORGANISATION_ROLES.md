@@ -24,8 +24,9 @@ censeur. Les droits de la plateforme suivent désormais cette organisation ; le 
 | Matière d'œuvre des TP | Enseignant (fiche de préparation, consommation réelle) | Chef d'atelier (accorde, sert, remet le surplus en stock) | Direction et intendance (achats à prévoir) |
 | Consignes de sécurité, journal HSE | Chef d'atelier | Chef d'atelier | Enseignants (prise de connaissance obligatoire) ; chef des travaux alerté en cas de danger |
 | Commandes de production | Chef d'atelier, direction | Chef d'atelier, direction | Enseignants de l'atelier, intendance |
-| État annuel des besoins (v0.48) : infrastructures, personnel, équipements et outils, matières | Censeur (domaine général), chef des travaux (domaine technique) | Chef d'établissement (complète, transmet à la DP) | Intendant ; directions provinciale, régionale, niveau central (arbitrent et transmettent) |
+| État annuel des besoins (v0.48) : infrastructures, personnel, équipements et outils, matières | Censeur (domaine général), chef des travaux (domaine technique) | Chef d'établissement (complète, transmet à la DP) | Intendant ; chaque niveau territorial (DP, DR, administrateur pays) une fois l'état arrivé chez lui, jamais le super administrateur de la plateforme (v0.48.1) |
 | Dotations reçues (v0.48) | Direction (DR ou DP) | Chef d'établissement ou intendant (accusé de réception) | Censeur, chef des travaux |
+| Interpellation d'un enseignant en retard sur le programme (v0.48.1) : rappel, demande d'explication | Censeur (matières générales), chef des travaux (techniques et pratiques), chef d'établissement | La direction du domaine (suite donnée, clôture) | L'enseignant (lit, répond) ; le chef d'établissement (copie des demandes d'explication) |
 | Évaluations, notes, bulletins | Enseignants, censeur | Censeur, chef d'établissement | **Plus le secrétariat** (v0.47.1) |
 | Suppléance du chef d'établissement | Le chef d'établissement désigne un **intérim** (censeur ou chef des travaux) | — | Censeur, chef des travaux |
 

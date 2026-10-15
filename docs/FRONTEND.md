@@ -1,4 +1,4 @@
-# Application web (v0.48)
+# Application web (v0.48.1)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -475,6 +475,26 @@ connexion.
 - **Établissements → Données** (super administrateur) : même composant (`app-exports-donnees` avec
   `etablissementId`), pour un établissement actif, suspendu ou résilié.
 - Détails du contenu de l'archive : [API_REVERSIBILITE.md](API_REVERSIBILITE.md).
+
+## Thème « éducation et savoir », armoiries en filigrane (v0.48.1)
+
+- **Palette :**
+  - bleu académique (`--primaire` #1f4e9c) pour le savoir et la confiance ;
+  - or (`--accent` #c8962c) pour la lumière et la réussite, sous forme de liseré de l'en-tête, de trait sous les titres de page et de bord des tuiles ;
+  - le vert reste réservé au « présent / réussi », le rouge aux absences et aux erreurs ;
+  - variante sombre ajustée.
+- **Icônes :** les icônes de l'application, le favicon et la couleur du thème du manifeste passent au bleu.
+- **Armoiries en filigrane :** les armoiries du pays (`core/armoiries.service.ts`) s'affichent en filigrane derrière le contenu. Elles sont lues une fois par session, puis gardées sur l'appareil.
+  - Les cartes sont légèrement translucides, pour que le filigrane reste perceptible.
+  - Il est masqué à l'impression.
+  - Les armoiries se gèrent dans « Territoire » (composant `admin/armoiries-pays.component.ts`).
+- **Tests :** `core/armoiries.spec.ts`.
+
+## Interpellation des enseignants (v0.48.1)
+
+- **Direction :** « Progressions » affiche le retard de chaque matière (filtre « En retard ») et un bouton « Interpeller ». L'écran « Interpellations » (`/progression/interpellations`) sert à rédiger, à partir du constat chiffré proposé, un rappel ou une demande d'explication avec délai. On y suit aussi les réponses, la suite donnée et la lettre en PDF.
+- **Enseignant :** « Mes interpellations », pour la lecture et la réponse.
+- **Tests :** `progression/interpellations.spec.ts`.
 
 ## Besoins et dotations (v0.48)
 

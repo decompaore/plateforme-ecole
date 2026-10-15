@@ -12,8 +12,10 @@
   gap: 0.5rem;
   padding: 0.5rem 0.5rem 0.5rem 1rem;
   padding-top: max(0.5rem, env(safe-area-inset-top));
-  background: var(--primaire);
-  color: var(--sur-primaire);
+  background: linear-gradient(135deg, var(--barre-debut), var(--barre-fin));
+  color: var(--sur-barre);
+  /* Liseré or : la lumière du savoir (v0.48.1) */
+  border-bottom: 3px solid var(--accent);
 }
 
 .marque {
@@ -70,7 +72,7 @@
   span {
     width: 22px;
     height: 2px;
-    background: var(--sur-primaire);
+    background: var(--sur-barre);
     border-radius: 2px;
   }
 }
@@ -123,4 +125,35 @@
 .compteur.messages {
   background: var(--info-fond);
   color: var(--info);
+}
+
+/* Armoiries du pays en filigrane, derrière le contenu (v0.48.1) */
+.filigrane {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-position: center 58%;
+  background-size: min(72vmin, 560px);
+  opacity: 0.08;
+  filter: grayscale(0.2);
+}
+
+main {
+  position: relative;
+  z-index: 1;
+}
+
+@media (prefers-color-scheme: dark) {
+  .filigrane {
+    opacity: 0.09;
+    filter: grayscale(0.4) brightness(1.4);
+  }
+}
+
+@media print {
+  .filigrane {
+    display: none;
+  }
 }

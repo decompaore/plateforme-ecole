@@ -38,6 +38,9 @@ const superAdmin: CanActivateFn = () =>
 /** Comptes de direction, administrateurs pays et super administrateur (v0.37). */
 const pilote: CanActivateFn = () => inject(SessionService).pilote() || inject(Router).parseUrl('/');
 
+/** Besoins et dotations (v0.48.1) : administrateur pays et comptes de direction, pas le super administrateur. */
+const territoire: CanActivateFn = () => inject(SessionService).gereMoyens() || inject(Router).parseUrl('/');
+
 const profilPresent: CanActivateFn = () =>
   inject(SessionService).profil() !== null || inject(Router).parseUrl('/connexion');
 
@@ -206,13 +209,13 @@ export const routes: Routes = [
       {
         // Besoins remontés et dotations (v0.48) : directions et niveau central
         path: 'pilotage/besoins',
-        canActivate: [pilote],
+        canActivate: [territoire],
         title: 'Besoins des établissements',
         loadComponent: () => import('./moyens/pages/besoins-pilotage.page').then((m) => m.BesoinsPilotagePage),
       },
       {
         path: 'pilotage/dotations',
-        canActivate: [pilote],
+        canActivate: [territoire],
         title: 'Dotations',
         loadComponent: () => import('./moyens/pages/dotations-pilotage.page').then((m) => m.DotationsPilotagePage),
       },
@@ -399,6 +402,12 @@ export const routes: Routes = [
             canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX')],
             title: 'Cahiers de textes',
             loadComponent: () => import('./progression/pages/cahiers-visas.page').then((m) => m.CahiersVisasPage),
+          },
+          {
+            // Interpellation des enseignants en retard (v0.48.1) : direction et enseignant
+            path: 'interpellations',
+            title: 'Interpellations',
+            loadComponent: () => import('./progression/pages/interpellations.page').then((m) => m.InterpellationsPage),
           },
           {
             path: ':classeId/:matiereId/cahier',

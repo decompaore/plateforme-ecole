@@ -3,7 +3,10 @@ import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { API } from '../core/session.service';
-import { FicheVue, SaisieSequence, SeanceVue, SuiviCahierVue, SuiviProgressionVue, VisaCahierVue } from './modeles-progression';
+import {
+  DonneesInterpellation, FicheVue, InterpellationVue, PropositionInterpellation, SaisieSequence, SeanceVue, SuiviCahierVue,
+  SuiviProgressionVue, VisaCahierVue,
+} from './modeles-progression';
 
 /** Appels de l'API des fiches de progression (en ligne). */
 @Injectable({ providedIn: 'root' })
@@ -55,5 +58,42 @@ export class ProgressionApi {
 
   suiviCahiers(anneeId: string, mois: string): Promise<SuiviCahierVue[]> {
     return firstValueFrom(this.http.get<SuiviCahierVue[]>(`${API}/annees/${anneeId}/cahiers-textes`, { params: { mois } }));
+  }
+
+  // ---------- Interpellation des enseignants (v0.48.1)
+
+  propositionInterpellation(classeId: string, matiereId: string): Promise<PropositionInterpellation> {
+    return firstValueFrom(
+      this.http.get<PropositionInterpellation>(`${API}/classes/${classeId}/matieres/${matiereId}/interpellations/proposition`),
+    );
+  }
+
+  interpeller(classeId: string, matiereId: string, d: DonneesInterpellation): Promise<InterpellationVue> {
+    return firstValueFrom(this.http.post<InterpellationVue>(`${API}/classes/${classeId}/matieres/${matiereId}/interpellations`, d));
+  }
+
+  interpellations(anneeId: string | null): Promise<InterpellationVue[]> {
+    const params: Record<string, string> = anneeId ? { anneeId } : {};
+    return firstValueFrom(this.http.get<InterpellationVue[]>(`${API}/interpellations`, { params }));
+  }
+
+  mesInterpellations(): Promise<InterpellationVue[]> {
+    return firstValueFrom(this.http.get<InterpellationVue[]>(`${API}/espace-enseignant/interpellations`));
+  }
+
+  interpellation(id: string): Promise<InterpellationVue> {
+    return firstValueFrom(this.http.get<InterpellationVue>(`${API}/interpellations/${id}`));
+  }
+
+  repondreInterpellation(id: string, reponse: string): Promise<InterpellationVue> {
+    return firstValueFrom(this.http.post<InterpellationVue>(`${API}/interpellations/${id}/reponse`, { reponse }));
+  }
+
+  cloreInterpellation(id: string, suite: string | null): Promise<InterpellationVue> {
+    return firstValueFrom(this.http.post<InterpellationVue>(`${API}/interpellations/${id}/cloture`, { suite }));
+  }
+
+  lettreInterpellation(id: string): Promise<Blob> {
+    return firstValueFrom(this.http.get(`${API}/interpellations/${id}/lettre`, { responseType: 'blob' }));
   }
 }

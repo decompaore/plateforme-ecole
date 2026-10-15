@@ -57,10 +57,13 @@ public class ProgressionService {
     private final AccesMatiere acces;
     private final SeanceCahierRepository seances;
     private final Clock horloge;
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     ProgressionService(FicheProgressionRepository fiches, SequenceProgressionRepository sequences,
             ClassesService classes, AnneesService annees, EnseignantsService enseignants, MembresService membres,
-            Supervision supervision, AccesMatiere acces, SeanceCahierRepository seances, Clock horloge) {
+            Supervision supervision, AccesMatiere acces, SeanceCahierRepository seances, Clock horloge,
+            org.springframework.jdbc.core.JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
         this.fiches = fiches;
         this.sequences = sequences;
         this.classes = classes;
@@ -276,17 +279,26 @@ public class ProgressionService {
             }
         }
         Map<UUID, String> noms = enseignants.nomsParEngagement(engagements.stream().distinct().toList());
+        // Interpellations en cours (v0.48.1), par matière de classe
+        Map<String, Integer> interpellations = new java.util.HashMap<>();
+        jdbc.query("""
+                select classe_id, matiere_id, count(*) from interpellation where statut <> 'CLOSE'
+                group by classe_id, matiere_id""", rs -> {
+            interpellations.put(cle(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class)), rs.getInt(3));
+        });
+        java.time.LocalDate jour = java.time.LocalDate.now(horloge.withZone(java.time.ZoneId.of("Africa/Ouagadougou")));
         for (Ligne l : retenues) {
             FicheProgression f = parCle.get(cle(l.classe().id(), l.matiere().matiereId()));
             List<SequenceProgression> seq = f == null ? List.of() : parFiche.getOrDefault(f.getId(), List.of());
             UUID e = l.matiere().engagementId();
+            List<SeanceCahier> faites = seancesParCle.getOrDefault(cle(l.classe().id(), l.matiere().matiereId()), List.of());
             lignes.add(new SuiviProgressionVue(l.classe().id(), l.classe().code(), l.classe().niveau(),
                     l.matiere().matiereId(), l.matiere().matiereCode(), l.matiere().matiereLibelle(), l.matiere().type(),
                     Domaine.de(l.matiere().type()), e, e == null ? null : noms.get(e), f == null ? null : f.getStatut(),
                     seq.size(), seq.stream().map(SequenceProgression::getHeuresPrevues).reduce(BigDecimal.ZERO, BigDecimal::add),
                     l.matiere().volumeHebdo(), f == null ? null : f.getSoumiseLe(), f == null ? null : f.getViseLe(),
-                    avancement(seancesParCle.getOrDefault(cle(l.classe().id(), l.matiere().matiereId()), List.of()),
-                            seq.size())));
+                    avancement(faites, seq.size()), Retards.calculer(seq, faites, l.matiere().volumeHebdo(), jour),
+                    interpellations.getOrDefault(cle(l.classe().id(), l.matiere().matiereId()), 0)));
         }
         lignes.sort(Comparator.comparing(SuiviProgressionVue::classeCode).thenComparing(SuiviProgressionVue::matiereLibelle));
         return lignes;

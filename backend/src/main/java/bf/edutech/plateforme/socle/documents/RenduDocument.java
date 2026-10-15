@@ -1,4 +1,4 @@
-package bf.edutech.plateforme.secretariat;
+package bf.edutech.plateforme.socle.documents;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -19,18 +19,18 @@ import org.apache.pdfbox.pdmodel.font.Standard14Fonts;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.springframework.stereotype.Component;
 
-import bf.edutech.plateforme.socle.documents.EntetesOfficiels;
 import bf.edutech.plateforme.socle.export.EntetePdf;
 
 /**
  * Document administratif au format A4 (PDFBox, Helvetica) : en-tête officiel, numéro, titre, rubriques (objet,
  * destinataires…), texte en paragraphes sur une ou plusieurs pages, bloc de signature à droite (fonction, signature
  * numérisée du signataire si elle existe, nom). Un brouillon porte la mention « PROJET — NON SIGNÉ ».
+ * Partagé (v0.48.1) par le secrétariat et les lettres de la direction pédagogique (demandes d'explication).
  */
 @Component
-class RenduDocument {
+public class RenduDocument {
 
-    record Contenu(String numero, String titre, List<String[]> rubriques, String corps, LocalDate date,
+    public record Contenu(String numero, String titre, List<String[]> rubriques, String corps, LocalDate date,
             String fonction, String signataire, byte[] signature, boolean projet, String pied) {
     }
 
@@ -41,11 +41,11 @@ class RenduDocument {
 
     private final EntetesOfficiels entetes;
 
-    RenduDocument(EntetesOfficiels entetes) {
+    public RenduDocument(EntetesOfficiels entetes) {
         this.entetes = entetes;
     }
 
-    byte[] rendre(Contenu c) {
+    public byte[] rendre(Contenu c) {
         PDFont normal = new PDType1Font(Standard14Fonts.FontName.HELVETICA);
         PDFont gras = new PDType1Font(Standard14Fonts.FontName.HELVETICA_BOLD);
         PDFont italique = new PDType1Font(Standard14Fonts.FontName.HELVETICA_OBLIQUE);

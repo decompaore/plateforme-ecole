@@ -400,11 +400,7 @@ public class DotationsService {
     }
 
     private Acteur exigerActeurQuiAgit() {
-        Acteur a = portee.acteur();
-        if (a.superAdmin()) {
-            throw new AccesRefuseException("Le super administrateur consulte les dotations sans les gérer");
-        }
-        return a;
+        return portee.acteur();
     }
 
     private static void exigerEmettrice(Acteur a, Dotation d) {
@@ -419,9 +415,11 @@ public class DotationsService {
         }
     }
 
-    private void exigerVisible(Acteur a, Dotation d) {
-        boolean emettrice = portee.voit(a, d.emettriceType, d.emettriceId);
-        boolean destinataire = d.statut != StatutDotation.BROUILLON && portee.voit(a, d.destinataireType, d.destinataireId);
+    /** v0.48.1 : une dotation n'est visible que de son émetteur et, une fois envoyée, de son destinataire. */
+    private static void exigerVisible(Acteur a, Dotation d) {
+        boolean emettrice = a.agit(new Instance(d.emettriceType, d.emettriceId, null));
+        boolean destinataire = d.statut != StatutDotation.BROUILLON
+                && a.agit(new Instance(d.destinataireType, d.destinataireId, null));
         if (!emettrice && !destinataire) {
             throw new RessourceIntrouvableException("Dotation introuvable");
         }
@@ -493,6 +491,8 @@ public class DotationsService {
     }
 
     private DotationVue vue(Dotation d, Acteur a) {
+        // v0.48.1 : la répartition d'une dotation reçue ne regarde que son destinataire (l'émetteur ne la voit pas)
+        boolean repartiteur = a != null && a.agit(new Instance(d.destinataireType, d.destinataireId, null));
         List<LigneDotationVue> lignes = jdbc.query("""
                 select l.id, l.ligne_origine_id, l.categorie, l.designation, l.unite, l.quantite, l.valeur_unitaire,
                        l.quantite_recue, l.quantite_conforme, l.observation,
@@ -503,14 +503,16 @@ public class DotationsService {
             BigDecimal repartie = l.getBigDecimal(11);
             return new LigneDotationVue(l.getObject(1, UUID.class), l.getObject(2, UUID.class),
                     Categorie.valueOf(l.getString(3)), l.getString(4), l.getString(5), l.getBigDecimal(6),
-                    l.getObject(7, Long.class), l.getBigDecimal(8), l.getBigDecimal(9), l.getString(10), repartie,
-                    base.subtract(repartie));
+                    l.getObject(7, Long.class), l.getBigDecimal(8), l.getBigDecimal(9), l.getString(10),
+                    repartiteur ? repartie : null, repartiteur ? base.subtract(repartie) : null);
         }, d.id);
         Map<String, InstanceVue> cache = new HashMap<>();
         List<DotationResume> repartitions = new ArrayList<>();
-        for (Dotation x : jdbc.query(SELECT + " where d.origine_id = ? order by d.creee_le", (l, n) -> dotation(l),
-                d.id)) {
-            repartitions.add(resume(x, cache));
+        if (repartiteur) {
+            for (Dotation x : jdbc.query(SELECT + " where d.origine_id = ? order by d.creee_le", (l, n) -> dotation(l),
+                    d.id)) {
+                repartitions.add(resume(x, cache));
+            }
         }
         DotationResume r = resume(d, cache);
         boolean emettrice = a != null && a.agit(new Instance(d.emettriceType, d.emettriceId, null));
@@ -519,7 +521,8 @@ public class DotationsService {
                         && UtilisateurConnecte.aUnRole("ADMIN_ECOLE", "INTENDANT")
                 : a.agit(new Instance(d.destinataireType, d.destinataireId, null));
         boolean repartir = a != null && destinataire && d.destinataireType == TypeInstance.DIRECTION
-                && d.statut == StatutDotation.RECUE && lignes.stream().anyMatch(l -> l.disponible().signum() > 0);
+                && d.statut == StatutDotation.RECUE
+                && lignes.stream().anyMatch(l -> l.disponible() != null && l.disponible().signum() > 0);
         return new DotationVue(d.id, d.reference, d.annee, r.emettrice(), r.destinataire(), d.origineId,
                 r.origineReference(), d.objet, d.statut, d.creeeLe, d.envoyeeLe, d.envoyeePar, d.recueLe, d.accuseePar,
                 d.observationsReception, r.valeur(), emettrice && d.statut == StatutDotation.BROUILLON,

@@ -30,6 +30,8 @@ const TUILES: Tuile[] = [
   { titre: 'Cahier de textes', texte: 'Après chaque cours, même sans réseau', lien: '/cahier', roles: ['ENSEIGNANT'], module: 'PROGRESSION' },
   { titre: 'Mes progressions', texte: 'Séquences de l’année, visa', lien: '/progression', roles: ['ENSEIGNANT'], module: 'PROGRESSION' },
   { titre: 'Progressions', texte: 'Fiches des enseignants à viser', lien: '/progression/suivi', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX'], module: 'PROGRESSION' },
+  { titre: 'Mes interpellations', texte: 'Rappels et demandes d’explication de la direction, vos réponses', lien: '/progression/interpellations', roles: ['ENSEIGNANT'], module: 'PROGRESSION' },
+  { titre: 'Interpellations', texte: 'Enseignants en retard sur le programme : rappels, demandes d’explication', lien: '/progression/interpellations', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX'], module: 'PROGRESSION' },
   { titre: 'Cahiers de textes', texte: 'Visa mensuel par classe et par matière', lien: '/progression/cahiers', roles: ['CENSEUR', 'CHEF_TRAVAUX'], module: 'PROGRESSION' },
   { titre: 'Emplois du temps', texte: 'Grille par classe, enseignant, atelier ; génération', lien: '/emploi-du-temps', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SURVEILLANT'], module: 'EMPLOIS_DU_TEMPS' },
   { titre: 'Mon emploi du temps', texte: 'Mes cours de la semaine', lien: '/emploi-du-temps/mon-emploi', roles: ['ENSEIGNANT'], module: 'EMPLOIS_DU_TEMPS' },
@@ -98,14 +100,16 @@ const TUILES: Tuile[] = [
             <strong>Pilotage</strong>
             <span>Effectifs, résultats et examens par direction et par établissement</span>
           </a>
-          <a class="tuile active" routerLink="/pilotage/besoins">
-            <strong>Besoins</strong>
-            <span>États des besoins remontés par les directions, arbitrage final</span>
-          </a>
-          <a class="tuile active" routerLink="/pilotage/dotations">
-            <strong>Dotations</strong>
-            <span>Doter les directions régionales, suivre les accusés de réception</span>
-          </a>
+          @if (session.gereMoyens()) {
+            <a class="tuile active" routerLink="/pilotage/besoins">
+              <strong>Besoins</strong>
+              <span>États des besoins remontés par les directions, arbitrage final</span>
+            </a>
+            <a class="tuile active" routerLink="/pilotage/dotations">
+              <strong>Dotations</strong>
+              <span>Doter les directions régionales, suivre les accusés de réception</span>
+            </a>
+          }
         </div>
       } @else if (session.profil()?.direction; as d) {
         <p class="doux">{{ d.chemin }}</p>
@@ -177,8 +181,9 @@ const TUILES: Tuile[] = [
     }
     .tuile.active {
       border: none;
-      background: var(--primaire);
-      color: var(--sur-primaire);
+      border-top: 3px solid var(--accent);
+      background: linear-gradient(160deg, var(--barre-fin), var(--barre-debut));
+      color: var(--sur-barre);
       box-shadow: var(--ombre);
     }
   `,

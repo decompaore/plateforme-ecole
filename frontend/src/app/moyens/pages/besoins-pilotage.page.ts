@@ -4,11 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 
 import { Action } from '../../admin/action';
-import { PaysVue } from '../../admin/modeles-territoire';
 import { PlateformeNavComponent } from '../../admin/plateforme-nav.component';
-import { TerritoireApi } from '../../admin/territoire-api.service';
 import { dateHeureCourte } from '../../core/outils';
-import { SessionService } from '../../core/session.service';
 import { enregistrerFichier } from '../../scolarite/scolarite-api.service';
 import {
   CATEGORIES, CLASSE_STATUT_ETABLISSEMENT, DirectionBesoins, EtablissementBesoins, LIBELLE_CATEGORIE,
@@ -23,7 +20,7 @@ interface Arbitrage {
 }
 
 /**
- * Besoins remontés (v0.48), vus d'une direction ou du niveau central : état de chaque établissement du ressort,
+ * Besoins remontés (v0.48), vus d'une direction ou du niveau central — chacun ne voit que son niveau (v0.48.1) : état de chaque établissement du ressort,
  * transmissions des directions inférieures, besoins consolidés. La direction arbitre (quantités retenues), renvoie
  * pour correction et transmet à la direction supérieure ; le niveau central arbitre en dernier.
  */
@@ -42,12 +39,6 @@ interface Arbitrage {
       }
 
       <div class="barre-outils">
-        @if (superAdmin && pays().length > 1) {
-          <label class="visuellement-cache" for="besoinsPays">Pays</label>
-          <select id="besoinsPays" (change)="choisirPays($any($event.target).value)">
-            @for (p of pays(); track p.id) { <option [value]="p.id" [selected]="p.id === paysId()">{{ p.nom }}</option> }
-          </select>
-        }
         @if (vue(); as v) {
           <label class="visuellement-cache" for="besoinsAnnee">Année scolaire</label>
           <select id="besoinsAnnee" (change)="choisirAnnee($any($event.target).value)">
@@ -64,9 +55,6 @@ interface Arbitrage {
 
       @if (vue(); as v) {
         <section class="perimetre">
-          @if (directionId()) {
-            <button type="button" class="bouton discret petit" (click)="ouvrirDirection(null)">↑ Mon ressort</button>
-          }
           <h2>{{ v.perimetre.nom }}</h2>
           @if (v.perimetre.chemin && v.perimetre.type === 'DIRECTION') { <p class="doux">{{ v.perimetre.chemin }}</p> }
         </section>
@@ -131,7 +119,7 @@ interface Arbitrage {
               <tbody>
                 @for (d of v.directions; track d.id) {
                   <tr>
-                    <td><button type="button" class="bouton discret petit" (click)="ouvrirDirection(d.id)">{{ d.nom }}</button></td>
+                    <td>{{ d.nom }}</td>
                     <td>
                       <span class="pastille {{ d.statut === 'TRANSMISE' ? 'present' : d.statut === 'RENVOYEE' ? 'absent' : '' }}">{{ libelleTransmission[d.statut] }}</span>
                       @if (d.transmiseLe && d.statut === 'TRANSMISE') { <span class="doux petit-texte"> le {{ dateHeure(d.transmiseLe) }}</span> }
@@ -259,17 +247,11 @@ interface Arbitrage {
 })
 export class BesoinsPilotagePage implements OnInit {
   private readonly api = inject(MoyensApi);
-  private readonly territoire = inject(TerritoireApi);
   private readonly route = inject(ActivatedRoute);
-  private readonly session = inject(SessionService);
-  protected readonly superAdmin = this.session.profil()?.superAdmin === true;
 
   protected readonly action = new Action();
   protected readonly export = new Action();
   protected readonly message = signal<string | null>(null);
-  protected readonly pays = signal<PaysVue[]>([]);
-  protected readonly paysId = signal<string | null>(null);
-  protected readonly directionId = signal<string | null>(null);
   protected readonly annee = signal<string | null>(null);
   protected readonly vue = signal<VueBesoins | null>(null);
   protected readonly onglet = signal<'etablissements' | 'directions' | 'consolidation'>('etablissements');
@@ -299,24 +281,13 @@ export class BesoinsPilotagePage implements OnInit {
 
   async ngOnInit(): Promise<void> {
     const q = this.route.snapshot.queryParamMap;
-    this.directionId.set(q.get('direction'));
     this.annee.set(q.get('annee'));
-    this.paysId.set(q.get('pays'));
-    if (this.superAdmin) {
-      const l = await this.action.executer(() => this.territoire.pays());
-      if (l) {
-        this.pays.set(l);
-        if (!this.paysId() && !this.directionId() && l.length) {
-          this.paysId.set((l.find((p) => p.code === 'BF') ?? l[0]).id);
-        }
-      }
-    }
     await this.charger();
   }
 
   protected async charger(): Promise<void> {
     const v = await this.action.executer(() =>
-      this.api.besoins({ direction: this.directionId(), pays: this.directionId() ? null : this.paysId(), annee: this.annee() }),
+      this.api.besoins({ annee: this.annee() }),
     );
     if (v) {
       this.vue.set(v);
@@ -327,28 +298,14 @@ export class BesoinsPilotagePage implements OnInit {
     }
   }
 
-  protected async choisirPays(id: string): Promise<void> {
-    this.paysId.set(id || null);
-    this.directionId.set(null);
-    this.remontee.set(null);
-    await this.charger();
-  }
-
   protected async choisirAnnee(annee: string): Promise<void> {
     this.annee.set(annee || null);
     this.remontee.set(null);
     await this.charger();
   }
 
-  protected async ouvrirDirection(id: string | null): Promise<void> {
-    this.directionId.set(id);
-    this.remontee.set(null);
-    this.renvoiDirection.set(null);
-    await this.charger();
-  }
-
   protected async ouvrirRemontee(e: EtablissementBesoins): Promise<void> {
-    const r = await this.action.executer(() => this.api.remontee(e.remonteeId!, this.directionId()));
+    const r = await this.action.executer(() => this.api.remontee(e.remonteeId!));
     if (r) {
       this.afficherRemontee(r);
     }
@@ -413,7 +370,7 @@ export class BesoinsPilotagePage implements OnInit {
   protected async exporter(format: 'xlsx' | 'pdf'): Promise<void> {
     const v = this.vue();
     const f = await this.export.executer(() =>
-      this.api.exporterBesoins({ direction: this.directionId(), pays: this.directionId() ? null : this.paysId(), annee: v?.annee }, format),
+      this.api.exporterBesoins({ annee: v?.annee }, format),
     );
     if (f) {
       enregistrerFichier(f, `besoins-${v?.annee ?? ''}.${format}`);

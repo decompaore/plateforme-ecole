@@ -27,7 +27,8 @@ public enum Module {
             null,
             "/api/v1/classes/*/matieres/*/progression/**", "/api/v1/annees/*/progressions",
             "/api/v1/espace-enseignant/progressions", "/api/v1/classes/*/matieres/*/cahier-textes",
-            "/api/v1/cahier-textes/**"),
+            "/api/v1/cahier-textes/**", "/api/v1/classes/*/matieres/*/interpellations/**",
+            "/api/v1/interpellations/**", "/api/v1/espace-enseignant/interpellations"),
 
     VIE_SCOLAIRE("Vie scolaire",
             "Retards, avertissements, blâmes, exclusions, convocations des parents",

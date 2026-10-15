@@ -1,4 +1,4 @@
-# Besoins et dotations (v0.48)
+# Besoins et dotations (v0.48, cloisonnement v0.48.1)
 
 Le circuit suit l'organisation du terrain.
 
@@ -69,18 +69,20 @@ La vue renvoie aussi :
 
 Toutes ces routes sont sous `/api/v1/pilotage/`. Elles sont ouvertes aux rôles DIRECTION, ADMIN_PAYS et SUPER_ADMIN.
 
-**Qui fait quoi**
-- Un **compte de direction** agit au nom de sa direction. Il peut consulter (en lecture seule) une direction qui en dépend, avec `?direction=`.
-- L'**administrateur pays** agit au niveau central de son pays.
-- Le **super administrateur** consulte seulement : il précise `direction` ou `pays`. Toute écriture lui renvoie **403**.
+**Qui fait quoi : cloisonnement strict (v0.48.1)**
+- L'**administrateur pays** agit au niveau central de son pays, et seulement à ce niveau.
+- Un **compte de direction** agit au nom de sa direction, et seulement à ce niveau : la direction régionale ne voit que ce qui lui est arrivé, la direction provinciale de même, et ainsi de suite.
+- Une direction ne descend pas consulter une direction inférieure : un paramètre `direction` (ou `pays`) qui désigne une autre instance que la sienne donne **403**.
+- Le **super administrateur de la plateforme n'a aucun accès** à ces données : toute route de besoins ou de dotations lui renvoie **403**.
+- **Avant son arrivée**, un état apparaît dans la liste des établissements avec son seul emplacement (`EN_COURS` et `etape`). On n'y voit ni lignes, ni `remonteeId`, ni motif de renvoi. Son détail donne **403** tant qu'il n'est pas arrivé au niveau de la personne connectée.
 
 ### Besoins
 
 | Méthode | Chemin | Effet |
 |---|---|---|
-| GET | `/pilotage/besoins?direction=&pays=&annee=` | Vue d'ensemble. Détail des champs ci-dessous. |
+| GET | `/pilotage/besoins?annee=` | Vue d'ensemble du niveau de la personne connectée. Détail des champs ci-dessous. |
 | GET | `/pilotage/besoins/export?format=xlsx\|pdf` | Classeur : besoins consolidés, établissements, directions |
-| GET | `/pilotage/besoins/remontees/{id}?direction=` | État d'un établissement : lignes et chaîne des arbitrages |
+| GET | `/pilotage/besoins/remontees/{id}` | État d'un établissement arrivé à ce niveau : lignes et chaîne des arbitrages des niveaux inférieurs |
 | PUT | `/pilotage/besoins/remontees/{id}/arbitrages` | Arbitrage au niveau de la personne connectée |
 | POST | `/pilotage/besoins/remontees/{id}/renvoyer` | Renvoi à l'établissement. Corps : `{ "motif" }`. |
 | POST | `/pilotage/besoins/transmettre` | Transmission de la direction à la direction supérieure. Corps : `{ "annee", "observations" }`. |
@@ -121,7 +123,7 @@ Avec `quantiteRetenue: null`, l'arbitrage de ce niveau est retiré : la quantit�
 
 | Méthode | Chemin | Effet |
 |---|---|---|
-| GET | `/pilotage/dotations?direction=&pays=&annee=` | Dotations reçues et émises de l'instance, et destinataires possibles |
+| GET | `/pilotage/dotations?annee=` | Dotations reçues et émises par la personne connectée (son niveau), et destinataires possibles |
 | GET | `/pilotage/dotations/{id}` | Détail : lignes, quantités répartie et disponible, répartitions |
 | POST | `/pilotage/dotations` | Prépare une dotation (`BROUILLON`), avec une référence `DOT-AAAA-NNNNN` |
 | PUT | `/pilotage/dotations/{id}` | Modifie un brouillon |
@@ -163,7 +165,8 @@ Corps :
 
 **Visibilité**
 - Un brouillon n'est visible que du côté de l'émetteur : pour le destinataire, il donne **404**.
-- Une dotation est visible de qui voit l'émetteur ou le destinataire. Par exemple, la direction régionale suit les dotations que ses directions provinciales envoient aux établissements.
+- Une dotation n'est visible que de son émetteur et, une fois envoyée, de son destinataire (v0.48.1). La direction régionale ne voit donc pas les dotations qu'une direction provinciale envoie à ses établissements.
+- La répartition d'une dotation reçue (`repartitions`, `repartie`, `disponible`) n'est donnée qu'au destinataire qui répartit. L'émetteur voit les quantités reçues et conformes, mais pas la suite.
 
 Seul l'émetteur modifie ou envoie une dotation : sinon **403**. Une dotation envoyée n'est plus modifiable : `DOTATION_ENVOYEE` (409).
 

@@ -47,7 +47,8 @@ import bf.edutech.plateforme.utilisateurs.Role;
  * transmet ; DP1 arbitre, renvoie pour correction, puis transmet ; la DR ne voit un état qu'une fois transmis par la
  * direction provinciale, arbitre dans la limite retenue en dessous et transmet au niveau central. Les dotations
  * descendent : niveau central → DR → DP → lycée, chaque répartition bornée par les quantités conformes reçues, et
- * chaque destinataire accuse réception.
+ * chaque destinataire accuse réception. Cloisonnement (v0.48.1) : chaque niveau ne voit que ses propres données, le
+ * super administrateur de la plateforme n'y a pas accès.
  */
 @SpringBootTest
 @ActiveProfiles("test")
@@ -163,20 +164,32 @@ class BesoinsDotationsIntegrationTest {
         envoyer(post("/api/v1/etat-besoins/{a}/transmettre", b.annee), proviseurB, "{}").andExpect(status().isOk());
 
         // ------------------------------------------------------------ DP1 : réception, arbitrage, renvoi
-        mvc.perform(get("/api/v1/pilotage/besoins").with(kadiogo)).andExpect(status().isOk())
+        String vueDp = mvc.perform(get("/api/v1/pilotage/besoins").with(kadiogo)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.annee").value(libelle))
                 .andExpect(jsonPath("$.destination").value("DR Centre " + suffixe))
                 .andExpect(jsonPath("$.etablissements.length()").value(1))
                 .andExpect(jsonPath("$.etablissements[0].statut").value("RECU"))
                 .andExpect(jsonPath("$.consolidation.length()").value(3))
-                .andExpect(jsonPath("$.peutTransmettre").value(true));
+                .andExpect(jsonPath("$.peutTransmettre").value(true))
+                .andReturn().getResponse().getContentAsString();
+        String remonteeA = ((List<String>) JsonPath.read(vueDp, "$.etablissements[?(@.id == '" + a.id
+                + "')].remonteeId")).get(0);
+        // v0.48.1 : la DR sait seulement où se trouve l'état ; elle n'en voit pas le détail tant qu'il n'est pas arrivé
         String vueDr = mvc.perform(get("/api/v1/pilotage/besoins").with(regionale)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.etablissements[?(@.id == '" + a.id + "')].statut").value("EN_COURS"))
                 .andExpect(jsonPath("$.etablissements[?(@.id == '" + a.id + "')].etape").value("DP Kadiogo " + suffixe))
+                .andExpect(jsonPath("$.etablissements[?(@.id == '" + a.id + "')].lignes").value(0))
                 .andExpect(jsonPath("$.consolidation.length()").value(0))
                 .andReturn().getResponse().getContentAsString();
-        String remonteeA = ((List<String>) JsonPath.read(vueDr, "$.etablissements[?(@.id == '" + a.id
-                + "')].remonteeId")).get(0);
+        assertThat(((List<Object>) JsonPath.read(vueDr, "$.etablissements[?(@.id == '" + a.id + "')].remonteeId")).get(0))
+                .isNull();
+        mvc.perform(get("/api/v1/pilotage/besoins/remontees/{id}", remonteeA).with(regionale))
+                .andExpect(status().isForbidden());
+        // Ni descente vers une direction inférieure, ni accès du super administrateur de la plateforme
+        mvc.perform(get("/api/v1/pilotage/besoins").param("direction", dp1.toString()).with(regionale))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/pilotage/besoins").with(SUPER_ADMIN)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/pilotage/dotations").with(SUPER_ADMIN)).andExpect(status().isForbidden());
         String tourA = ligne(remonteeA, kadiogo, "pièce");
         // La DR n'arbitre pas un état qui n'est pas arrivé jusqu'à elle
         envoyer(put("/api/v1/pilotage/besoins/remontees/{id}/arbitrages", remonteeA), regionale,
@@ -251,9 +264,9 @@ class BesoinsDotationsIntegrationTest {
                 .andExpect(jsonPath("$.lignes[?(@.id == '" + tourA + "')].maximum").value(2.0))
                 .andExpect(jsonPath("$.lignes[?(@.id == '" + tourA + "')].arbitrages[0].quantite").value(2.0))
                 .andExpect(jsonPath("$.peutRenvoyer").value(false));
-        // Le super administrateur consulte sans arbitrer
+        // Le super administrateur de la plateforme n'a pas accès aux besoins (v0.48.1)
         mvc.perform(get("/api/v1/pilotage/besoins").param("direction", dr.toString()).with(SUPER_ADMIN))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.peutArbitrer").value(false));
+                .andExpect(status().isForbidden());
         envoyer(put("/api/v1/pilotage/besoins/remontees/{id}/arbitrages", remonteeA), SUPER_ADMIN,
                 "{\"lignes\":[{\"ligneId\":\"" + tourA + "\",\"quantiteRetenue\":1}]}").andExpect(status().isForbidden());
         // Une DP ne remonte pas au-dessus d'elle
@@ -380,8 +393,14 @@ class BesoinsDotationsIntegrationTest {
         mvc.perform(get("/api/v1/dotations-recues/{id}", versA).with(proviseurB)).andExpect(status().isNotFound());
         mvc.perform(get("/api/v1/pilotage/dotations").with(kadiogo))
                 .andExpect(jsonPath("$.emises[?(@.id == '" + versA + "')].statut").value("RECUE"));
-        mvc.perform(get("/api/v1/pilotage/dotations/{id}", versA).with(regionale))
+        mvc.perform(get("/api/v1/pilotage/dotations/{id}", versA).with(kadiogo))
                 .andExpect(jsonPath("$.lignes[?(@.id == '" + acierRecu + "')].quantiteConforme").value(58.0));
+        // v0.48.1 : la DR ne voit pas les dotations que la DP envoie à ses établissements, ni le niveau central la
+        // répartition faite par la DR
+        mvc.perform(get("/api/v1/pilotage/dotations/{id}", versA).with(regionale)).andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/pilotage/dotations/{id}", nationale).with(central))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.repartitions.length()").value(0))
+                .andExpect(jsonPath("$.lignes[0].repartie").doesNotExist());
     }
 
     // ------------------------------------------------------------------

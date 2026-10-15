@@ -18,6 +18,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import bf.edutech.plateforme.socle.documents.RenduDocument;
 import bf.edutech.plateforme.socle.audit.AuditService;
 import bf.edutech.plateforme.socle.erreurs.AccesRefuseException;
 import bf.edutech.plateforme.socle.erreurs.RegleMetierException;

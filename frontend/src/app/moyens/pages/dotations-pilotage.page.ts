@@ -3,10 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 
 import { Action } from '../../admin/action';
-import { PaysVue } from '../../admin/modeles-territoire';
 import { PlateformeNavComponent } from '../../admin/plateforme-nav.component';
-import { TerritoireApi } from '../../admin/territoire-api.service';
-import { SessionService } from '../../core/session.service';
 import { DotationDetailComponent } from '../dotation-detail.component';
 import {
   Categorie, CATEGORIES, CLASSE_STATUT_DOTATION, Dotations, DotationResume, DotationVue, LIBELLE_CATEGORIE,
@@ -56,12 +53,6 @@ interface LigneRepartie {
       }
 
       <div class="barre-outils">
-        @if (superAdmin && pays().length > 1) {
-          <label class="visuellement-cache" for="dotationsPays">Pays</label>
-          <select id="dotationsPays" (change)="choisirPays($any($event.target).value)">
-            @for (p of pays(); track p.id) { <option [value]="p.id" [selected]="p.id === paysId()">{{ p.nom }}</option> }
-          </select>
-        }
         @if (liste(); as l) {
           <label class="visuellement-cache" for="dotationsAnnee">Année scolaire</label>
           <select id="dotationsAnnee" (change)="choisirAnnee($any($event.target).value)">
@@ -205,16 +196,10 @@ interface LigneRepartie {
 })
 export class DotationsPilotagePage implements OnInit {
   private readonly api = inject(MoyensApi);
-  private readonly territoire = inject(TerritoireApi);
   private readonly route = inject(ActivatedRoute);
-  private readonly session = inject(SessionService);
-  protected readonly superAdmin = this.session.profil()?.superAdmin === true;
 
   protected readonly action = new Action();
   protected readonly message = signal<string | null>(null);
-  protected readonly pays = signal<PaysVue[]>([]);
-  protected readonly paysId = signal<string | null>(null);
-  protected readonly directionId = signal<string | null>(null);
   protected readonly annee = signal<string | null>(null);
   protected readonly liste = signal<Dotations | null>(null);
   protected readonly onglet = signal<'recues' | 'emises'>('recues');
@@ -236,24 +221,13 @@ export class DotationsPilotagePage implements OnInit {
   protected readonly recuesRepartissables = computed(() => (this.liste()?.recues ?? []).filter((d) => d.statut === 'RECUE'));
 
   async ngOnInit(): Promise<void> {
-    const q = this.route.snapshot.queryParamMap;
-    this.directionId.set(q.get('direction'));
-    this.paysId.set(q.get('pays'));
-    if (this.superAdmin) {
-      const l = await this.action.executer(() => this.territoire.pays());
-      if (l) {
-        this.pays.set(l);
-        if (!this.paysId() && !this.directionId() && l.length) {
-          this.paysId.set((l.find((p) => p.code === 'BF') ?? l[0]).id);
-        }
-      }
-    }
+    this.annee.set(this.route.snapshot.queryParamMap.get('annee'));
     await this.charger();
   }
 
   protected async charger(): Promise<void> {
     const l = await this.action.executer(() =>
-      this.api.dotations({ direction: this.directionId(), pays: this.directionId() ? null : this.paysId(), annee: this.annee() }),
+      this.api.dotations({ annee: this.annee() }),
     );
     if (l) {
       this.liste.set(l);
@@ -261,12 +235,6 @@ export class DotationsPilotagePage implements OnInit {
         this.onglet.set('emises');
       }
     }
-  }
-
-  protected async choisirPays(id: string): Promise<void> {
-    this.paysId.set(id || null);
-    this.dotation.set(null);
-    await this.charger();
   }
 
   protected async choisirAnnee(annee: string): Promise<void> {
@@ -291,8 +259,8 @@ export class DotationsPilotagePage implements OnInit {
     this.anneeDotation = origine?.annee ?? this.annee() ?? anneeScolaireCourante();
     this.libres = [{ categorie: 'MATIERE', designation: '', unite: UNITE_PAR_DEFAUT.MATIERE, quantite: null, valeurUnitaire: null }];
     this.repartition = (origine?.lignes ?? [])
-      .filter((x) => x.disponible > 0)
-      .map((x) => ({ ligneOrigineId: x.id, libelle: `${x.designation} (${x.unite})`, disponible: x.disponible, quantite: null }));
+      .filter((x) => (x.disponible ?? 0) > 0)
+      .map((x) => ({ ligneOrigineId: x.id, libelle: `${x.designation} (${x.unite})`, disponible: x.disponible ?? 0, quantite: null }));
     this.message.set(null);
     this.form.set(true);
   }
