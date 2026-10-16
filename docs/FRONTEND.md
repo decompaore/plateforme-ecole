@@ -1,4 +1,4 @@
-# Application web (v0.48.1)
+# Application web (v0.49)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -475,6 +475,17 @@ connexion.
 - **Établissements → Données** (super administrateur) : même composant (`app-exports-donnees` avec
   `etablissementId`), pour un établissement actif, suspendu ou résilié.
 - Détails du contenu de l'archive : [API_REVERSIBILITE.md](API_REVERSIBILITE.md).
+
+## Commission de recrutement (v0.49)
+
+- **Accès :** tuile « Commission de recrutement » (chef d'établissement, censeur, secrétariat, CPE, intendant). La route `/recrutement` est ouverte aussi aux enseignants et au chef des travaux, qui n'y voient que les commissions dont ils sont membres.
+- **Liste** (`recrutement/pages/commissions.page.ts`) : les commissions de l'année ; le chef d'établissement en crée une.
+- **Détail** (`recrutement/pages/commission.page.ts`), en onglets :
+  - Commission : membres, personnel ou personne extérieure, présence ;
+  - Places : disponibles d'après les classes, places offertes ;
+  - Candidatures : saisie, recevabilité avec motif ;
+  - Classement : aperçu, puis délibération du président. L'onglet devient « Résultats » : procès-verbal, résultats PDF ou Excel, inscription par l'intendance avec le choix de la classe (les classes pleines sont grisées), désistement et repêchage, clôture.
+- **Tests :** `recrutement/recrutement.spec.ts`.
 
 ## Thème « éducation et savoir », armoiries en filigrane (v0.48.1)
 

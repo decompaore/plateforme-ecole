@@ -379,6 +379,24 @@ export const routes: Routes = [
         ],
       },
       {
+        // Commission de recrutement (v0.49) : complément d'effectif ; les enseignants membres y accèdent aussi
+        path: 'recrutement',
+        canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'SURVEILLANT', 'INTENDANT', 'ENSEIGNANT', 'CHEF_TRAVAUX')],
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            title: 'Commission de recrutement',
+            loadComponent: () => import('./recrutement/pages/commissions.page').then((m) => m.CommissionsPage),
+          },
+          {
+            path: ':id',
+            title: 'Commission de recrutement',
+            loadComponent: () => import('./recrutement/pages/commission.page').then((m) => m.CommissionPage),
+          },
+        ],
+      },
+      {
         // Progressions : préparées par l'enseignant, visées par le censeur ou le chef des travaux (en ligne)
         path: 'progression',
         canActivate: [role('ENSEIGNANT', 'ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX'), module('PROGRESSION')],
