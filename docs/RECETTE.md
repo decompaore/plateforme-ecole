@@ -57,6 +57,7 @@ Code de sortie : 0 si tout est réussi, 1 s'il y a des échecs, 2 si la recette 
 | 13 | TPR | Travaux pratiques (v0.47.2), sur un atelier de recette : consignes à lire avant toute demande, demande et validation, conflit refusé, production, préparation (sortie du stock), compte rendu, bilan (retour au stock), journal HSE, plannings, annulation |
 | 14 | EBD, DOT | Besoins et dotations (v0.48) : état des besoins du lycée technique (censeur, chef des travaux, proviseur), réception par la DP, arbitrage plafonné, renvoi pour correction, transmissions DP → DR → niveau central, cloisonnement et export ; dotation nationale à la DR, répartition à la DP puis au lycée, accusés de réception avec quantité non conforme |
 | 15 | IPL, ARM | Ajustements v0.48.1 : retard dans le suivi des progressions, demande d'explication numérotée (messagerie, lecture, réponse unique, lettre PDF, clôture avec suite), rappel sans numéro ; armoiries du pays servies aux comptes du pays, jamais au super administrateur (sans toucher aux armoiries déjà déposées) |
+| 16 | REC | Commission de recrutement (v0.49) : création par le chef d'établissement, membres proposés, enseignant non membre refusé ; places plafonnées ; candidatures (secrétariat), irrecevabilité motivée, aperçu du classement ; délibération du président, procès-verbal PDF, résultats Excel ; désistement et repêchage, inscription en complément d'effectif par l'intendant, clôture |
 | 11 | CAH, INT | Organisation des rôles (v0.47) : visa mensuel des cahiers de textes (droits et refus, sans figer les données de démonstration), intérim du chef d'établissement (prévu puis annulé). Les lots 01, 03 et 05 vérifient aussi l'intendant qui inscrit, le chef d'établissement seul à modifier, le censeur qui répartit et le CPE seul à saisir la vie scolaire |
 
 **Ce que la recette laisse dans la base** (elle reste rejouable) :
@@ -95,6 +96,7 @@ Cochez chaque point sur l'interface (`cd frontend && npm start`, puis http://loc
 
 ### Établissement
 
+- [ ] **v0.49** : le proviseur crée la commission de recrutement, désigne le représentant de l'APE et un enseignant membre ; le censeur fixe les places (au-delà des places disponibles : refus) ; le secrétariat saisit des candidatures, le censeur en déclare une irrecevable ; le proviseur délibère, le procès-verbal PDF porte l'en-tête, les membres et sa signature ; l'intendant inscrit un retenu (classe pleine grisée), enregistre un désistement et voit le repêché ; l'élève apparaît dans la classe avec le mode « Complément d'effectif ».
 - [ ] **v0.48.1** : le censeur filtre « En retard » dans Progressions, interpelle un enseignant (demande d'explication avec délai) ; l'enseignant la lit dans « Mes interpellations » et répond ; le censeur clôt avec la suite donnée ; la lettre PDF porte l'en-tête et le numéro. Le chef des travaux ne peut pas interpeller sur une matière générale.
 - [ ] **v0.48.1** : le nouveau thème (bleu et or) est lisible en plein soleil et en mode sombre.
 
