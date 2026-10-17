@@ -51,6 +51,7 @@ import bf.edutech.plateforme.evaluations.Vues.ResultatsPeriodeVue;
 import bf.edutech.plateforme.notifications.NotificationsService;
 import bf.edutech.plateforme.pedagogie.ProfilVue;
 import bf.edutech.plateforme.pedagogie.ProfilsService;
+import bf.edutech.plateforme.professeurprincipal.ProfesseursPrincipauxService;
 import bf.edutech.plateforme.socle.audit.AuditService;
 import bf.edutech.plateforme.socle.erreurs.AccesRefuseException;
 import bf.edutech.plateforme.socle.erreurs.RegleMetierException;
@@ -96,6 +97,8 @@ public class BulletinsService {
     private final VisasService visas;
     private final PhotosEleves photosEleves;
 
+    private final ProfesseursPrincipauxService professeursPrincipaux;
+
     BulletinsService(GenerationBulletinsRepository generations, BulletinRepository bulletins,
             BulletinLigneRepository lignes, AppreciationRepository appreciations, AvisConseilRepository avis,
             ParametresBulletinsService parametres, RenduPdf rendu, ResultatsService resultats,
@@ -103,7 +106,8 @@ public class BulletinsService {
             ProfilsService profils, InscriptionsService inscriptions, ElevesService eleves,
             EspaceParentService espaceParent, EnseignantsService enseignants, ContactsEleves contacts,
             NotificationsService notifications, AuditService audit, JdbcTemplate jdbc, Clock horloge,
-            VisasService visas, PhotosEleves photosEleves) {
+            VisasService visas, PhotosEleves photosEleves, ProfesseursPrincipauxService professeursPrincipaux) {
+        this.professeursPrincipaux = professeursPrincipaux;
         this.generations = generations;
         this.bulletins = bulletins;
         this.lignes = lignes;
@@ -140,6 +144,8 @@ public class BulletinsService {
             throw new RegleMetierException("PERIODE_NON_VERROUILLEE", "Verrouillez la période « " + periode.libelle()
                     + " » avant de générer les bulletins : les notes ne doivent plus changer");
         }
+        // v0.49.1 : notes vérifiées avec les élèves par le professeur principal (s'il est désigné)
+        professeursPrincipaux.exigerVerificationValidee(classeId, periodeId);
         generations.findByClasseIdAndPeriodeId(classeId, periodeId).ifPresent(ancienne -> {
             if (ancienne.estPubliee()) {
                 throw new RegleMetierException("BULLETINS_PUBLIES",

@@ -379,6 +379,62 @@ export const routes: Routes = [
         ],
       },
       {
+        // Professeur principal (v0.49.1) : espace de l'enseignant, dossiers, vérification des notes
+        path: 'professeur-principal',
+        canActivate: [role('ENSEIGNANT', 'ADMIN_ECOLE', 'CENSEUR', 'SURVEILLANT')],
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            canActivate: [() => inject(SessionService).aLeRole('ENSEIGNANT') || inject(Router).parseUrl('/professeurs-principaux')],
+            title: 'Professeur principal',
+            loadComponent: () => import('./professeur-principal/pages/espace-pp.page').then((m) => m.EspacePpPage),
+          },
+          {
+            path: 'reclamations',
+            canActivate: [role('ENSEIGNANT')],
+            title: 'Réclamations de notes',
+            loadComponent: () => import('./professeur-principal/pages/reclamations.page').then((m) => m.ReclamationsPage),
+          },
+          {
+            path: 'dossiers/:id',
+            title: 'Dossier du professeur principal',
+            loadComponent: () => import('./professeur-principal/pages/dossier.page').then((m) => m.DossierPage),
+          },
+          {
+            path: 'classes/:classeId/verification',
+            canActivate: [role('ENSEIGNANT', 'ADMIN_ECOLE', 'CENSEUR')],
+            title: 'Vérification des notes',
+            loadComponent: () => import('./professeur-principal/pages/verification.page').then((m) => m.VerificationPage),
+          },
+        ],
+      },
+      {
+        // Désignation des professeurs principaux et suivi par la direction (v0.49.1)
+        path: 'professeurs-principaux',
+        canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'SURVEILLANT', 'CHEF_TRAVAUX', 'INTENDANT')],
+        title: 'Professeurs principaux',
+        loadComponent: () => import('./professeur-principal/pages/professeurs-principaux.page').then((m) => m.ProfesseursPrincipauxPage),
+      },
+      {
+        // Commission de recrutement (v0.49) : complément d'effectif ; les enseignants membres y accèdent aussi
+        path: 'recrutement',
+        canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'SURVEILLANT', 'INTENDANT', 'ENSEIGNANT', 'CHEF_TRAVAUX')],
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            title: 'Commission de recrutement',
+            loadComponent: () => import('./recrutement/pages/commissions.page').then((m) => m.CommissionsPage),
+          },
+          {
+            path: ':id',
+            title: 'Commission de recrutement',
+            loadComponent: () => import('./recrutement/pages/commission.page').then((m) => m.CommissionPage),
+          },
+        ],
+      },
+      {
         // Progressions : préparées par l'enseignant, visées par le censeur ou le chef des travaux (en ligne)
         path: 'progression',
         canActivate: [role('ENSEIGNANT', 'ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX'), module('PROGRESSION')],

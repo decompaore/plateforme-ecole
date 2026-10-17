@@ -115,8 +115,8 @@ a {
 }
 
 .carte {
-  /* Légèrement translucide : les armoiries en filigrane restent perceptibles derrière le contenu (v0.48.1) */
-  background: color-mix(in srgb, var(--surface) 90%, transparent);
+  /* Opaque : le contenu reste lisible devant les armoiries du fond d'écran (v0.49.1) */
+  background: var(--surface);
   border: 1px solid var(--bordure);
   border-radius: var(--rayon);
   box-shadow: var(--ombre);

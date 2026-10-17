@@ -127,8 +127,8 @@
   color: var(--info);
 }
 
-/* Armoiries du pays en filigrane, derrière le contenu (v0.48.1) */
-.filigrane {
+/* Armoiries du pays en fond d'écran, derrière le contenu : en couleurs, sans atténuation (v0.49.1) */
+.fond-armoiries {
   position: fixed;
   inset: 0;
   z-index: 0;
@@ -136,8 +136,6 @@
   background-repeat: no-repeat;
   background-position: center 58%;
   background-size: min(72vmin, 560px);
-  opacity: 0.08;
-  filter: grayscale(0.2);
 }
 
 main {
@@ -145,15 +143,8 @@ main {
   z-index: 1;
 }
 
-@media (prefers-color-scheme: dark) {
-  .filigrane {
-    opacity: 0.09;
-    filter: grayscale(0.4) brightness(1.4);
-  }
-}
-
 @media print {
-  .filigrane {
+  .fond-armoiries {
     display: none;
   }
 }

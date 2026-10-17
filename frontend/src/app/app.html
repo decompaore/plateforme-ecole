@@ -101,8 +101,8 @@
 }
 
 @if (armoiries.image(); as a) {
-  <!-- Armoiries du pays en filigrane (v0.48.1) -->
-  <div class="filigrane" aria-hidden="true" [style.background-image]="'url(' + a + ')'"></div>
+  <!-- Armoiries du pays en fond d'écran (v0.48.1 ; en couleurs, sans filigrane depuis v0.49.1) -->
+  <div class="fond-armoiries" aria-hidden="true" [style.background-image]="'url(' + a + ')'"></div>
 }
 
 <main>
