@@ -13,13 +13,13 @@ interface EtatArmoiries {
 }
 
 /**
- * Armoiries d'un pays (v0.48.1), affichées en filigrane des écrans de toutes les personnes du pays. L'image officielle
+ * Armoiries d'un pays (v0.48.1), affichées en fond d'écran (en couleurs depuis v0.49.1) pour toutes les personnes du pays. L'image officielle
  * (PNG transparent de préférence) est téléversée par l'administrateur du pays ou le super administrateur.
  */
 @Component({
   selector: 'app-armoiries-pays',
   template: `
-    <h3>Armoiries (filigrane des écrans)</h3>
+    <h3>Armoiries (fond d'écran)</h3>
     @if (!ouvert()) {
       <button type="button" class="bouton discret petit" (click)="ouvrir()">Gérer les armoiries de {{ nom() }}</button>
     } @else {
@@ -28,7 +28,7 @@ interface EtatArmoiries {
       }
       <p class="doux">
         Image officielle des armoiries du pays, de préférence en PNG à fond transparent (5 Mo au plus ; elle est réduite
-        à 800 pixels). Elle apparaît en filigrane, très atténuée, sur les écrans des établissements, des directions et
+        à 800 pixels). Elle apparaît en fond d'écran, en couleurs, derrière le contenu des écrans des établissements, des directions et
         de l'administration du pays.
       </p>
       <div class="armoiries">

@@ -33,7 +33,7 @@ export class App {
   private readonly router = inject(Router);
   private readonly sw = inject(SwUpdate);
 
-  /** Armoiries du pays en filigrane (v0.48.1). */
+  /** Armoiries du pays en fond d'écran (v0.48.1, v0.49.1). */
   protected readonly armoiries = inject(ArmoiriesEcran);
   protected readonly menuOuvert = signal(false);
   protected readonly miseAJour = signal(false);

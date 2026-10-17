@@ -1,4 +1,4 @@
-# Application web (v0.48.1)
+# Application web (v0.49.1)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -476,7 +476,36 @@ connexion.
   `etablissementId`), pour un établissement actif, suspendu ou résilié.
 - Détails du contenu de l'archive : [API_REVERSIBILITE.md](API_REVERSIBILITE.md).
 
-## Thème « éducation et savoir », armoiries en filigrane (v0.48.1)
+## Professeur principal (v0.49.1)
+
+- **Enseignant :** tuile « Professeur principal » (`professeur-principal/pages/espace-pp.page.ts`). Elle regroupe :
+  - ses classes de professeur principal, avec la vérification des notes et l'ouverture d'une médiation (élèves et enseignant concernés) ;
+  - « Confier une revendication » au professeur principal d'une classe où il enseigne ;
+  - ses dossiers ;
+  - les réclamations de notes à traiter (`reclamations.page.ts`).
+- **Vérification des notes** (`verification.page.ts`) :
+  - le choix de la période (périodes du profil de la classe) et les moyennes par matière de chaque élève ;
+  - pour le professeur principal, l'enregistrement d'une réclamation (élève, matière, évaluation facultative, motif) puis l'attestation, possible seulement quand plus rien n'attend ;
+  - les réponses « note corrigée » ou « note maintenue » de l'enseignant ou de la direction.
+- **Dossier** (`dossier.page.ts`) : exposé, journal des échanges, et selon les droits : écrire, informer l'enseignant, transmettre à l'administration, clore.
+- **Direction :** tuile « Professeurs principaux » (`professeurs-principaux.page.ts`) :
+  - la désignation par une liste des enseignants de chaque classe ;
+  - l'alerte pour les classes sans professeur principal ;
+  - l'état de la vérification par période et les dossiers transmis.
+- **Tests :** `professeur-principal/professeur-principal.spec.ts`.
+
+## Commission de recrutement (v0.49)
+
+- **Accès :** tuile « Commission de recrutement » (chef d'établissement, censeur, secrétariat, CPE, intendant). La route `/recrutement` est ouverte aussi aux enseignants et au chef des travaux, qui n'y voient que les commissions dont ils sont membres.
+- **Liste** (`recrutement/pages/commissions.page.ts`) : les commissions de l'année ; le chef d'établissement en crée une.
+- **Détail** (`recrutement/pages/commission.page.ts`), en onglets :
+  - Commission : membres, personnel ou personne extérieure, présence ;
+  - Places : disponibles d'après les classes, places offertes ;
+  - Candidatures : saisie, recevabilité avec motif ;
+  - Classement : aperçu, puis délibération du président. L'onglet devient « Résultats » : procès-verbal, résultats PDF ou Excel, inscription par l'intendance avec le choix de la classe (les classes pleines sont grisées), désistement et repêchage, clôture.
+- **Tests :** `recrutement/recrutement.spec.ts`.
+
+## Thème « éducation et savoir », armoiries en fond d'écran (v0.48.1, v0.49.1)
 
 - **Palette :**
   - bleu académique (`--primaire` #1f4e9c) pour le savoir et la confiance ;
@@ -484,9 +513,9 @@ connexion.
   - le vert reste réservé au « présent / réussi », le rouge aux absences et aux erreurs ;
   - variante sombre ajustée.
 - **Icônes :** les icônes de l'application, le favicon et la couleur du thème du manifeste passent au bleu.
-- **Armoiries en filigrane :** les armoiries du pays (`core/armoiries.service.ts`) s'affichent en filigrane derrière le contenu. Elles sont lues une fois par session, puis gardées sur l'appareil.
-  - Les cartes sont légèrement translucides, pour que le filigrane reste perceptible.
-  - Il est masqué à l'impression.
+- **Armoiries en fond d'écran :** les armoiries du pays (`core/armoiries.service.ts`) s'affichent derrière le contenu, en couleurs, sans atténuation (v0.49.1 ; un filigrane très atténué en v0.48.1). Elles sont lues une fois par session, puis gardées sur l'appareil.
+  - Les cartes sont opaques, pour que le contenu reste lisible devant les armoiries.
+  - Elles sont masquées à l'impression.
   - Les armoiries se gèrent dans « Territoire » (composant `admin/armoiries-pays.component.ts`).
 - **Tests :** `core/armoiries.spec.ts`.
 

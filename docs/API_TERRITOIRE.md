@@ -123,13 +123,13 @@ Le rattachement est en lecture seule pour l'établissement : il est fixé par la
 - Un logo illisible n'empêche jamais un document : il est simplement omis.
 - Les bulletins déjà produits gardent leur en-tête ; les nouveaux bulletins prennent le nouveau.
 
-## Armoiries des pays en filigrane (v0.48.1)
+## Armoiries des pays en fond d'écran (v0.48.1, v0.49.1)
 
 L'administrateur du pays (ou le super administrateur) téléverse l'**image officielle des armoiries** du pays :
 - format PNG ou JPEG, de préférence un PNG à fond transparent, 5 Mo au plus ;
 - elle est réduite à 800 pixels et enregistrée en PNG.
 
-Elle s'affiche en **filigrane très atténué** derrière les écrans de toutes les personnes du pays : les établissements rattachés, les comptes de direction et l'administration du pays. Elle n'est jamais imprimée.
+Elle s'affiche **en fond d'écran, en couleurs** (sans effet de filigrane depuis v0.49.1), derrière les écrans de toutes les personnes du pays : les établissements rattachés, les comptes de direction et l'administration du pays. Elle n'est jamais imprimée.
 
 | Méthode | Chemin | Rôles | Effet |
 |---|---|---|---|
@@ -139,7 +139,7 @@ Elle s'affiche en **filigrane très atténué** derrière les écrans de toutes 
 | DELETE | `/api/v1/plateforme/territoire/pays/{id}/armoiries` | idem | Retrait |
 | GET | `/api/v1/armoiries` | Toute personne connectée | Armoiries du pays de son établissement (d'après le rattachement), de sa direction ou du pays qu'elle administre. 404 s'il n'y en a pas, pour un établissement non rattaché ou pour le super administrateur. |
 
-L'application garde l'image sur l'appareil, pour l'afficher aussi hors connexion. Elle n'apparaît qu'en filigrane : elle ne figure pas sur les documents officiels.
+L'application garde l'image sur l'appareil, pour l'afficher aussi hors connexion. Elle n'apparaît qu'en fond d'écran : elle ne figure pas sur les documents officiels.
 
 Pour le Burkina Faso, on peut utiliser l'image du domaine public publiée sur Wikimedia Commons (« Coat of arms of Burkina Faso »), ou le fichier officiel du gouvernement.
 

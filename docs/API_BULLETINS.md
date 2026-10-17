@@ -26,6 +26,9 @@ PDF produits avec Apache PDFBox 3 (police Helvetica standard, aucun fichier de p
   un bulletin ne change pas si un élève change de classe ensuite.
 - Avant publication, on peut corriger (déverrouiller, corriger, reverrouiller) puis **régénérer** : l'ancienne
   génération est remplacée. La publication exige une période verrouillée.
+- **Professeur principal (v0.49.1)** : dans une classe qui en a un, l'avis du conseil et la génération attendent
+  qu'il ait attesté la vérification des notes de la période avec les élèves (`409 VERIFICATION_NOTES_REQUISE`) ;
+  voir [API_PROFESSEUR_PRINCIPAL.md](API_PROFESSEUR_PRINCIPAL.md).
 - Après publication, plus rien ne change : régénération, appréciations et avis du conseil sont refusés
   (`409 BULLETINS_PUBLIES`).
 

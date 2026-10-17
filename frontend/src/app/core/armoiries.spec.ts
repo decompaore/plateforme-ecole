@@ -6,7 +6,7 @@ import { attendre, configurer, reponse } from '../testing/outils-test';
 import { ArmoiriesEcran, cleArmoiries } from './armoiries.service';
 import { ProfilLocal, SessionService } from './session.service';
 
-describe('Armoiries en filigrane (v0.48.1)', () => {
+describe('Armoiries en fond d’écran (v0.48.1, v0.49.1)', () => {
   let http: HttpTestingController;
   let stockage: StockageMemoire;
 

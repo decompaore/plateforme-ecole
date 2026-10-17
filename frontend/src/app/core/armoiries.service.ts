@@ -5,7 +5,7 @@ import { firstValueFrom } from 'rxjs';
 import { STOCKAGE } from '../hors-ligne/stockage';
 import { API, ProfilLocal, SessionService } from './session.service';
 
-/** Clé du filigrane d'un profil : son établissement, sa direction ou le pays qu'il administre. */
+/** Clé des armoiries d'un profil : son établissement, sa direction ou le pays qu'il administre. */
 export function cleArmoiries(p: ProfilLocal | null): string | null {
   if (!p) {
     return null;
@@ -32,8 +32,8 @@ function enDataUrl(b: Blob): Promise<string> {
 }
 
 /**
- * Armoiries du pays en filigrane des écrans (v0.48.1). Lues une fois par session (établissement, direction ou pays
- * administré) puis gardées sur l'appareil pour s'afficher aussi hors connexion. Aucune armoirie : aucun filigrane.
+ * Armoiries du pays en fond d'écran (v0.48.1 ; en couleurs, sans filigrane, depuis v0.49.1). Lues une fois par session (établissement, direction ou pays
+ * administré) puis gardées sur l'appareil pour s'afficher aussi hors connexion. Aucune armoirie : fond uni.
  */
 @Injectable({ providedIn: 'root' })
 export class ArmoiriesEcran {

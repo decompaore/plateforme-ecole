@@ -30,6 +30,7 @@ import bf.edutech.plateforme.etablissement.Vues.MatiereDeClasseVue;
 import bf.edutech.plateforme.etablissement.Vues.PeriodeVue;
 import bf.edutech.plateforme.evaluations.ResultatsService;
 import bf.edutech.plateforme.evaluations.Vues.ResultatEleveVue;
+import bf.edutech.plateforme.professeurprincipal.ProfesseursPrincipauxService;
 import bf.edutech.plateforme.socle.audit.AuditService;
 import bf.edutech.plateforme.socle.erreurs.AccesRefuseException;
 import bf.edutech.plateforme.socle.erreurs.RegleMetierException;
@@ -58,10 +59,14 @@ public class ConseilService {
     private final Clock horloge;
     private final VisasService visas;
 
+    private final ProfesseursPrincipauxService professeursPrincipaux;
+
     ConseilService(AppreciationRepository appreciations, AvisConseilRepository avis,
             GenerationBulletinsRepository generations, ClassesService classes, PeriodesService periodes,
             InscriptionsService inscriptions, EnseignantsService enseignants, ResultatsService resultats,
-            ParametresBulletinsService parametres, AuditService audit, Clock horloge, VisasService visas) {
+            ParametresBulletinsService parametres, AuditService audit, Clock horloge, VisasService visas,
+            ProfesseursPrincipauxService professeursPrincipaux) {
+        this.professeursPrincipaux = professeursPrincipaux;
         this.appreciations = appreciations;
         this.avis = avis;
         this.generations = generations;
@@ -171,6 +176,8 @@ public class ConseilService {
     public List<AvisVue> saisirAvis(UUID classeId, UUID periodeId, List<SaisieAvis> saisies) {
         ClasseVue classe = verifierPeriode(classeId, periodeId);
         verifierNonPublie(classeId, periodeId);
+        // v0.49.1 : le conseil délibère sur des notes vérifiées avec les élèves par le professeur principal
+        professeursPrincipaux.exigerVerificationValidee(classeId, periodeId);
         Set<UUID> eleves = inscriptions.listerParClasse(classeId, false).stream().map(InscriptionVue::id)
                 .collect(Collectors.toSet());
         Map<UUID, AvisConseil> existants = eleves.isEmpty() ? new HashMap<>()
