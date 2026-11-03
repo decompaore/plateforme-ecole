@@ -250,6 +250,8 @@ export interface ResponsableDeEleveVue {
   profession?: string | null;
   /** Compte parent ouvert (le parent consulte notes, absences et paiements de ses enfants). */
   espaceParentOuvert?: boolean;
+  /** v0.50 : AUTO (application si activée sur le téléphone, sinon SMS) ou SMS (toujours par SMS). */
+  canalNotification?: 'AUTO' | 'SMS';
 }
 
 /** Ouverture de l'espace parent : mot de passe provisoire renvoyé une seule fois (null si compte existant). */

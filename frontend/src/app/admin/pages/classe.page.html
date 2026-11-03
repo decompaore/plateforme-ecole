@@ -9,6 +9,9 @@
   @if (enregistre(); as e) {
     <div class="alerte succes" role="status">{{ e }} : enregistré.</div>
   }
+  @if (reporte(); as r) {
+    <div class="alerte succes" role="status">{{ r }}</div>
+  }
 
   @if (classe(); as c) {
     <p class="doux">
@@ -27,6 +30,10 @@
       @if (groupesObligatoires()) {
         <p class="doux">Profil technique : chaque matière appartient à un groupe (les moyennes sont calculées par groupe).</p>
       }
+      <p class="doux">
+        « H / an » : volume horaire annuel fixé par le référentiel@if (volumeTotalObligatoire()) { (durée du module, obligatoire) }.
+        Il sert au bilan des heures dues et réalisées ; « ⇉ » le reporte sur toutes les classes de {{ c.filiereCode }} {{ c.niveau }}.
+      </p>
 
       <div class="tableau-defilant">
         <table class="tableau">
@@ -36,7 +43,7 @@
               <th class="nombre">Coef.</th>
               <th>Groupe</th>
               <th class="nombre">H / sem.</th>
-              @if (volumeTotalObligatoire()) { <th class="nombre">H total</th> }
+              <th class="nombre">H / an</th>
               <th>Enseignant</th>
               @if (peutModifier()) { <th></th> }
             </tr>
@@ -65,13 +72,11 @@
                            [attr.aria-label]="'Heures par semaine ' + m.matiereLibelle"
                            (input)="modifier(m, 'volumeHebdo', $any($event.target).value)" />
                   </td>
-                  @if (volumeTotalObligatoire()) {
-                    <td class="nombre">
-                      <input class="court" type="number" min="0" step="1" [value]="b.volumeTotal ?? ''"
-                             [attr.aria-label]="'Heures au total ' + m.matiereLibelle"
-                             (input)="modifier(m, 'volumeTotal', $any($event.target).value)" />
-                    </td>
-                  }
+                  <td class="nombre">
+                    <input class="court" type="number" min="0" step="1" [value]="b.volumeTotal ?? ''"
+                           [attr.aria-label]="'Heures par an ' + m.matiereLibelle"
+                           (input)="modifier(m, 'volumeTotal', $any($event.target).value)" />
+                  </td>
                   <td>
                     <select [value]="m.engagementId ?? ''" [attr.aria-label]="'Enseignant ' + m.matiereLibelle"
                             (change)="affecter(m, $any($event.target).value)">
@@ -88,6 +93,10 @@
                           Enregistrer
                         </button>
                       }
+                      @if (m.volumeTotal !== null && !modifiee(m)) {
+                        <button type="button" class="bouton discret petit" [disabled]="action.enCours()" (click)="reporter(m)"
+                                [title]="'Reporter ' + m.volumeTotal + ' h par an sur toutes les classes de ' + c.filiereCode + ' ' + c.niveau">⇉</button>
+                      }
                       <button type="button" class="bouton discret petit" (click)="retirer(m)" title="Retirer du programme">✕</button>
                     </div>
                   </td>
@@ -95,12 +104,12 @@
                   <td class="nombre">{{ m.coefficient }}</td>
                   <td>{{ m.groupe }}</td>
                   <td class="nombre">{{ m.volumeHebdo }}</td>
-                  @if (volumeTotalObligatoire()) { <td class="nombre">{{ m.volumeTotal }}</td> }
+                  <td class="nombre">{{ m.volumeTotal }}</td>
                   <td>{{ nomEnseignant(m.engagementId) }}</td>
                 }
               </tr>
             } @empty {
-              <tr><td colspan="7" class="doux">Aucune matière au programme.</td></tr>
+              <tr><td colspan="8" class="doux">Aucune matière au programme.</td></tr>
             }
           </tbody>
         </table>
@@ -139,12 +148,10 @@
                 <label for="nHebdo">Heures par semaine</label>
                 <input id="nHebdo" name="nHebdo" type="number" min="0" step="0.5" [(ngModel)]="nVolumeHebdo" />
               </div>
-              @if (volumeTotalObligatoire()) {
-                <div class="champ">
-                  <label for="nTotal">Heures au total (obligatoire)</label>
-                  <input id="nTotal" name="nTotal" type="number" min="1" required [(ngModel)]="nVolumeTotal" />
-                </div>
-              }
+              <div class="champ">
+                <label for="nTotal">Heures par an (référentiel)@if (volumeTotalObligatoire()) { (obligatoire) }</label>
+                <input id="nTotal" name="nTotal" type="number" min="1" [required]="volumeTotalObligatoire()" [(ngModel)]="nVolumeTotal" />
+              </div>
             </div>
             <button type="submit" class="bouton secondaire" [disabled]="action.enCours() || !nMatiere()">Ajouter</button>
           }

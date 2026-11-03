@@ -22,6 +22,10 @@ app:
     cookie-securise: false
   notifications:
     envoi-automatique: false              # les tests déclenchent l'envoi eux-mêmes
+  push:                                   # clés propres aux tests (aucune valeur d'exploitation)
+    cle-publique: BGjah93xEYj74h1SheSKR0Bnr0-2-UyRw5futspnD3YIVigU4Baqr81rLqRyVvlhXkqoMh9Ksv328FYtL7PKAqk
+    cle-privee: 3R1J7RJehokExoD3y7sVKvWcu5RjIHYMDDG7SSepvWY
+    envoi-automatique: false              # les tests déclenchent l'envoi eux-mêmes
   scolarite:
     relances-automatiques: false
   mobile-money:

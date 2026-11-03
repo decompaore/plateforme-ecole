@@ -1,0 +1,41 @@
+# =====================================================================
+# Configuration des sauvegardes – à copier en /etc/plateforme/sauvegarde.conf
+# (droits 600, propriétaire : l'utilisateur qui lance les sauvegardes).
+# Aucun secret ici : le mot de passe PostgreSQL est dans ~/.pgpass, et seule la
+# clé PUBLIQUE de chiffrement est sur le serveur. La clé privée (age) reste hors
+# du serveur, chez le responsable de l'exploitation (coffre, clé USB chiffrée).
+# =====================================================================
+
+# Base à sauvegarder (sur le serveur de base de données)
+PGHOST=localhost
+PGPORT=5432
+PGDATABASE=plateforme
+# Rôle de lecture avec BYPASSRLS (voir infra/postgres/sauvegarde/role-sauvegarde.sql),
+# ou à défaut le propriétaire du schéma
+PGUSER=plateforme_sauvegarde
+
+# Répertoire local des sauvegardes (disque distinct de celui des données si possible)
+SAUVEGARDE_REPERTOIRE=/var/backups/plateforme
+
+# Clé(s) publique(s) age des destinataires, une par ligne (age-keygen -y identite.txt)
+SAUVEGARDE_DESTINATAIRES=/etc/plateforme/sauvegarde-destinataires.txt
+
+# Rotation : sauvegardes quotidiennes, hebdomadaires (dimanche) et mensuelles (le 1er) gardées
+SAUVEGARDE_GARDER_QUOTIDIENNES=14
+SAUVEGARDE_GARDER_HEBDOMADAIRES=8
+SAUVEGARDE_GARDER_MENSUELLES=12
+
+# Copie hors site (facultatif) : destination rsync sur un autre serveur ou un autre fournisseur,
+# ex. sauvegarde@stockage.exemple.bf:/sauvegardes/plateforme  (clé SSH dédiée, sans mot de passe)
+SAUVEGARDE_COPIE_DISTANTE=
+
+# Clé privée age de CONTRÔLE (seconde clé, distincte de celle de l'exploitation) : permet au
+# contrôle mensuel de restaurer sur ce serveur. Sa clé publique est aussi dans
+# SAUVEGARDE_DESTINATAIRES. Droits 600. Les copies hors site restent illisibles sans l'une des clés.
+SAUVEGARDE_IDENTITE_VERIFICATION=/etc/plateforme/sauvegarde-controle.age
+
+# Base temporaire du contrôle de restauration (créée puis supprimée)
+SAUVEGARDE_BASE_VERIFICATION=plateforme_verification
+# Rôle autorisé à créer des bases pour le contrôle et la restauration (superutilisateur
+# ou CREATEDB) ; par défaut, le même que PGUSER
+SAUVEGARDE_ROLE_RESTAURATION=postgres

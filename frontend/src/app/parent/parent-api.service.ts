@@ -7,12 +7,16 @@ import { API, SessionService } from '../core/session.service';
 import { STOCKAGE } from '../hors-ligne/stockage';
 import { AbsenceVue, HistoriqueVue } from '../vie-scolaire/modeles-vs';
 import {
+  AppareilVue,
   BulletinEleveVue,
+  CentreNotifications,
+  ConfigurationPush,
   DeclarationVirement,
   EnfantVue,
   Lecture,
   MoyensParentVue,
   Operateur,
+  PreferencesNotifications,
   SituationVue,
   TransactionVue,
   VirementParentVue,
@@ -133,6 +137,46 @@ export class ParentApi {
         params: new HttpParams().set('accepter', accepter),
       }),
     );
+  }
+
+  // ---------- Notifications dans l'application (v0.50) : toujours en ligne
+
+  centreNotifications(): Promise<CentreNotifications> {
+    return firstValueFrom(this.http.get<CentreNotifications>(`${API}/espace-parent/notifications`));
+  }
+
+  marquerLues(ids: string[] = []): Promise<CentreNotifications> {
+    return firstValueFrom(this.http.post<CentreNotifications>(`${API}/espace-parent/notifications/lues`, { ids }));
+  }
+
+  preferencesNotifications(): Promise<PreferencesNotifications> {
+    return firstValueFrom(this.http.get<PreferencesNotifications>(`${API}/espace-parent/preferences-notifications`));
+  }
+
+  modifierPreferences(notifierRetards: boolean, discret: boolean): Promise<PreferencesNotifications> {
+    return firstValueFrom(
+      this.http.put<PreferencesNotifications>(`${API}/espace-parent/preferences-notifications`, { notifierRetards, discret }),
+    );
+  }
+
+  configurationPush(): Promise<ConfigurationPush> {
+    return firstValueFrom(this.http.get<ConfigurationPush>(`${API}/push/configuration`));
+  }
+
+  appareils(): Promise<AppareilVue[]> {
+    return firstValueFrom(this.http.get<AppareilVue[]>(`${API}/push/abonnements`));
+  }
+
+  abonner(d: { endpoint: string; p256dh: string; auth: string; appareil: string }): Promise<AppareilVue[]> {
+    return firstValueFrom(this.http.post<AppareilVue[]>(`${API}/push/abonnements`, d));
+  }
+
+  desabonner(endpoint: string): Promise<AppareilVue[]> {
+    return firstValueFrom(this.http.post<AppareilVue[]>(`${API}/push/abonnements/retrait`, { endpoint }));
+  }
+
+  essaiPush(): Promise<{ appareils: number }> {
+    return firstValueFrom(this.http.post<{ appareils: number }>(`${API}/push/essai`, null));
   }
 }
 

@@ -176,3 +176,42 @@ export interface DeclarationVirement {
   cleIdempotence: string;
   fichier: File | null;
 }
+
+// ---------- Notifications dans l'application (v0.50)
+
+export interface NotificationParentVue {
+  id: string;
+  eleveId: string | null;
+  type: 'ABSENCE' | 'RETARD';
+  titre: string;
+  message: string;
+  lien: string | null;
+  recueLe: string;
+  lueLe: string | null;
+  /** L'établissement est revenu sur l'information (élève finalement présent). */
+  corrigeeLe: string | null;
+}
+
+export interface CentreNotifications {
+  nonLues: number;
+  notifications: NotificationParentVue[];
+}
+
+export interface PreferencesNotifications {
+  /** SMS : l'établissement prévient toujours ce parent par SMS. */
+  canal: 'AUTO' | 'SMS';
+  notifierRetards: boolean;
+  discret: boolean;
+}
+
+export interface ConfigurationPush {
+  disponible: boolean;
+  clePublique: string | null;
+}
+
+export interface AppareilVue {
+  id: string;
+  appareil: string | null;
+  creeLe: string;
+  dernierEnvoi: string | null;
+}

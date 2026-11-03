@@ -96,6 +96,16 @@ app:
     max-tentatives: 6                     # 2, 4, 8, 16, 32 minutes entre les tentatives
     seuil-coupe-circuit: 5                # échecs consécutifs avant suspension
     pause-coupe-circuit: 5m
+  push:                                   # notifications dans l'application (Web Push, v0.50)
+    cle-publique: ${PUSH_CLE_PUBLIQUE:}   # node scripts/push/generer-cles-vapid.mjs ; vide : tout part par SMS
+    cle-privee: ${PUSH_CLE_PRIVEE:}
+    sujet: ${PUSH_SUJET:mailto:exploitation@plateforme-ecoles.bf}
+    envoi-automatique: ${PUSH_ENVOI_AUTOMATIQUE:true}
+    intervalle-ms: 5000                   # passage du worker d'envoi
+    taille-lot: 50
+    bail: 2m
+    max-tentatives: 4                     # puis SMS de secours
+    duree-vie: 12h                        # conservation par le service push si le téléphone est éteint
   enseignants:
     cron-fins: "0 15 0 * * *"             # chaque nuit à 0 h 15 : clôture des engagements échus
   scolarite:

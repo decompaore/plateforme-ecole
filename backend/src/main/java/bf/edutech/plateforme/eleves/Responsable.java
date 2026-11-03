@@ -38,6 +38,10 @@ public class Responsable extends EntiteCloisonnee {
     @Column(name = "utilisateur_id")
     private UUID utilisateurId;
 
+    /** AUTO ou SMS (v0.50) ; modifié par {@link PreferencesNotifications}, en SQL. */
+    @Column(name = "canal_notification", insertable = false, updatable = false)
+    private String canalNotification = "AUTO";
+
     protected Responsable() {
     }
 
@@ -79,6 +83,10 @@ public class Responsable extends EntiteCloisonnee {
 
     LangueSms getLangueSms() {
         return langueSms;
+    }
+
+    String getCanalNotification() {
+        return canalNotification;
     }
 
     UUID getUtilisateurId() {

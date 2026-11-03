@@ -25,6 +25,7 @@ type Filtre = 'toutes' | 'a-viser' | 'non-commencees' | 'en-retard';
       <div class="entete-section">
         <h1>Progressions</h1>
         <span class="actions-ligne">
+          <a class="bouton secondaire petit" routerLink="/progression/heures">Bilan des heures</a>
           <a class="bouton secondaire petit" routerLink="/progression/interpellations">Interpellations</a>
           <a class="bouton secondaire petit" routerLink="/progression/cahiers">Visa mensuel des cahiers de textes</a>
         </span>

@@ -124,6 +124,11 @@ export class AdminApi {
     return this.delete(`/eleves/${eleveId}/responsables/${responsableId}`);
   }
 
+  /** Canal des absences et retards : application (si activée) ou toujours par SMS (v0.50). */
+  definirCanalNotification(responsableId: string, canal: 'AUTO' | 'SMS'): Promise<void> {
+    return firstValueFrom(this.http.put<void>(`${API}/responsables/${responsableId}/canal-notification`, { canal }));
+  }
+
   ouvrirEspaceParent(responsableId: string): Promise<EspaceParentVue> {
     return this.post(`/responsables/${responsableId}/espace-parent`);
   }
@@ -272,6 +277,14 @@ export class AdminApi {
 
   matieresDeClasse(classeId: string): Promise<MatiereDeClasseVue[]> {
     return this.get(`/classes/${classeId}/matieres`);
+  }
+
+  /** Volume horaire annuel du référentiel, reporté sur les classes d'une filière et d'un niveau (v0.50). */
+  appliquerVolumeAnnuel(
+    anneeId: string,
+    d: { filiereId: string; niveau: string | null; matiereId: string; volumeAnnuel: number },
+  ): Promise<{ classes: number }> {
+    return firstValueFrom(this.http.put<{ classes: number }>(`${API}/annees/${anneeId}/volumes-annuels`, d));
   }
 
   definirMatiere(

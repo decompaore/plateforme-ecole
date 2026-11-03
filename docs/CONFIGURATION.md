@@ -26,6 +26,8 @@ Le fichier `application.yml` contient la configuration commune. Les valeurs `${V
 | `MOBILE_MONEY_CLE_CHIFFREMENT` | pour Mobile Money | Clé AES-256 qui chiffre en base les clés des agrégateurs : `openssl rand -base64 32`. Vide : paiement en ligne inactif. **À conserver précieusement** : si elle change, chaque école doit ressaisir ses clés |
 | `EXPORTS_REPERTOIRE` | non | Dossier des archives d'export complet (défaut dans l'image : `/var/lib/plateforme/exports`, volume `exports` **partagé par les deux instances**). Voir [API_REVERSIBILITE.md](API_REVERSIBILITE.md) |
 | `RELANCES_AUTOMATIQUES` | non | `false` pour couper les relances SMS automatiques du lundi sur tout le serveur (défaut `true`) |
+| `PUSH_CLE_PUBLIQUE`, `PUSH_CLE_PRIVEE` | pour les notifications dans l'application | Clés VAPID des notifications « push » aux parents (v0.50) : `node scripts/push/generer-cles-vapid.mjs`. Vides : tout part par SMS. **À conserver d'une version à l'autre** : de nouvelles clés obligent chaque parent à réactiver les notifications sur son téléphone |
+| `PUSH_SUJET` | non | Contact de l'exploitant transmis aux services push (`mailto:…`) |
 
 L'indicatif `app.plateforme.indicatif-telephone` (+226) ne sert plus qu'à la connexion et aux établissements non
 rattachés : un établissement rattaché utilise l'indicatif et la longueur des numéros de son pays (v0.35, voir
@@ -58,6 +60,7 @@ Pourquoi deux rôles ? Le propriétaire des tables contourne la Row-Level Securi
 | Tâche | Quand | Réglage |
 |---|---|---|
 | Envoi des SMS | toutes les 10 s | `app.notifications.intervalle-ms` |
+| Envoi des notifications push aux parents (et SMS de secours) | toutes les 5 s | `app.push.intervalle-ms`, `max-tentatives`, `duree-vie` |
 | Transactions Mobile Money sans confirmation | chaque minute | `app.mobile-money.intervalle-expiration-ms`, `duree-validite` (15 min) |
 | Rapprochement Mobile Money de la veille | 2 h 30 (heure de Ouagadougou) | `app.mobile-money.cron-rapprochement` |
 | Relances des familles en retard | lundi 7 h 30 | `app.scolarite.cron-relances` ; chaque école peut les désactiver |

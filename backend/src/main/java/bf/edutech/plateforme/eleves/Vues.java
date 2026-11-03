@@ -26,12 +26,13 @@ public final class Vues {
     /** Responsable vu depuis le dossier d'un élève. */
     public record ResponsableDeEleveVue(UUID responsableId, String nom, String prenoms, String telephone,
             String profession, LangueSms langueSms, LienParente lien, boolean responsableLegal,
-            boolean contactPrioritaire, boolean espaceParentOuvert) {
+            boolean contactPrioritaire, boolean espaceParentOuvert, String canalNotification) {
 
         static ResponsableDeEleveVue depuis(LienResponsableEleve l, Responsable r) {
             return new ResponsableDeEleveVue(r.getId(), r.getNom(), r.getPrenoms(), r.getTelephone(),
                     r.getProfession(), r.getLangueSms(), l.getLien(), l.isResponsableLegal(),
-                    l.isContactPrioritaire(), r.getUtilisateurId() != null);
+                    l.isContactPrioritaire(), r.getUtilisateurId() != null,
+                    r.getCanalNotification() == null ? "AUTO" : r.getCanalNotification());
         }
     }
 

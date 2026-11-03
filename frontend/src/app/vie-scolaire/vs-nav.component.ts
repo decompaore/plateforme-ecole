@@ -11,6 +11,7 @@ import { RouterLink, RouterLinkActive } from '@angular/router';
       <a routerLink="/vie-scolaire/eleves" routerLinkActive="actif">Élèves</a>
       <a routerLink="/vie-scolaire/classes" routerLinkActive="actif">Classes</a>
       <a routerLink="/vie-scolaire/convocations" routerLinkActive="actif">Convocations</a>
+      <a routerLink="/vie-scolaire/notifications" routerLinkActive="actif">Familles</a>
     </nav>
   `,
 })

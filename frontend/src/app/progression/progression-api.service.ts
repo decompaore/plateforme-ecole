@@ -1,10 +1,10 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 
 import { API } from '../core/session.service';
 import {
-  DonneesInterpellation, FicheVue, InterpellationVue, PropositionInterpellation, SaisieSequence, SeanceVue, SuiviCahierVue,
+  BilanHeuresVue, DonneesInterpellation, FicheVue, InterpellationVue, PropositionInterpellation, SaisieSequence, SeanceVue, SuiviCahierVue,
   SuiviProgressionVue, VisaCahierVue,
 } from './modeles-progression';
 
@@ -95,5 +95,21 @@ export class ProgressionApi {
 
   lettreInterpellation(id: string): Promise<Blob> {
     return firstValueFrom(this.http.get(`${API}/interpellations/${id}/lettre`, { responseType: 'blob' }));
+  }
+
+  // ---------- Bilan des heures dues et réalisées (v0.50)
+
+  bilanHeures(anneeId: string): Promise<BilanHeuresVue> {
+    return firstValueFrom(this.http.get<BilanHeuresVue>(`${API}/annees/${anneeId}/bilan-heures`));
+  }
+
+  mesHeures(): Promise<BilanHeuresVue> {
+    return firstValueFrom(this.http.get<BilanHeuresVue>(`${API}/espace-enseignant/bilan-heures`));
+  }
+
+  /** {@code anneeId} null : le bilan de l'enseignant connecté. */
+  exportBilanHeures(anneeId: string | null, format: 'xlsx' | 'pdf'): Promise<Blob> {
+    const url = anneeId ? `${API}/annees/${anneeId}/bilan-heures/export` : `${API}/espace-enseignant/bilan-heures/export`;
+    return firstValueFrom(this.http.get(url, { responseType: 'blob', params: new HttpParams().set('format', format) }));
   }
 }

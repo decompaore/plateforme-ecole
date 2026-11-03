@@ -130,3 +130,5 @@ Ces routes appartiennent au module « Progressions et cahier de textes ».
 ## À venir
 
 - Format officiel : si l'inspection impose un modèle de fiche (colonnes, découpage), il s'adaptera sur ces séquences.
+
+Bilan des heures dues et réalisées (v0.50) : voir [API_BILAN_HEURES.md](API_BILAN_HEURES.md).

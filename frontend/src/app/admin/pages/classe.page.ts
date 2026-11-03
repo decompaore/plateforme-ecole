@@ -93,6 +93,7 @@ export class ClassePage implements OnInit {
   protected readonly actionCartes = new Action();
   protected readonly brouillons = signal<Record<string, Brouillon>>({});
   protected readonly enregistre = signal<string | null>(null);
+  protected readonly reporte = signal<string | null>(null);
 
   protected readonly peutModifier = computed(() => this.session.aLeRole('ADMIN_ECOLE', 'CENSEUR'));
   /** Saisie des dossiers (inscription, photo) : l'intendance et le chef d'établissement (v0.47). */
@@ -232,6 +233,26 @@ export class ClassePage implements OnInit {
     if (r) {
       this.majProgramme(this.programme().map((x) => (x.matiereId === r.matiereId ? r : x)));
       this.enregistre.set(m.matiereLibelle);
+    }
+  }
+
+  /** Reporte le volume annuel sur toutes les classes de la même filière et du même niveau (v0.50). */
+  protected async reporter(m: MatiereDeClasseVue): Promise<void> {
+    const c = this.classe();
+    if (!c || m.volumeTotal === null) {
+      return;
+    }
+    this.reporte.set(null);
+    const r = await this.action.executer(() =>
+      this.api.appliquerVolumeAnnuel(c.anneeId, {
+        filiereId: c.filiereId,
+        niveau: c.niveau,
+        matiereId: m.matiereId,
+        volumeAnnuel: Number(m.volumeTotal),
+      }),
+    );
+    if (r) {
+      this.reporte.set(`${m.matiereLibelle} : ${m.volumeTotal} h par an reportées sur ${r.classes} classe(s) de ${c.filiereCode} ${c.niveau}.`);
     }
   }
 

@@ -85,8 +85,11 @@ public class ElevesController {
     private final ElevesService service;
     private final EspaceParentService espaceParent;
     private final EntetesOfficiels entetes;
+    private final PreferencesNotifications preferences;
 
-    ElevesController(ElevesService service, EspaceParentService espaceParent, EntetesOfficiels entetes) {
+    ElevesController(ElevesService service, EspaceParentService espaceParent, EntetesOfficiels entetes,
+            PreferencesNotifications preferences) {
+        this.preferences = preferences;
         this.service = service;
         this.espaceParent = espaceParent;
         this.entetes = entetes;
@@ -133,6 +136,20 @@ public class ElevesController {
     @PreAuthorize(Roles.MODIFICATION)
     public DossierEleveVue retirerResponsable(@PathVariable UUID id, @PathVariable UUID responsableId) {
         return service.retirerResponsable(id, responsableId);
+    }
+
+    public record DemandeCanal(String canal) {
+    }
+
+    /**
+     * Canal de notification du responsable (v0.50) : AUTO (application si activée, sinon SMS) ou SMS
+     * (toujours par SMS, pour un parent sans smartphone).
+     */
+    @PutMapping("/api/v1/responsables/{id}/canal-notification")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @PreAuthorize("hasAnyRole('ADMIN_ECOLE','INTENDANT','SECRETARIAT','SURVEILLANT')")
+    public void definirCanal(@PathVariable UUID id, @RequestBody DemandeCanal d) {
+        preferences.definirCanal(id, d.canal());
     }
 
     @PutMapping("/api/v1/responsables/{id}")

@@ -259,11 +259,20 @@
                 } @else {
                   <span class="pastille">pas de compte parent</span>
                 }
+                @if (r.canalNotification === 'SMS') { <span class="pastille">toujours par SMS</span> }
               </span>
               @if (peutDocuments()) {
                 <span class="actions-ligne">
                   @if (!r.espaceParentOuvert && espaceParent) {
                     <button type="button" class="bouton petit" [disabled]="action.enCours()" (click)="ouvrirEspaceParent(r)">Créer le compte parent</button>
+                  }
+                  @if (r.espaceParentOuvert || r.contactPrioritaire) {
+                    <select class="petit" [value]="r.canalNotification ?? 'AUTO'" [disabled]="action.enCours()"
+                            [attr.aria-label]="'Notifications des absences pour ' + r.prenoms + ' ' + r.nom"
+                            (change)="definirCanal(r, $any($event.target).value)">
+                      <option value="AUTO">Absences : application, sinon SMS</option>
+                      <option value="SMS">Absences : toujours par SMS</option>
+                    </select>
                   }
                   @if (peutModifier() && d.responsables.length > 1) {
                     <button type="button" class="bouton discret petit" [disabled]="action.enCours()" (click)="retirerResponsable(r)">Retirer</button>

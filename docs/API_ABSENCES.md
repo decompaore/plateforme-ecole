@@ -46,6 +46,10 @@ Toute modification est journalisée (auteur, date). Un élève qui a quitté la 
 
 ## SMS aux familles (outbox)
 
+> **Depuis v0.50**, les familles sont d'abord prévenues **dans l'application** (notifications push et centre de
+> notifications de l'espace parent), les retards aussi ; le SMS reste pour les parents sans smartphone ou sans
+> notifications activées, avec un délai de correction réglable. Voir [API_NOTIFICATIONS_PARENTS.md](API_NOTIFICATIONS_PARENTS.md).
+
 - Une **absence** (pas un retard) met un SMS en file **dans la même transaction** que l'appel, à destination du
   **contact prioritaire** de l'élève : « Lycée X : Awa OUEDRAOGO (6e A) était absente le 28/09 de 08h00 à 10h00. Merci
   de justifier cette absence auprès de l'établissement. »
