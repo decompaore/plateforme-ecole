@@ -581,4 +581,19 @@ export class ElevesPage {
     }
     this.dossier.set({ ...d, responsables: d.responsables.map((x) => (x.responsableId === r.responsableId ? { ...x, espaceParentOuvert: true } : x)) });
   }
+
+  /** Parent sans smartphone : toujours prévenu par SMS (v0.50). */
+  protected async definirCanal(r: ResponsableDeEleveVue, canal: 'AUTO' | 'SMS'): Promise<void> {
+    const d = this.dossier();
+    if (!d) {
+      return;
+    }
+    if (await this.action.reussit(() => this.api.definirCanalNotification(r.responsableId, canal))) {
+      this.dossier.set({ ...d, responsables: d.responsables.map((x) => (x.responsableId === r.responsableId ? { ...x, canalNotification: canal } : x)) });
+      this.message.set(canal === 'SMS'
+        ? `${r.prenoms} ${r.nom} sera toujours prévenu(e) par SMS.`
+        : `${r.prenoms} ${r.nom} sera prévenu(e) dans l'application s'il ou elle l'active, sinon par SMS.`);
+    }
+  }
+
 }

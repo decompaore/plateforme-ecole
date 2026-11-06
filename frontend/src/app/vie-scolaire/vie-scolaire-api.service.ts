@@ -11,7 +11,9 @@ import {
   HistoriqueVue,
   IncidentVue,
   JustificatifVue,
+  ReglageNotifications,
   SaisieIncident,
+  SmsVue,
   StatutConvocation,
   SyntheseEleveVue,
   TypeJustificatif,
@@ -85,5 +87,19 @@ export class VieScolaireApi {
 
   agenda(du: string, au: string): Promise<ConvocationVue[]> {
     return this.get('/convocations', { du, au });
+  }
+
+  // ---------- Notifications aux familles (v0.50)
+
+  reglagesNotifications(): Promise<ReglageNotifications> {
+    return this.get('/notifications/reglages');
+  }
+
+  modifierReglagesNotifications(delaiCorrectionMinutes: number, smsRetards: boolean): Promise<ReglageNotifications> {
+    return firstValueFrom(this.http.put<ReglageNotifications>(`${API}/notifications/reglages`, { delaiCorrectionMinutes, smsRetards }));
+  }
+
+  derniersSms(): Promise<SmsVue[]> {
+    return this.get('/notifications', { limite: '50' });
   }
 }

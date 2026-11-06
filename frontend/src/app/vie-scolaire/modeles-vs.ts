@@ -193,3 +193,28 @@ export function discipline(x: { matiereLibelle: string | null }): string {
 export function heures(h: number): string {
   return `${String(Math.round(h * 10) / 10).replace('.', ',')} h`;
 }
+
+// ---------- Notifications aux familles (v0.50)
+
+export interface ReglageNotifications {
+  /** Minutes laissées à l'enseignant pour corriger son appel avant que les familles soient prévenues. */
+  delaiCorrectionMinutes: number;
+  /** Retards aussi par SMS (sinon seulement dans l'application). */
+  smsRetards: boolean;
+  /** Notifications dans l'application ouvertes sur la plateforme (clés VAPID configurées). */
+  pushDisponible: boolean;
+}
+
+export type StatutSms = 'EN_ATTENTE' | 'EN_COURS' | 'ENVOYE' | 'ECHEC' | 'ANNULE';
+
+export interface SmsVue {
+  id: string;
+  cle: string;
+  destinataire: string;
+  message: string;
+  statut: StatutSms;
+  tentatives: number;
+  derniereErreur: string | null;
+  creeLe: string;
+  envoyeLe: string | null;
+}

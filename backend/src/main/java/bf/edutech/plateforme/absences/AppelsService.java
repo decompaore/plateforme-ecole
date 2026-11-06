@@ -35,6 +35,11 @@ import bf.edutech.plateforme.etablissement.ClassesService;
 import bf.edutech.plateforme.etablissement.EtatAnnee;
 import bf.edutech.plateforme.etablissement.Vues.AnneeVue;
 import bf.edutech.plateforme.etablissement.Vues.ClasseVue;
+import bf.edutech.plateforme.notifications.NotificationsFamilles;
+import bf.edutech.plateforme.notifications.NotificationsFamilles.CanalParent;
+import bf.edutech.plateforme.notifications.NotificationsFamilles.DestinataireFamille;
+import bf.edutech.plateforme.notifications.NotificationsFamilles.EvenementFamille;
+import bf.edutech.plateforme.notifications.NotificationsFamilles.TypeEvenement;
 import bf.edutech.plateforme.notifications.NotificationsService;
 import bf.edutech.plateforme.socle.audit.AuditService;
 import bf.edutech.plateforme.socle.erreurs.AccesRefuseException;
@@ -66,6 +71,7 @@ public class AppelsService {
     private final InscriptionsService inscriptions;
     private final ContactsEleves contacts;
     private final NotificationsService notifications;
+    private final NotificationsFamilles familles;
     private final Autorisations autorisations;
     private final AuditService audit;
     private final Clock horloge;
@@ -74,7 +80,8 @@ public class AppelsService {
     AppelsService(AppelRepository appels, AbsenceRepository absences, ClassesService classes, AnneesService annees,
             InscriptionsService inscriptions, ContactsEleves contacts, NotificationsService notifications,
             Autorisations autorisations, AuditService audit, Clock horloge,
-            PlatformTransactionManager gestionnaireTransactions) {
+            PlatformTransactionManager gestionnaireTransactions, NotificationsFamilles familles) {
+        this.familles = familles;
         this.appels = appels;
         this.absences = absences;
         this.classes = classes;
@@ -235,52 +242,85 @@ public class AppelsService {
             statut = StatutAccuse.MODIFIE;
         }
 
-        // Application des différences et file des SMS (outbox)
+        // Application des différences et file des notifications (outbox)
         List<Absence> nouvellesAbsences = new ArrayList<>();
+        List<Absence> nouveauxRetards = new ArrayList<>();
         for (Marque m : aCreer) {
             Absence creee = absences.save(new Absence(appel.getId(), m.inscriptionId(), m.type(), court(m)));
-            if (creee.getType() == TypeAbsence.ABSENCE) {
-                nouvellesAbsences.add(creee);
-            }
+            (creee.getType() == TypeAbsence.ABSENCE ? nouvellesAbsences : nouveauxRetards).add(creee);
         }
         for (Marque m : aModifier) {
             Absence existante = actuelles.get(m.inscriptionId());
             TypeAbsence avant = existante.getType();
             existante.definir(m.type(), court(m));
             if (avant == TypeAbsence.RETARD && m.type() == TypeAbsence.ABSENCE) {
+                familles.annuler(cleRetard(existante));
                 nouvellesAbsences.add(existante);
             } else if (avant == TypeAbsence.ABSENCE && m.type() == TypeAbsence.RETARD) {
-                notifications.annuler(cle(existante));
+                familles.annuler(cle(existante));
+                nouveauxRetards.add(existante);
             }
         }
         for (Absence retiree : aRetirer) { // élèves finalement présents
-            notifications.annuler(cle(retiree));
+            familles.annuler(cle(retiree));
+            familles.annuler(cleRetard(retiree));
             absences.delete(retiree);
         }
-        prevenirLesFamilles(nouvellesAbsences, appel, classe);
+        prevenirLesFamilles(nouvellesAbsences, nouveauxRetards, appel, classe);
         audit.enregistrer(statut == StatutAccuse.ENREGISTRE ? "APPEL_ENREGISTRE" : "APPEL_MODIFIE",
                 classe.code() + " " + d.date() + " " + d.heureDebut(),
                 Map.of("appel", appel.getId(), "marques", retenues.size()));
         return accuse(d.idClient(), statut, retenues, ignorees);
     }
 
-    private void prevenirLesFamilles(List<Absence> nouvelles, Appel appel, ClasseVue classe) {
-        if (nouvelles.isEmpty()) {
+    /**
+     * Prévient les responsables (v0.50) : dans l'application pour ceux qui l'ont activée, par SMS pour
+     * le contact prioritaire sinon. Les retards sont signalés dans l'application ; par SMS seulement
+     * si l'établissement l'a choisi. L'envoi attend le délai de correction de l'établissement.
+     */
+    private void prevenirLesFamilles(List<Absence> absencesNouvelles, List<Absence> retardsNouveaux, Appel appel,
+            ClasseVue classe) {
+        List<Absence> toutes = new ArrayList<>(absencesNouvelles);
+        toutes.addAll(retardsNouveaux);
+        if (toutes.isEmpty()) {
             return;
         }
         Map<UUID, ContactEleve> parInscription = contacts
-                .pourInscriptions(nouvelles.stream().map(Absence::getInscriptionId).toList());
+                .pourInscriptions(toutes.stream().map(Absence::getInscriptionId).toList());
+        Map<UUID, List<ContactsEleves.ResponsableANotifier>> responsables = contacts.aNotifier(
+                parInscription.values().stream().map(ContactEleve::eleveId).distinct().toList());
         String etablissement = notifications.nomEtablissement();
-        for (Absence absence : nouvelles) {
-            ContactEleve contact = parInscription.get(absence.getInscriptionId());
-            if (contact == null || contact.telephone() == null) {
-                continue; // pas de contact prioritaire : l'absence reste visible dans l'application
+        String creneau = "le " + appel.getDateAppel().format(JOUR) + " de " + appel.getHeureDebut().format(HEURE) + " à "
+                + appel.getHeureFin().format(HEURE);
+        for (Absence a : toutes) {
+            ContactEleve contact = parInscription.get(a.getInscriptionId());
+            if (contact == null) {
+                continue;
             }
-            String message = etablissement + " : " + contact.prenoms() + " " + contact.nom() + " (" + classe.code()
-                    + ") " + (contact.sexe() == Sexe.F ? "était absente" : "était absent") + " le "
-                    + appel.getDateAppel().format(JOUR) + " de " + appel.getHeureDebut().format(HEURE) + " à "
-                    + appel.getHeureFin().format(HEURE) + ". Merci de justifier cette absence auprès de l'établissement.";
-            notifications.planifierSms(cle(absence), contact.telephone(), contact.langueSms(), message);
+            List<DestinataireFamille> destinataires = responsables.getOrDefault(contact.eleveId(), List.of()).stream()
+                    .map(r -> new DestinataireFamille(r.utilisateurId(), r.telephone(), r.langueSms(),
+                            r.canalSms() ? CanalParent.SMS : CanalParent.AUTO, r.notifierRetards(), r.contactPrioritaire()))
+                    .toList();
+            if (destinataires.isEmpty()) {
+                continue; // personne à prévenir : l'absence reste visible dans l'application
+            }
+            boolean fille = contact.sexe() == Sexe.F;
+            String eleve = contact.prenoms() + " " + contact.nom() + " (" + classe.code() + ")";
+            EvenementFamille e;
+            if (a.getType() == TypeAbsence.ABSENCE) {
+                String texte = eleve + " " + (fille ? "était absente" : "était absent") + " " + creneau
+                        + ". Merci de justifier cette absence auprès de l'établissement.";
+                e = new EvenementFamille(cle(a), contact.eleveId(), TypeEvenement.ABSENCE, "Absence de " + contact.prenoms(),
+                        texte, "/parent/enfants/" + contact.eleveId(), etablissement + " : " + texte);
+            } else {
+                String retard = a.getMinutesRetard() != null ? " de " + a.getMinutesRetard() + " min" : "";
+                String texte = eleve + " " + (fille ? "est arrivée" : "est arrivé") + " en retard" + retard + " au cours "
+                        + creneau.replaceFirst("^le ", "du ") + ".";
+                e = new EvenementFamille(cleRetard(a), contact.eleveId(), TypeEvenement.RETARD,
+                        "Retard de " + contact.prenoms(), texte, "/parent/enfants/" + contact.eleveId(),
+                        etablissement + " : " + texte);
+            }
+            familles.notifier(e, destinataires);
         }
     }
 
@@ -309,6 +349,10 @@ public class AppelsService {
 
     private static String cle(Absence absence) {
         return "absence:" + absence.getId();
+    }
+
+    private static String cleRetard(Absence absence) {
+        return "retard:" + absence.getId();
     }
 
     private static AccuseAppel accuse(UUID idClient, StatutAccuse statut, Map<UUID, Marque> retenues,

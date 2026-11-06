@@ -47,6 +47,16 @@ public class ClassesController {
             @DecimalMin(value = "0.1") @Digits(integer = 5, fraction = 1) BigDecimal volumeTotal) {
     }
 
+    public record DemandeVolumeAnnuel(
+            @NotNull UUID filiereId,
+            @Size(max = 30) String niveau,
+            @NotNull UUID matiereId,
+            @NotNull @DecimalMin(value = "0.5") @Digits(integer = 5, fraction = 1) BigDecimal volumeAnnuel) {
+    }
+
+    public record VolumeApplique(int classes) {
+    }
+
     private final ClassesService service;
 
     ClassesController(ClassesService service) {
@@ -100,6 +110,17 @@ public class ClassesController {
     public MatiereDeClasseVue definirMatiere(@PathVariable UUID id, @PathVariable UUID matiereId,
             @Valid @RequestBody DemandeMatiereDeClasse d) {
         return service.definirMatiere(id, matiereId, d.coefficient(), d.groupe(), d.volumeHebdo(), d.volumeTotal());
+    }
+
+    /**
+     * Volume horaire annuel fixé par le référentiel, reporté sur toutes les classes d'une filière
+     * (et d'un niveau, s'il est indiqué) qui ont la matière à leur programme.
+     */
+    @PutMapping("/api/v1/annees/{anneeId}/volumes-annuels")
+    @PreAuthorize(GESTION)
+    public VolumeApplique appliquerVolumeAnnuel(@PathVariable UUID anneeId, @Valid @RequestBody DemandeVolumeAnnuel d) {
+        return new VolumeApplique(
+                service.appliquerVolumeAnnuel(anneeId, d.filiereId(), d.niveau(), d.matiereId(), d.volumeAnnuel()));
     }
 
     @DeleteMapping("/api/v1/classes/{id}/matieres/{matiereId}")

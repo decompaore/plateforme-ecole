@@ -116,6 +116,7 @@ describe('Espace parent', () => {
     f.detectChanges();
     http.expectOne('/api/v1/espace-parent/enfants').flush(ENFANTS);
     await attendre();
+    http.expectOne('/api/v1/espace-parent/notifications').flush({ nonLues: 2, notifications: [] });
     repondreResumes('e1', [absence(AUJOURDHUI, false)], [situation()], [
       { id: 'c1', inscriptionId: 'i1', nom: '', prenoms: '', classe: '', rendezVous: '2099-10-06T10:00:00', motif: 'Comportement', statut: 'PREVUE', compteRendu: null, incidentId: null },
     ]);
@@ -129,6 +130,7 @@ describe('Espace parent', () => {
     expect(t).toContain('Issa OUEDRAOGO');
     expect(t).toContain('Scolarité soldée');
     expect(t).not.toContain('Pas de réseau');
+    expect(t).toContain('Notifications2');
 
     // Plus de réseau : la dernière situation reste lisible, datée
     f.destroy();
@@ -137,6 +139,7 @@ describe('Espace parent', () => {
     const coupure = { status: 0 };
     http.expectOne('/api/v1/espace-parent/enfants').error(new ProgressEvent('error'), coupure);
     await attendre();
+    http.expectOne('/api/v1/espace-parent/notifications').error(new ProgressEvent('error'), coupure);
     for (const id of ['e1', 'e2']) {
       for (const quoi of ['absences', 'scolarite', 'vie-scolaire']) {
         http.expectOne(`/api/v1/espace-parent/enfants/${id}/${quoi}`).error(new ProgressEvent('error'), coupure);

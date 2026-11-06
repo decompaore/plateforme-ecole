@@ -45,17 +45,26 @@ public class NotificationsService {
      * est alors remis en file).
      */
     public void planifierSms(String cle, String telephone, String langue, String message) {
+        planifierSms(cle, telephone, langue, message, java.time.Duration.ZERO);
+    }
+
+    /**
+     * Comme {@link #planifierSms(String, String, String, String)}, envoi différé de {@code delai} :
+     * une correction faite entre-temps ({@link #annuler}) empêche l'envoi (v0.50).
+     */
+    public void planifierSms(String cle, String telephone, String langue, String message, java.time.Duration delai) {
         UtilisateurConnecte.etablissementActif();
         exigerTransaction();
         String texte = message.length() > LONGUEUR_MAX ? message.substring(0, LONGUEUR_MAX - 1) + "…" : message;
+        int secondes = (int) Math.max(0, delai.toSeconds());
         jdbc.update("""
-                insert into notification (tenant_id, id, cle, canal, destinataire, langue, message)
-                values (tenant_courant(), ?, ?, 'SMS', ?, ?, ?)
+                insert into notification (tenant_id, id, cle, canal, destinataire, langue, message, prochaine_tentative)
+                values (tenant_courant(), ?, ?, 'SMS', ?, ?, ?, now() + make_interval(secs => ?))
                 on conflict (tenant_id, cle) do update
                    set statut = 'EN_ATTENTE', message = excluded.message, destinataire = excluded.destinataire,
-                       tentatives = 0, prochaine_tentative = now(), derniere_erreur = null
+                       tentatives = 0, prochaine_tentative = excluded.prochaine_tentative, derniere_erreur = null
                  where notification.statut = 'ANNULE'""",
-                UUID.randomUUID(), cle, telephone, langue != null ? langue : "FR", texte);
+                UUID.randomUUID(), cle, telephone, langue != null ? langue : "FR", texte, secondes);
     }
 
     /** Annule un message pas encore envoyé (ex. absence corrigée par l'enseignant) ; faux s'il est déjà parti. */

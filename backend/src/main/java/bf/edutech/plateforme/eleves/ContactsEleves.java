@@ -26,13 +26,23 @@ public class ContactsEleves {
             String telephone, String langueSms) {
     }
 
+    /**
+     * Un responsable à prévenir (v0.50) : {@code utilisateurId} est son compte de l'espace parent (null
+     * s'il n'en a pas), {@code canalSms} vrai s'il doit toujours être prévenu par SMS.
+     */
+    public record ResponsableANotifier(UUID utilisateurId, String telephone, String langueSms, boolean canalSms,
+            boolean notifierRetards, boolean contactPrioritaire) {
+    }
+
+    private final org.springframework.jdbc.core.JdbcTemplate jdbc;
     private final InscriptionRepository inscriptions;
     private final EleveRepository eleves;
     private final LienResponsableEleveRepository liens;
     private final ResponsableRepository responsables;
 
     ContactsEleves(InscriptionRepository inscriptions, EleveRepository eleves, LienResponsableEleveRepository liens,
-            ResponsableRepository responsables) {
+            ResponsableRepository responsables, org.springframework.jdbc.core.JdbcTemplate jdbc) {
+        this.jdbc = jdbc;
         this.inscriptions = inscriptions;
         this.eleves = eleves;
         this.liens = liens;
@@ -61,5 +71,28 @@ public class ContactsEleves {
                     contact != null ? contact.getLangueSms().name() : null));
         }
         return contacts;
+    }
+
+    /**
+     * Responsables à prévenir pour chaque élève : ceux qui ont un compte de l'espace parent, et le
+     * contact prioritaire (destinataire des SMS).
+     */
+    @Transactional(readOnly = true)
+    public Map<UUID, List<ResponsableANotifier>> aNotifier(Collection<UUID> eleveIds) {
+        UtilisateurConnecte.etablissementActif();
+        Map<UUID, List<ResponsableANotifier>> resultat = new HashMap<>();
+        if (eleveIds.isEmpty()) {
+            return resultat;
+        }
+        jdbc.query("""
+                select l.eleve_id, r.utilisateur_id, r.telephone, r.langue_sms, r.canal_notification, r.notifier_retards,
+                       l.contact_prioritaire
+                from lien_responsable_eleve l join responsable r on r.id = l.responsable_id
+                where l.eleve_id = any(?) and (r.utilisateur_id is not null or l.contact_prioritaire)""", rs -> {
+            resultat.computeIfAbsent(rs.getObject(1, UUID.class), k -> new java.util.ArrayList<>())
+                    .add(new ResponsableANotifier(rs.getObject(2, UUID.class), rs.getString(3), rs.getString(4),
+                            "SMS".equals(rs.getString(5)), rs.getBoolean(6), rs.getBoolean(7)));
+        }, (Object) eleveIds.toArray(UUID[]::new));
+        return resultat;
     }
 }

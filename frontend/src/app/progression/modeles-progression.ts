@@ -353,3 +353,115 @@ export function libelleMois(mois: string): string {
 export function moisCourant(maintenant = new Date()): string {
   return maintenant.toISOString().slice(0, 7);
 }
+
+// ---------- Bilan des heures dues et réalisées (v0.50)
+
+export type SourceVolume = 'REFERENTIEL' | 'ESTIME' | 'AUCUN';
+export type EtatHeures = 'SANS_VOLUME' | 'PAS_COMMENCE' | 'EN_RETARD' | 'A_JOUR' | 'EN_AVANCE' | 'TERMINE';
+
+export const LIBELLE_ETAT_HEURES: Record<EtatHeures, string> = {
+  SANS_VOLUME: 'Volume non saisi',
+  PAS_COMMENCE: 'Pas commencé',
+  EN_RETARD: 'En retard',
+  A_JOUR: 'À jour',
+  EN_AVANCE: 'En avance',
+  TERMINE: 'Terminé',
+};
+
+export interface Cumul {
+  volumeAnnuel: number | null;
+  duADate: number | null;
+  realise: number;
+  reste: number | null;
+  tauxRealisation: number | null;
+  tauxADate: number | null;
+  ecart: number | null;
+}
+
+export interface Intervention {
+  engagementId: string;
+  enseignant: string | null;
+  heures: number;
+  seances: number;
+}
+
+export interface LigneBilan {
+  classeId: string;
+  classeCode: string;
+  niveau: string;
+  filiereId: string;
+  filiereCode: string;
+  matiereId: string;
+  matiereCode: string;
+  matiereLibelle: string;
+  type: TypeMatiere;
+  domaine: Domaine;
+  engagementId: string | null;
+  enseignant: string | null;
+  statutEnseignant: 'TITULAIRE' | 'VACATAIRE' | null;
+  volumeHebdo: number | null;
+  sourceVolume: SourceVolume;
+  cumul: Cumul;
+  seances: number;
+  derniereSeance: string | null;
+  etat: EtatHeures;
+  intervenants: Intervention[];
+}
+
+export interface TotalEnseignant {
+  engagementId: string;
+  enseignant: string | null;
+  statutEnseignant: 'TITULAIRE' | 'VACATAIRE' | null;
+  classes: number;
+  matieres: number;
+  sansVolume: number;
+  enRetard: number;
+  cumul: Cumul;
+}
+
+export interface TotalMatiere {
+  matiereId: string;
+  matiereCode: string;
+  matiereLibelle: string;
+  type: TypeMatiere;
+  classes: number;
+  sansVolume: number;
+  enRetard: number;
+  cumul: Cumul;
+}
+
+export interface TotalClasse {
+  classeId: string;
+  classeCode: string;
+  niveau: string;
+  filiereCode: string;
+  matieres: number;
+  sansVolume: number;
+  enRetard: number;
+  cumul: Cumul;
+}
+
+export interface BilanHeuresVue {
+  anneeId: string;
+  annee: string;
+  jour: string;
+  avancementAnnee: number;
+  lignes: LigneBilan[];
+  enseignants: TotalEnseignant[];
+  matieres: TotalMatiere[];
+  classes: TotalClasse[];
+  total: Cumul;
+  sansVolume: number;
+  sansEnseignant: number;
+  enRetard: number;
+}
+
+/** « 12,5 h », ou un tiret quand la valeur manque. */
+export function heuresOuTiret(n: number | null | undefined): string {
+  return n === null || n === undefined ? '—' : heures(n);
+}
+
+/** « 45 % », ou un tiret. */
+export function pourcent(n: number | null | undefined): string {
+  return n === null || n === undefined ? '—' : `${String(Math.round(n)).replace('.', ',')} %`;
+}

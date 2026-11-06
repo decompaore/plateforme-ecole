@@ -33,6 +33,8 @@ const TUILES: Tuile[] = [
   { titre: 'Mes interpellations', texte: 'Rappels et demandes d’explication de la direction, vos réponses', lien: '/progression/interpellations', roles: ['ENSEIGNANT'], module: 'PROGRESSION' },
   { titre: 'Interpellations', texte: 'Enseignants en retard sur le programme : rappels, demandes d’explication', lien: '/progression/interpellations', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX'], module: 'PROGRESSION' },
   { titre: 'Cahiers de textes', texte: 'Visa mensuel par classe et par matière', lien: '/progression/cahiers', roles: ['CENSEUR', 'CHEF_TRAVAUX'], module: 'PROGRESSION' },
+  { titre: 'Mes heures', texte: 'Volume dû, réalisé au cahier de textes, reste à faire', lien: '/progression/mes-heures', roles: ['ENSEIGNANT'], module: 'PROGRESSION' },
+  { titre: 'Bilan des heures', texte: 'Heures dues et réalisées par enseignant, classe et matière', lien: '/progression/heures', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX'], module: 'PROGRESSION' },
   { titre: 'Emplois du temps', texte: 'Grille par classe, enseignant, atelier ; génération', lien: '/emploi-du-temps', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SURVEILLANT'], module: 'EMPLOIS_DU_TEMPS' },
   { titre: 'Mon emploi du temps', texte: 'Mes cours de la semaine', lien: '/emploi-du-temps/mon-emploi', roles: ['ENSEIGNANT'], module: 'EMPLOIS_DU_TEMPS' },
   { titre: 'Ateliers', texte: 'Responsables, équipements, pannes, matière d’œuvre, inventaires', lien: '/ateliers', roles: ['CHEF_TRAVAUX', 'ADMIN_ECOLE', 'ENSEIGNANT'], module: 'ATELIERS' },

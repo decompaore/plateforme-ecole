@@ -1,5 +1,6 @@
 import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { Provider } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
@@ -34,7 +35,7 @@ export function reponse(sub = 'u1', n = 1, autres: Partial<ReponseConnexion> = {
   };
 }
 
-export function configurer(): { http: HttpTestingController; stockage: StockageMemoire } {
+export function configurer(autres: Provider[] = []): { http: HttpTestingController; stockage: StockageMemoire } {
   const stockage = new StockageMemoire();
   // Repart d'un module propre même si le test précédent a échoué avant son nettoyage
   TestBed.resetTestingModule();
@@ -44,6 +45,7 @@ export function configurer(): { http: HttpTestingController; stockage: StockageM
       provideHttpClient(withInterceptors([jetonInterceptor])),
       provideHttpClientTesting(),
       { provide: STOCKAGE, useValue: stockage },
+      ...autres,
     ],
   });
   return { http: TestBed.inject(HttpTestingController), stockage };

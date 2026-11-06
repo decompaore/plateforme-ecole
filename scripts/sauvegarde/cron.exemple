@@ -1,0 +1,7 @@
+# /etc/cron.d/plateforme-sauvegarde – sur le serveur de base de données (heure de Ouagadougou = UTC)
+MAILTO=exploitation@exemple.bf
+SAUVEGARDE_CONF=/etc/plateforme/sauvegarde.conf
+# Chaque nuit à 1 h 40 : sauvegarde chiffrée, rotation, copie hors site
+40 1 * * *  sauvegarde  /opt/plateforme/sauvegarde/sauvegarder.sh >> /var/log/plateforme-sauvegarde.log 2>&1
+# Le 2 de chaque mois à 3 h 10 : restauration de contrôle de la dernière sauvegarde
+10 3 2 * *  sauvegarde  /opt/plateforme/sauvegarde/verifier-restauration.sh >> /var/log/plateforme-sauvegarde.log 2>&1

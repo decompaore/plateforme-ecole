@@ -1,4 +1,4 @@
-# Application web (v0.49.1)
+# Application web (v0.50.0)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -475,6 +475,36 @@ connexion.
 - **Établissements → Données** (super administrateur) : même composant (`app-exports-donnees` avec
   `etablissementId`), pour un établissement actif, suspendu ou résilié.
 - Détails du contenu de l'archive : [API_REVERSIBILITE.md](API_REVERSIBILITE.md).
+
+## Bilan des heures (v0.50)
+
+- **Direction :** `progression/pages/bilan-heures.page.ts`, route `/progression/heures` (tuile « Bilan des heures »,
+  bouton depuis « Progressions »). Elle affiche :
+  - les chiffres clés ;
+  - les regroupements par enseignant, classe et matière, puis le détail ;
+  - la jauge du réalisé avec le repère du dû à ce jour ;
+  - les exports Excel et PDF.
+- **Enseignant :** même page avec la donnée de route `mien: true`, route `/progression/mes-heures` (tuile « Mes heures »).
+- **Programme d'une classe :** colonne « H / an » pour tous les profils, bouton « ⇉ » pour reporter le volume
+  annuel sur les classes de la même filière et du même niveau.
+- **Tests :** `progression/bilan-heures.spec.ts`.
+
+## Notifications aux parents (v0.50)
+
+- **Parent :** `parent/pages/notifications.page.ts`, route `/parent/notifications`. Bouton « Notifications » avec
+  le nombre de non lues sur « Mes enfants ». La page regroupe :
+  - l'activation sur le téléphone, avec `SwPush.requestSubscription` (service worker Angular), qui affiche la
+    notification et ouvre la fiche de l'enfant au toucher (`onActionClick`) ;
+  - l'essai et la désactivation ;
+  - les explications pour iPhone et pour les notifications refusées ;
+  - les préférences et les notifications reçues.
+- **Vie scolaire :** onglet « Familles » (`vie-scolaire/pages/notifications-familles.page.ts`) : délai de
+  correction, retards par SMS, derniers SMS.
+- **Dossier d'un élève :** choix du canal de chaque parent (application sinon SMS, ou toujours par SMS).
+- **Tests :**
+  - `parent/notifications.spec.ts` ;
+  - `vie-scolaire/notifications-familles.spec.ts` ;
+  - `outils-test.configurer()` accepte des fournisseurs supplémentaires (ex. un `SwPush` simulé).
 
 ## Professeur principal (v0.49.1)
 

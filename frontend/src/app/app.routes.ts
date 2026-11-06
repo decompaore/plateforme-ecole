@@ -372,6 +372,12 @@ export const routes: Routes = [
             loadComponent: () => import('./parent/pages/enfants.page').then((m) => m.EnfantsPage),
           },
           {
+            // Notifications dans l'application (v0.50) : activation, préférences, notifications reçues
+            path: 'notifications',
+            title: 'Notifications',
+            loadComponent: () => import('./parent/pages/notifications.page').then((m) => m.NotificationsParentPage),
+          },
+          {
             path: 'enfants/:eleveId',
             title: 'Suivi de mon enfant',
             loadComponent: () => import('./parent/pages/enfant.page').then((m) => m.EnfantPage),
@@ -451,6 +457,20 @@ export const routes: Routes = [
             canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX')],
             title: 'Suivi des progressions',
             loadComponent: () => import('./progression/pages/suivi-progressions.page').then((m) => m.SuiviProgressionsPage),
+          },
+          {
+            // Bilan des heures dues et réalisées (v0.50)
+            path: 'heures',
+            canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX')],
+            title: 'Bilan des heures',
+            loadComponent: () => import('./progression/pages/bilan-heures.page').then((m) => m.BilanHeuresPage),
+          },
+          {
+            path: 'mes-heures',
+            canActivate: [role('ENSEIGNANT')],
+            title: 'Mes heures',
+            data: { mien: true },
+            loadComponent: () => import('./progression/pages/bilan-heures.page').then((m) => m.BilanHeuresPage),
           },
           {
             // Visa mensuel des cahiers de textes (v0.47)
@@ -657,6 +677,12 @@ export const routes: Routes = [
             path: 'classes',
             title: 'Vie scolaire · Classes',
             loadComponent: () => import('./vie-scolaire/pages/classe-vs.page').then((m) => m.ClasseVsPage),
+          },
+          {
+            // Notifications aux familles (v0.50) : délai de correction, retards par SMS, suivi des SMS
+            path: 'notifications',
+            title: 'Notifications aux familles',
+            loadComponent: () => import('./vie-scolaire/pages/notifications-familles.page').then((m) => m.NotificationsFamillesPage),
           },
           {
             path: 'convocations',

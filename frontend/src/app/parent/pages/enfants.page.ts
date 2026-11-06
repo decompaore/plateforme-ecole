@@ -23,7 +23,12 @@ interface Carte {
   imports: [RouterLink],
   template: `
     <div class="page">
-      <h1>Mes enfants</h1>
+      <div class="entete-section">
+        <h1>Mes enfants</h1>
+        <a class="bouton secondaire petit" routerLink="/parent/notifications">
+          Notifications@if (nonLues() > 0) { <span class="badge" [attr.aria-label]="nonLues() + ' non lue(s)'">{{ nonLues() }}</span> }
+        </a>
+      </div>
 
       @if (horsLigne(); as le) {
         <div class="alerte attention" role="status">Pas de réseau : situation du {{ dateHeureCourte(le) }}.</div>
@@ -64,6 +69,18 @@ interface Carte {
     </div>
   `,
   styles: `
+    .badge {
+      display: inline-block;
+      min-width: 1.3rem;
+      margin-left: 0.35rem;
+      padding: 0 0.35rem;
+      border-radius: 999px;
+      background: var(--absent);
+      color: #fff;
+      font-size: 0.8rem;
+      line-height: 1.3rem;
+      text-align: center;
+    }
     .enfant {
       display: block;
       color: inherit;
@@ -110,11 +127,14 @@ export class EnfantsPage implements OnInit {
   protected readonly erreur = signal<string | null>(null);
   /** Date de la copie affichée quand le serveur est injoignable. */
   protected readonly horsLigne = signal<string | null>(null);
+  /** Notifications non lues (v0.50) ; 0 hors ligne. */
+  protected readonly nonLues = signal(0);
 
   async ngOnInit(): Promise<void> {
     try {
       const enfants = await this.api.enfants();
       this.noter(enfants);
+      void this.api.centreNotifications().then((c) => this.nonLues.set(c.nonLues), () => undefined);
       this.cartes.set(enfants.donnees.map((enfant) => ({ enfant, indicateurs: [], convocation: null })));
       // Les résumés arrivent ensuite, enfant par enfant ; une erreur n'empêche pas les autres
       await Promise.all(enfants.donnees.map((e) => this.resumer(e)));

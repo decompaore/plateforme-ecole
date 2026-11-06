@@ -153,6 +153,36 @@ public class ClassesService {
         return vue(matieresDeClasse.save(cm), matiere);
     }
 
+    /**
+     * Reporte le volume horaire annuel du référentiel sur toutes les classes de l'année d'une même
+     * filière et d'un même niveau qui ont la matière à leur programme (v0.50). Rend le nombre de
+     * classes mises à jour.
+     */
+    @Transactional
+    public int appliquerVolumeAnnuel(UUID anneeId, UUID filiereId, String niveau, UUID matiereId, BigDecimal volume) {
+        AnneeScolaire annee = annees.chargerModifiable(anneeId);
+        Matiere matiere = matieres.findById(matiereId)
+                .orElseThrow(() -> new RessourceIntrouvableException("Matière introuvable"));
+        chargerFiliere(filiereId);
+        int n = 0;
+        for (Classe c : classes.findByAnneeIdOrderByCodeAsc(anneeId)) {
+            if (!c.getFiliereId().equals(filiereId) || (niveau != null && !niveau.isBlank()
+                    && !c.getNiveau().equalsIgnoreCase(niveau.strip()))) {
+                continue;
+            }
+            var cm = matieresDeClasse.findByClasseIdAndMatiereId(c.getId(), matiereId);
+            if (cm.isPresent()) {
+                ClasseMatiere m = cm.get();
+                m.definir(m.getCoefficient(), m.getGroupe(), m.getVolumeHebdo(), volume);
+                matieresDeClasse.save(m);
+                n++;
+            }
+        }
+        audit.enregistrer("VOLUME_ANNUEL_APPLIQUE", annee.getLibelle() + " / " + matiere.getCode() + " : " + volume
+                + " h sur " + n + " classe(s)", null);
+        return n;
+    }
+
     @Transactional
     public void retirerMatiere(UUID classeId, UUID matiereId) {
         Classe classe = charger(classeId);
