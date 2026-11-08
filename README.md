@@ -66,6 +66,7 @@ Pour travailler avec Eclipse, suivre [docs/GUIDE_ECLIPSE.md](docs/GUIDE_ECLIPSE.
 | [docs/API_VIE_SCOLAIRE.md](docs/API_VIE_SCOLAIRE.md) | Retards, avertissements, blâmes, exclusions temporaires, convocations, historique, espace parent |
 | [docs/API_STATISTIQUES.md](docs/API_STATISTIQUES.md) | Statistiques de rentrée, personnel, recouvrement, résultats, export Excel |
 | [docs/API_BESOINS_DOTATIONS.md](docs/API_BESOINS_DOTATIONS.md) | Besoins et dotations (v0.48) : état annuel des besoins de l'établissement, remontée et arbitrage par les directions jusqu'au niveau central, dotations descendantes et accusés de réception |
+| [docs/API_PERSONNEL.md](docs/API_PERSONNEL.md) | Dossier administratif du personnel (v0.51) : enseignants, administratifs et agents de soutien, ancienneté, diplômes, pièces, actes signés par le chef d'établissement, congés et absences, « Mon dossier » |
 | [docs/API_BILAN_HEURES.md](docs/API_BILAN_HEURES.md) | Bilan des heures (v0.50) : volume annuel du référentiel, dû à ce jour, réalisé au cahier de textes, reste et taux par enseignant, matière et classe ; exports |
 | [docs/API_NOTIFICATIONS_PARENTS.md](docs/API_NOTIFICATIONS_PARENTS.md) | Notifications aux parents (v0.50) : absences et retards dans l'application (Web Push), SMS pour les parents sans smartphone, délai de correction, centre de notifications |
 | [docs/SAUVEGARDES.md](docs/SAUVEGARDES.md) | Sauvegardes chiffrées, rotation, copie hors site, sauvegarde de clôture d'année, restauration et contrôle mensuel (v0.50) |

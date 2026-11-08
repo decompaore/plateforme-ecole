@@ -52,6 +52,8 @@ const TUILES: Tuile[] = [
   { titre: 'Professeurs principaux', texte: 'Désignation par classe, vérification des notes, dossiers transmis', lien: '/professeurs-principaux', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SURVEILLANT'] },
   { titre: 'Commission de recrutement', texte: 'Complément d’effectif : places, candidatures, classement, procès-verbal, inscription', lien: '/recrutement', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'SURVEILLANT', 'INTENDANT'] },
   { titre: 'Statistiques', texte: 'Effectifs, bourses, recouvrement, résultats', lien: '/admin/statistiques', roles: ['ADMIN_ECOLE', 'CENSEUR', 'SECRETARIAT', 'INTENDANT'] },
+  { titre: 'Dossiers du personnel', texte: 'Situation administrative, ancienneté, diplômes, actes, congés et absences', lien: '/personnel', roles: ['ADMIN_ECOLE', 'SECRETARIAT', 'CENSEUR'] },
+  { titre: 'Mon dossier', texte: 'Ma situation administrative, mes actes, mes demandes d\'absence', lien: '/mon-dossier', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SECRETARIAT', 'INTENDANT', 'SURVEILLANT', 'ENSEIGNANT'] },
   { titre: 'Secrétariat', texte: 'Courrier, documents à signer, demandes du personnel, accueil, réunions, archives, certificats', lien: '/secretariat', roles: ['ADMIN_ECOLE', 'SECRETARIAT'] },
   { titre: 'Courrier', texte: 'Courrier transmis à votre service', lien: '/secretariat/courrier', roles: ['CENSEUR', 'CHEF_TRAVAUX', 'INTENDANT', 'SURVEILLANT'] },
   { titre: "Tableau d'affichage", texte: 'Notes de service, communiqués, convocations ; mes demandes', lien: '/affichage', roles: ['ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SECRETARIAT', 'INTENDANT', 'SURVEILLANT', 'ENSEIGNANT', 'PARENT'] },
