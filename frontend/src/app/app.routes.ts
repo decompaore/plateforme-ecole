@@ -136,6 +136,37 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/affichage.page').then((m) => m.AffichagePage),
       },
       {
+        // Dossier administratif du personnel (v0.51) : dossiers, actes, congés et absences
+        path: 'personnel',
+        canActivate: [role('ADMIN_ECOLE', 'SECRETARIAT', 'CENSEUR')],
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            title: 'Personnel',
+            loadComponent: () => import('./personnel/pages/personnel.page').then((m) => m.PersonnelPage),
+          },
+          {
+            path: 'absences',
+            title: 'Congés et absences du personnel',
+            loadComponent: () => import('./personnel/pages/absences-personnel.page').then((m) => m.AbsencesPersonnelPage),
+          },
+          {
+            path: ':id',
+            title: 'Dossier du personnel',
+            loadComponent: () => import('./personnel/pages/dossier-agent.page').then((m) => m.DossierAgentPage),
+          },
+        ],
+      },
+      {
+        // « Mon dossier » de chaque membre du personnel (v0.51)
+        path: 'mon-dossier',
+        canActivate: [role('ADMIN_ECOLE', 'CENSEUR', 'CHEF_TRAVAUX', 'SECRETARIAT', 'INTENDANT', 'SURVEILLANT', 'ENSEIGNANT')],
+        title: 'Mon dossier',
+        data: { mien: true },
+        loadComponent: () => import('./personnel/pages/dossier-agent.page').then((m) => m.DossierAgentPage),
+      },
+      {
         // Secrétariat (v0.47.1) : courrier, documents, demandes du personnel, accueil, réunions, archives, certificats
         path: 'secretariat',
         canActivate: [role('ADMIN_ECOLE', 'SECRETARIAT', 'CENSEUR', 'CHEF_TRAVAUX', 'INTENDANT', 'SURVEILLANT', 'ENSEIGNANT')],

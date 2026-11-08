@@ -1,4 +1,4 @@
-# Application web (v0.50.0)
+# Application web (v0.51.0)
 
 Application Angular 22 installable sur smartphone (PWA). Elle couvre :
 
@@ -475,6 +475,24 @@ connexion.
 - **Établissements → Données** (super administrateur) : même composant (`app-exports-donnees` avec
   `etablissementId`), pour un établissement actif, suspendu ou résilié.
 - Détails du contenu de l'archive : [API_REVERSIBILITE.md](API_REVERSIBILITE.md).
+
+## Dossiers du personnel (v0.51)
+
+- **Liste :** `personnel/pages/personnel.page.ts`, route `/personnel` (tuile « Dossiers du personnel »). Elle
+  regroupe :
+  - la liste par catégorie ;
+  - l'ouverture des dossiers des comptes qui n'en ont pas ;
+  - l'ajout d'un agent sans compte.
+- **Dossier :** `personnel/pages/dossier-agent.page.ts`, route `/personnel/:id`. Les rubriques sont :
+  - identité et carrière, avec la modification ;
+  - diplômes ;
+  - pièces (dépôt multipart, téléchargement) ;
+  - actes (préparation, signature, annulation, PDF) ;
+  - congés et absences ;
+  - signalements.
+- **Mon dossier :** même page avec la donnée de route `mien: true`, route `/mon-dossier`.
+- **Congés et absences :** `personnel/pages/absences-personnel.page.ts`, route `/personnel/absences`.
+- **Tests :** `personnel/personnel.spec.ts`.
 
 ## Bilan des heures (v0.50)
 
